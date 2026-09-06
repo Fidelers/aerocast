@@ -29,6 +29,15 @@ aerocast/
     │   ├── dbService.js            # работа с PostgreSQL (SQL-запросы)
     │   ├── gridService.js          # расчёт сетки координат
     │   └── owmService.js           # внешнее API OpenWeatherMap
+    ├── tests/                      # unit-тесты (по слоям кода)
+    │   ├── controllers/
+    │   │   └── airController.test.js
+    │   ├── routes/
+    │   │   └── api.test.js
+    │   └── services/
+    │       ├── dbService.test.js
+    │       ├── gridService.test.js
+    │       └── owmService.test.js
     ├── .env.example                # шаблон переменных окружения
     ├── server.js                   # точка входа
     └── package.json
@@ -84,7 +93,6 @@ cd server
 copy .env.example .env
 ```
 
-
 Откройте `server/.env` и заполните как минимум параметры подключения к PostgreSQL (`DB_USER`, `DB_PASSWORD`, `DB_NAME`). Порт бэкенда задаёт `PORT` (по умолчанию `3000`). Ключ шифрования `ENCRYPTION_KEY` можно сгенерировать командой `openssl rand -hex 32`.
 
 ## Запуск
@@ -119,5 +127,26 @@ npm run dev
 ```
 
 Откройте в браузере адрес из вывода (по умолчанию `http://localhost:5173`). На странице блок «Тест связи» должен показать ответ бэкенда — это подтверждает, что фронт и бек связаны. CORS на бэкенде уже настроен.
+
+## Тестирование (unit-тесты)
+
+Место под unit-тесты подготовлено на бэкенде — папка `server/tests/`. Файлы тестов разложены по слоям кода, к которому относятся:
+
+| Файл                                              | Что тестируется                                |
+|---------------------------------------------------|------------------------------------------------|
+| `server/tests/routes/api.test.js`                 | Маршруты (`routes/api.js`)                     |
+| `server/tests/controllers/airController.test.js`  | Контроллер (`controllers/airController.js`)    |
+| `server/tests/services/dbService.test.js`         | Сервис работы с БД (`services/dbService.js`)   |
+| `server/tests/services/gridService.test.js`       | Расчёт сетки точек (`services/gridService.js`) |
+| `server/tests/services/owmService.test.js`        | Внешнее API (`services/owmService.js`)         |
+
+Запуск тестов из папки `server/`:
+
+```bash
+cd server
+npm test
+```
+
+> Сейчас в `server/package.json` скрипт `test` — заглушка, а сами тестовые файлы пустые. Команда заработает после подключения тест-раннера (например, Jest) и написания проверок.
 
 
