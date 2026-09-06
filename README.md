@@ -13,9 +13,28 @@
 
 ```
 aerocast/
-├── frontend/   # React-приложение (Vite)
-└── server/     # Express-бэкенд
+├── frontend/                       # React-приложение (Vite)
+│   └── src/
+│       ├── components/             # React-компоненты
+│       ├── App.jsx
+│       └── main.jsx
+└── server/                         # Express-бэкенд
+    ├── config/
+    │   └── db.js                   # настройки подключения к БД
+    ├── controllers/
+    │   └── airController.js        # логика обработки запросов
+    ├── routes/
+    │   └── api.js                  # маршруты /api/*
+    ├── services/
+    │   ├── dbService.js            # работа с PostgreSQL (SQL-запросы)
+    │   ├── gridService.js          # расчёт сетки координат
+    │   └── owmService.js           # внешнее API OpenWeatherMap
+    ├── .env.example                # шаблон переменных окружения
+    ├── server.js                   # точка входа
+    └── package.json
 ```
+
+Архитектура сервера: запрос приходит в `routes/api.js` → контроллер (`controllers/`) → сервисы (`services/`): БД, расчёт сетки точек и внешнее API.
 
 ## Установка зависимостей
 
@@ -56,7 +75,17 @@ npm install react react-dom
 cd ..
 ```
 
+## Настройка окружения (переменные)
 
+Бэкенд читает настройки из переменных окружения (порт, БД PostgreSQL и др.). Файла `.env` в репозитории нет — создайте его из шаблона:
+
+```bash
+cd server
+copy .env.example .env
+```
+
+
+Откройте `server/.env` и заполните как минимум параметры подключения к PostgreSQL (`DB_USER`, `DB_PASSWORD`, `DB_NAME`). Порт бэкенда задаёт `PORT` (по умолчанию `3000`). Ключ шифрования `ENCRYPTION_KEY` можно сгенерировать командой `openssl rand -hex 32`.
 
 ## Запуск
 
@@ -69,7 +98,16 @@ cd server
 node server.js
 ```
 
-Сервер поднимется на `http://localhost:3000`. Проверить: откройте в браузере `http://localhost:3000/ping` — должен вернуться JSON `{ "message": "Бэкенд на связи!" }`.
+Сервер поднимется на `http://localhost:3000` (или на порту из `PORT` в `server/.env`). Проверить: откройте в браузере `http://localhost:3000/ping` — должен вернуться JSON `{ "message": "Бэкенд на связи!" }`.
+
+Доступные маршруты:
+
+| Метод | Путь          | Назначение                     |
+|-------|---------------|--------------------------------|
+| GET   | `/ping`       | Проверка, что сервер работает  |
+| GET   | `/api/air`    | Данные о качестве воздуха      |
+
+`GET /api/air` сейчас — заглушка (отвечает `501`), логика ещё в разработке.
 
 ### 2. Фронтенд
 
