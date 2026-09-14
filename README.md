@@ -18,7 +18,9 @@ aerocast/
 │   └── src/
 │       ├── assets/                 # Картинки (hero, svg)
 │       ├── components/
-│       │   └── Test.jsx            # Проверка связи с бэкендом (/ping)
+│       │   ├── Test.jsx            # Проверка связи с бэкендом (/ping)
+        │   ├── Slidebar.jsx        # Боковая панель: поиск, переключатели
+        │   ├── MapComponent.jsx    # Карта и отрисовка данных
 │       ├── App.jsx                 # Главный компонент
 │       ├── main.jsx                # Точка входа React
 │       ├── App.css
