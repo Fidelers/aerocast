@@ -15,17 +15,17 @@
 aerocast/
 ├── frontend/                       # React-приложение (Vite)
 │   ├── public/                     # Статика (favicon, иконки)
-│   └── src/
-│       ├── assets/                 # Картинки (hero, svg)
-│       ├── components/
-│       │   ├── Test.jsx            # Проверка связи с бэкендом (/ping)
-│       │   ├── Slidebar.jsx        # Боковая панель: поиск, переключатели
-│       │   └── MapComponent.jsx    # Карта и отрисовка данных
-│       ├── App.jsx                 # Главный компонент
-│       ├── main.jsx                # Точка входа React
-│       ├── types.js                # Типы и вспомогательные функции
-│       ├── App.css
-│       └── index.css
+│   ├── src/
+│   │   ├── assets/                 # Картинки (hero, svg)
+│   │   ├── components/
+│   │   │   ├── Test.jsx            # Проверка связи с бэкендом (/ping)
+│   │   │   ├── Slidebar.jsx        # Боковая панель: поиск, переключатели
+│   │   │   └── MapComponent.jsx    # Карта и отрисовка данных
+│   │   ├── App.jsx                 # Главный компонент
+│   │   ├── main.jsx                # Точка входа React
+│   │   ├── types.js                # Типы и вспомогательные функции
+│   │   ├── App.css
+│   │   └── index.css
 │   ├── index.html
 │   └── package.json
 └── server/                         # Серверная часть (Express)
