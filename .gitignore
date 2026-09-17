@@ -2,3 +2,4 @@
 .idea
 /server/.idea
 /server/node_modules/
+/SECRETS
