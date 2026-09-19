@@ -32,8 +32,11 @@ describe('Service: historyService', () => {
                 longitude: 37.61,
                 used_source: 'open-meteo',
                 hourly: {
-                    // Имитируем один час в прошлом (11:00) и один в будущем (13:00) относительно 12:00
-                    time: ['2026-09-19T11:00', '2026-09-19T13:00'],
+                    // Почасовые метки ответа живут в часовом поясе Europe/Moscow.
+                    // «Сейчас» в тесте: 2026-09-19T12:00:00Z = 15:00 по Москве.
+                    // 11:00 по Москве (08:00 UTC)   — уже прошлый час (сохраняем);
+                    // 16:00 по Москве (13:00 UTC)   — ещё будущий час (не сохраняем).
+                    time: ['2026-09-19T11:00', '2026-09-19T16:00'],
                     pm10: [15, 20],
                     pm2_5: [10, 12]
                 }
@@ -41,13 +44,14 @@ describe('Service: historyService', () => {
 
             await historyService.saveFromResponse(mockData);
 
-            // Проверяем, что INSERT был вызван только для прошлого часа (11:00)
-            expect(mockDb.run).toHaveBeenCalledWith(
-                expect.stringContaining('INSERT OR IGNORE INTO air_quality_history'),
-                expect.any(Array)
-            );
+            // В архив должен попасть только прошлый час (11:00 МСК).
+            // Отфильтровываем INSERT-вызовы, чтобы не смешивать их с DELETE-очисткой.
+            const insertCalls = mockDb.run.mock.calls.filter(([sql]) => String(sql).includes('INSERT OR IGNORE'));
+            expect(insertCalls).toHaveLength(1);
+            // Параметры вставки: (latitude, longitude, timestamp, pollutant_data, source)
+            expect(insertCalls[0][1]).toEqual(expect.arrayContaining([55.75, 37.61]));
 
-            // Проверяем очистку старых данных
+            // Проверяем очистку старых данных (старше 7 суток)
             const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
             expect(mockDb.run).toHaveBeenCalledWith(
                 'DELETE FROM air_quality_history WHERE timestamp < ?',
