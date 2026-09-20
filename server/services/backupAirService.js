@@ -1,27 +1,11 @@
 // services/backupAirService.js — резервный источник данных о качестве воздуха
 const axios = require('axios');
 const aqiCalculator = require('./aqiCalculator');
+const timeUtils = require('./timeUtils');
 
 const TIMEOUT_MS = 1000;
 const TIMEZONE = 'Europe/Moscow';
 const UTC_OFFSET_SECONDS = 10800;
-
-// Приводит Unix-время (секунды, UTC) к строке "ГГГГ-ММ-ДДTЧЧ:00" в часовом поясе Europe/Moscow
-function formatIsoHour(unixSeconds) {
-    const date = new Date(unixSeconds * 1000);
-    const parts = new Intl.DateTimeFormat('sv-SE', {
-        timeZone: TIMEZONE,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hourCycle: 'h23'
-    }).formatToParts(date);
-
-    const get = (type) => parts.find((part) => part.type === type).value;
-    return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
-}
 
 // Извлекает показатели из item.components, отсутствующие заменяет на 0
 function extractComponents(components) {
@@ -63,7 +47,7 @@ async function fetchAirQuality(lat, lon) {
         for (const item of list) {
             const { pm10, pm2_5, co, no2, so2, o3 } = extractComponents(item.components);
 
-            hourly.time.push(formatIsoHour(item.dt));
+            hourly.time.push(timeUtils.formatIsoHour(item.dt));
             hourly.pm10.push(pm10);
             hourly.pm2_5.push(pm2_5);
             hourly.carbon_monoxide.push(co);
