@@ -15,7 +15,7 @@ describe('Service: backupAirService.fetchAirQuality', () => {
 
     beforeEach(() => {
         // Изолируем переменные окружения перед каждым тестом
-        process.env = { ...originalEnv, OPEN_WEATHER_MAP_KEY: mockApiKey };
+        process.env = { ...originalEnv, BACKUP_API_KEY: mockApiKey };
     });
 
     afterEach(() => {
@@ -25,7 +25,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
 
     describe('Конфигурация и валидация окружения', () => {
         it('должен бросать ошибку, если API ключ отсутствует', async () => {
-            delete process.env.OPEN_WEATHER_MAP_KEY;
             delete process.env.BACKUP_API_KEY;
 
             await expect(backupAirService.fetchAirQuality(lat, lon))
