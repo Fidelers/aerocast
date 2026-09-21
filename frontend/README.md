@@ -11,4 +11,6 @@ npm run dev      # режим разработки (http://localhost:5173)
 npm run build    # production-сборка
 npm run preview  # предпросмотр production-сборки
 npm run lint     # проверка ESLint
+npm test         # прогон тестов (Vitest)
+npm run test:watch  # тесты в режиме watch
 ```
