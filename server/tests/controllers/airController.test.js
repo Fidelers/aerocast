@@ -92,6 +92,44 @@ describe('Controller: airController.getAirQuality', () => {
             expect(res.json).toHaveBeenCalledWith({ error: 'Missing lat or lon parameters' });
         });
 
+        it('должен возвращать 400, если lat выходит за пределы [-90, 90]', async () => {
+            req.query = { lat: '95', lon: '37.61', source: 'auto' };
+
+            await airController.getAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Missing lat or lon parameters' });
+        });
+
+        it('должен возвращать 400, если lon выходит за пределы [-180, 180]', async () => {
+            req.query = { lat: '55.75', lon: '190', source: 'auto' };
+
+            await airController.getAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Missing lat or lon parameters' });
+        });
+
+        it('должен возвращать 400 при передаче невалидного source', async () => {
+            req.query = { lat: '55.75', lon: '37.61', source: 'unknown_source' };
+
+            await airController.getAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Invalid source parameter' });
+        });
+
+        it('должен использовать source = auto по умолчанию, если параметр source опущен', async () => {
+            req.query = { lat: '55.75', lon: '37.61' };
+            const primaryData = { latitude: lat, longitude: lon, used_source: 'open-meteo' };
+            primaryAirService.fetchAirQuality.mockResolvedValue(primaryData);
+
+            await airController.getAirQuality(req, res);
+
+            expect(cacheService.getCache).toHaveBeenCalledWith('air_auto_55.75_37.61', false);
+            expect(primaryAirService.fetchAirQuality).toHaveBeenCalledWith(lat, lon);
+        });
+
         it('не должен обращаться к кэшу и источникам при ошибке валидации', async () => {
             req.query = { lon: '37.61', source: 'auto' };
 
@@ -211,7 +249,18 @@ describe('Controller: airController.getAirQuality', () => {
             expect(backupAirService.fetchAirQuality).toHaveBeenCalledWith(lat, lon);
             expect(cacheService.setCache).toHaveBeenCalledWith('air_auto_55.75_37.61', backupData, 3600);
             expect(historyService.saveFromResponse).toHaveBeenCalledWith(backupData);
+            expect(historyService.mergeWithFresh).toHaveBeenCalledWith(backupData, lat, lon);
             expect(res.json).toHaveBeenCalledWith(backupData);
+        });
+
+        it('должен успешно отвечать клиенту (200), даже если фоновое сохранение архива упало', async () => {
+            const primaryData = { latitude: lat, longitude: lon, used_source: 'open-meteo' };
+            primaryAirService.fetchAirQuality.mockResolvedValue(primaryData);
+            historyService.saveFromResponse.mockRejectedValue(new Error('db locked'));
+
+            await airController.getAirQuality(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(primaryData);
         });
     });
 
@@ -242,12 +291,12 @@ describe('Controller: airController.getAirQuality', () => {
             expect(res.json).toHaveBeenCalledWith({ ...staleData, used_source: 'offline_database' });
         });
 
-        it('должен отдать последнюю запись архива с меткой offline_database, если нет и устаревшего кэша', async () => {
+        it('должен отдать последнюю запись архива в нормализованном формате с меткой offline_database, если нет и устаревшего кэша', async () => {
             const latestRecord = {
                 id: 1,
                 latitude: lat,
                 longitude: lon,
-                timestamp: 1780000000000,
+                timestamp: 1789862400000,
                 pollutant_data: '{"european_aqi":42,"pm10":30}',
                 source: 'open-meteo'
             };
@@ -259,7 +308,15 @@ describe('Controller: airController.getAirQuality', () => {
             await airController.getAirQuality(req, res);
 
             expect(historyService.getLatest).toHaveBeenCalledWith(lat, lon);
-            expect(res.json).toHaveBeenCalledWith({ ...latestRecord, used_source: 'offline_database' });
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                latitude: lat,
+                longitude: lon,
+                used_source: 'offline_database',
+                hourly: expect.objectContaining({
+                    european_aqi: [42],
+                    pm10: [30]
+                })
+            }));
         });
 
         it('должен возвращать 500, если нет ни источников, ни кэша, ни архива', async () => {

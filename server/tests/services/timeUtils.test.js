@@ -1,4 +1,4 @@
-// tests/controllers/timeUtils.test.js — тесты утилит работы со временем
+// tests/services/timeUtils.test.js — тесты утилит работы со временем
 const timeUtils = require('../../services/timeUtils');
 
 describe('Service: timeUtils', () => {

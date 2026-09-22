@@ -114,17 +114,85 @@ describe('Service: cacheService', () => {
     });
 
     describe('clear()', () => {
-        it('должен удалять конкретный ключ, если он передан', async () => {
-            await cacheService.clear('some_key');
+        it('должен удалять конкретный ключ, если он передан, и возвращать число удалённых записей', async () => {
+            mockDb.run.mockResolvedValue({ changes: 1 });
+            const count = await cacheService.clear('some_key');
             expect(mockDb.run).toHaveBeenCalledWith(
                 'DELETE FROM api_cache WHERE key = ?',
                 ['some_key']
             );
+            expect(count).toBe(1);
         });
 
-        it('должен очищать всю таблицу, если ключ не передан', async () => {
-            await cacheService.clear();
+        it('должен очищать всю таблицу, если ключ не передан, и возвращать число удалённых записей', async () => {
+            mockDb.run.mockResolvedValue({ changes: 5 });
+            const count = await cacheService.clear();
             expect(mockDb.run).toHaveBeenCalledWith('DELETE FROM api_cache');
+            expect(count).toBe(5);
+        });
+    });
+
+    describe('In-memory fallback (деградация во in-memory Map при отказе БД)', () => {
+        beforeEach(() => {
+            // Имитируем недоступность базы данных
+            dbConfig.getDB.mockReturnValue(null);
+        });
+
+        it('должен сохранять и извлекать данные из памяти при недоступности БД', async () => {
+            const key = 'in_mem_key';
+            const data = { temp: 15 };
+
+            await cacheService.setCache(key, data, 3600);
+            const cached = await cacheService.getCache(key);
+
+            expect(cached).toEqual(data);
+        });
+
+        it('должен возвращать null для просроченной записи из памяти при ignoreTTL = false', async () => {
+            const key = 'in_mem_expired';
+            const data = { temp: 18 };
+
+            await cacheService.setCache(key, data, 10); // 10 секунд
+            jest.advanceTimersByTime(11000); // Проматываем 11 секунд
+
+            const cached = await cacheService.getCache(key, false);
+            expect(cached).toBeNull();
+        });
+
+        it('должен возвращать просроченную запись из памяти при ignoreTTL = true (офлайн-резерв)', async () => {
+            const key = 'in_mem_stale';
+            const data = { temp: 22 };
+
+            await cacheService.setCache(key, data, 10);
+            jest.advanceTimersByTime(11000);
+
+            const cached = await cacheService.getCache(key, true);
+            expect(cached).toEqual(data);
+        });
+
+        it('должен корректно считать getCacheStats в режиме памяти', async () => {
+            await cacheService.setCache('valid_1', { a: 1 }, 3600);
+            await cacheService.setCache('valid_2', { b: 2 }, 3600);
+            await cacheService.setCache('exp_1', { c: 3 }, 5);
+            jest.advanceTimersByTime(10000);
+
+            const stats = await cacheService.getCacheStats();
+            expect(stats.expired).toBeGreaterThanOrEqual(1);
+            expect(stats.entries).toBeGreaterThanOrEqual(3);
+        });
+
+        it('должен удалять конкретный ключ и очищать память через clear()', async () => {
+            await cacheService.setCache('to_delete', { x: 1 }, 3600);
+            const deletedCount = await cacheService.clear('to_delete');
+            expect(deletedCount).toBe(1);
+
+            const check = await cacheService.getCache('to_delete');
+            expect(check).toBeNull();
+
+            await cacheService.setCache('rem_1', { x: 2 }, 3600);
+            await cacheService.setCache('rem_2', { x: 3 }, 3600);
+            const totalCleared = await cacheService.clear();
+            expect(totalCleared).toBeGreaterThanOrEqual(2);
         });
     });
 });

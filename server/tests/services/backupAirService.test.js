@@ -5,7 +5,9 @@ const aqiCalculator = require('../../services/aqiCalculator');
 const backupAirService = require('../../services/backupAirService');
 
 jest.mock('axios');
-jest.mock('../../services/aqiCalculator');
+jest.mock('../../services/aqiCalculator', () => ({
+    calculateEAQI: jest.fn()
+}));
 
 describe('Service: backupAirService.fetchAirQuality', () => {
     const lat = 53.7575;

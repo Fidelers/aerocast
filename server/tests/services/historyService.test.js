@@ -58,12 +58,45 @@ describe('Service: historyService', () => {
                 [sevenDaysAgo]
             );
         });
+
+        it('должен округлять координаты до 2 знаков при сохранении в архив', async () => {
+            const mockData = {
+                latitude: 55.756,
+                longitude: 37.614,
+                used_source: 'open-meteo',
+                hourly: {
+                    time: ['2026-09-19T11:00'],
+                    pm10: [15]
+                }
+            };
+
+            await historyService.saveFromResponse(mockData);
+
+            const insertCalls = mockDb.run.mock.calls.filter(([sql]) => String(sql).includes('INSERT OR IGNORE'));
+            expect(insertCalls).toHaveLength(1);
+            expect(insertCalls[0][1][0]).toBe(55.76);
+            expect(insertCalls[0][1][1]).toBe(37.61);
+        });
+
+        it('не должен выбрасывать исключение при сбое базы данных во время сохранения', async () => {
+            mockDb.run.mockRejectedValue(new Error('disk I/O error'));
+            const mockData = {
+                latitude: 55.75,
+                longitude: 37.61,
+                hourly: {
+                    time: ['2026-09-19T11:00'],
+                    pm10: [10]
+                }
+            };
+
+            await expect(historyService.saveFromResponse(mockData)).resolves.not.toThrow();
+        });
     });
 
     describe('getLatest()', () => {
-        it('должен возвращать последнюю запись из базы для заданных координат', async () => {
-            const lat = 55.75;
-            const lon = 37.61;
+        it('должен возвращать последнюю запись из базы для заданных координат с округлением до 2 знаков', async () => {
+            const lat = 55.756;
+            const lon = 37.614;
             const mockRecord = { id: 1, pollutant_data: '{"pm10": 10}' };
 
             mockDb.get.mockResolvedValue(mockRecord);
@@ -72,7 +105,7 @@ describe('Service: historyService', () => {
 
             expect(mockDb.get).toHaveBeenCalledWith(
                 'SELECT * FROM air_quality_history WHERE latitude = ? AND longitude = ? ORDER BY timestamp DESC LIMIT 1',
-                [lat, lon]
+                [55.76, 37.61]
             );
             expect(result).toEqual(mockRecord);
         });

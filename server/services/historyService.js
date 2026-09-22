@@ -46,26 +46,33 @@ async function saveFromResponse(data) {
     const source = used_source || 'unknown';
     const pollutants = Object.keys(hourly).filter((field) => field !== 'time');
 
-    for (let i = 0; i < hourly.time.length; i += 1) {
-        const timestamp = parseMoscowHourToMillis(hourly.time[i]);
-        // Только прошедшие часы
-        if (!Number.isFinite(timestamp) || timestamp >= now) continue;
+    const lat2 = Number(Number(latitude).toFixed(2));
+    const lon2 = Number(Number(longitude).toFixed(2));
 
-        const point = {};
-        for (const field of pollutants) {
-            const values = hourly[field];
-            if (Array.isArray(values)) point[field] = values[i];
+    try {
+        for (let i = 0; i < hourly.time.length; i += 1) {
+            const timestamp = parseMoscowHourToMillis(hourly.time[i]);
+            // Только прошедшие часы
+            if (!Number.isFinite(timestamp) || timestamp >= now) continue;
+
+            const point = {};
+            for (const field of pollutants) {
+                const values = hourly[field];
+                if (Array.isArray(values)) point[field] = values[i];
+            }
+            if (Object.keys(point).length === 0) continue;
+
+            await db.run(
+                'INSERT OR IGNORE INTO air_quality_history (latitude, longitude, timestamp, pollutant_data, source) VALUES (?, ?, ?, ?, ?)',
+                [lat2, lon2, timestamp, JSON.stringify(point), source]
+            );
         }
-        if (Object.keys(point).length === 0) continue;
 
-        await db.run(
-            'INSERT OR IGNORE INTO air_quality_history (latitude, longitude, timestamp, pollutant_data, source) VALUES (?, ?, ?, ?, ?)',
-            [latitude, longitude, timestamp, JSON.stringify(point), source]
-        );
+        // всё, что старше 7 суток, удаляем.
+        await db.run('DELETE FROM air_quality_history WHERE timestamp < ?', [now - SEVEN_DAYS_MS]);
+    } catch (error) {
+        // Ошибка архивирования не должна ронять приложение
     }
-
-    // всё, что старше 7 суток, удаляем.
-    await db.run('DELETE FROM air_quality_history WHERE timestamp < ?', [now - SEVEN_DAYS_MS]);
 }
 
 // Последняя запись для заданных координат.
@@ -73,10 +80,17 @@ async function getLatest(lat, lon) {
     const db = await getDbOrNull();
     if (!db) return null;
 
-    return db.get(
-        'SELECT * FROM air_quality_history WHERE latitude = ? AND longitude = ? ORDER BY timestamp DESC LIMIT 1',
-        [lat, lon]
-    );
+    const lat2 = Number(Number(lat).toFixed(2));
+    const lon2 = Number(Number(lon).toFixed(2));
+
+    try {
+        return await db.get(
+            'SELECT * FROM air_quality_history WHERE latitude = ? AND longitude = ? ORDER BY timestamp DESC LIMIT 1',
+            [lat2, lon2]
+        );
+    } catch (error) {
+        return null;
+    }
 }
 
 // Слияние свежих данных с архивом (приоритет у свежих).

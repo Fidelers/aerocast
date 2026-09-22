@@ -28,7 +28,8 @@ async function migrate(db) {
             longitude REAL,
             timestamp INTEGER,        
             pollutant_data TEXT,           
-            source TEXT
+            source TEXT,
+            UNIQUE(latitude, longitude, timestamp)
         );
     `);
     return db;
