@@ -275,4 +275,23 @@ describe('GET /ping', () => {
             expect(res.status).toBe(404);
         });
     });
+
+    describe('Инициализация маршрутов (ветвление)', () => {
+        it('должен монтировать airController.getAirData на GET /air, если метод реализован в контроллере', async () => {
+            let appWithAirData;
+            jest.isolateModules(() => {
+                const airCtrl = require('../../controllers/airController');
+                airCtrl.getAirData = jest.fn((req, res) => res.json({ message: 'custom air handler' }));
+                const freshApiRoutes = require('../../routes/api');
+                const testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+                appWithAirData = testApp;
+            });
+
+            const res = await request(appWithAirData).get('/api/air');
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ message: 'custom air handler' });
+        });
+    });
 });

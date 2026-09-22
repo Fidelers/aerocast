@@ -152,6 +152,57 @@ describe('Service: backupAirService.fetchAirQuality', () => {
             expect(result.hourly.european_aqi).toEqual([]);
             expect(aqiCalculator.calculateEAQI).not.toHaveBeenCalled();
         });
+
+        it('должен корректно обрабатывать случай, когда list не является массивом, а coord отсутствует', async () => {
+            axios.get.mockResolvedValue({
+                data: { list: null }
+            });
+
+            const result = await backupAirService.fetchAirQuality(lat, lon);
+
+            expect(result.latitude).toBe(lat);
+            expect(result.longitude).toBe(lon);
+            expect(result.hourly.time).toEqual([]);
+            expect(result.hourly.pm10).toEqual([]);
+        });
+
+        it('должен использовать фоллбэки координат, если coord пуст или содержит частичные данные', async () => {
+            axios.get.mockResolvedValue({
+                data: { coord: {}, list: [] }
+            });
+
+            const result = await backupAirService.fetchAirQuality(lat, lon);
+
+            expect(result.latitude).toBe(lat);
+            expect(result.longitude).toBe(lon);
+        });
+
+        it('должен подставлять нули, если item.components отсутствует (undefined/null)', async () => {
+            axios.get.mockResolvedValue({
+                data: {
+                    coord: { lat, lon },
+                    list: [
+                        { dt: 1704067200 } // components опущен
+                    ]
+                }
+            });
+
+            aqiCalculator.calculateEAQI.mockReturnValue(1);
+
+            const result = await backupAirService.fetchAirQuality(lat, lon);
+
+            expect(aqiCalculator.calculateEAQI).toHaveBeenCalledWith({
+                pm10: 0,
+                pm2_5: 0,
+                co: 0,
+                no2: 0,
+                so2: 0,
+                o3: 0
+            });
+            expect(result.hourly.pm10).toEqual([0]);
+            expect(result.hourly.pm2_5).toEqual([0]);
+            expect(result.hourly.carbon_monoxide).toEqual([0]);
+        });
     });
 
     describe('Обработка ошибок сети и API', () => {

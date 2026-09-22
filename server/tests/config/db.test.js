@@ -71,4 +71,38 @@ describe('Config: db', () => {
         expect(rows).toHaveLength(1);
         expect(JSON.parse(rows[0].pollutant_data)).toEqual({ pm10: 10 });
     });
+
+    it('должен использовать дефолтный путь к cache.db при отсутствии переменной DB_PATH', async () => {
+        delete process.env.DB_PATH;
+        jest.resetModules();
+        const sqlite = require('sqlite');
+        const mockInstance = {
+            exec: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        };
+        const openSpy = jest.spyOn(sqlite, 'open').mockResolvedValueOnce(mockInstance);
+        const freshDbConfig = require('../../config/db');
+
+        await freshDbConfig.getDB();
+        expect(openSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                filename: expect.stringMatching(/[\\/]cache\.db$/)
+            })
+        );
+        await freshDbConfig.closeDB();
+        openSpy.mockRestore();
+    });
+
+    it('должен корректно завершаться при closeDB, если соединение не открывалось', async () => {
+        await expect(dbConfig.closeDB()).resolves.toBeUndefined();
+    });
+
+    it('должен сбрасывать dbPromise в null и пробрасывать ошибку при сбое соединения или миграции', async () => {
+        jest.resetModules();
+        const sqlite = require('sqlite');
+        const openSpy = jest.spyOn(sqlite, 'open').mockRejectedValueOnce(new Error('Connection failure'));
+        const freshDbConfig = require('../../config/db');
+        await expect(freshDbConfig.getDB()).rejects.toThrow('Connection failure');
+        openSpy.mockRestore();
+    });
 });

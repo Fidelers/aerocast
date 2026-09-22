@@ -130,6 +130,12 @@ describe('Service: cacheService', () => {
             expect(mockDb.run).toHaveBeenCalledWith('DELETE FROM api_cache');
             expect(count).toBe(5);
         });
+
+        it('должен возвращать 0 при очистке, если результат db.run пуст', async () => {
+            mockDb.run.mockResolvedValue(null);
+            expect(await cacheService.clear()).toBe(0);
+            expect(await cacheService.clear('some_key')).toBe(0);
+        });
     });
 
     describe('In-memory fallback (деградация во in-memory Map при отказе БД)', () => {
@@ -193,6 +199,18 @@ describe('Service: cacheService', () => {
             await cacheService.setCache('rem_2', { x: 3 }, 3600);
             const totalCleared = await cacheService.clear();
             expect(totalCleared).toBeGreaterThanOrEqual(2);
+        });
+
+        it('должен возвращать 0 при удалении несуществующего ключа из памяти', async () => {
+            const count = await cacheService.clear('non_existent_key_12345');
+            expect(count).toBe(0);
+        });
+
+        it('должен переходить в in-memory режим при исключении в getDB()', async () => {
+            dbConfig.getDB.mockRejectedValue(new Error('connection failed'));
+            await cacheService.setCache('err_key', { status: 'ok' }, 3600);
+            const res = await cacheService.getCache('err_key');
+            expect(res).toEqual({ status: 'ok' });
         });
     });
 });
