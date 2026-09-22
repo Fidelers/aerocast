@@ -38,7 +38,7 @@ aerocast/
     ├── controllers/
     │   ├── airController.js        # Логика /api/air: стратегия источников, кэш, история (заготовка, TDD-тесты написаны)
     │   └── searchController.js     # Логика /api/search: геокодер с кэшированием (заготовка, TDD-тесты написаны)
-    ├── routes/npx jest --coverage
+    ├── routes/
     │   └── api.js                  # Регистрация маршрутов API (/ping, /api/air)
     ├── services/
     │   ├── cacheService.js         # Кэширование ответов внешних запросов в SQLite c in-memory fallback (реализовано)
