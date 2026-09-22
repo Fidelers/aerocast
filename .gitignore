@@ -3,3 +3,4 @@
 /server/.idea
 /server/node_modules/
 /SECRETS
+/server/cache.db*
