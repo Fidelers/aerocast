@@ -13,6 +13,18 @@ describe('Service: geocodingService.search', () => {
         jest.clearAllMocks();
     });
 
+    describe('Валидация входных данных', () => {
+        it('должен возвращать пустой массив без вызова API для пустых или невалидных запросов', async () => {
+            const invalidQueries = ['', '   ', null, undefined, 123, {}, []];
+
+            for (const invalidQuery of invalidQueries) {
+                const result = await geocodingService.search(invalidQuery);
+                expect(result).toEqual([]);
+                expect(axios.get).not.toHaveBeenCalled();
+            }
+        });
+    });
+
     describe('Нормализация данных', () => {
         it('должен формировать display_name из названия, региона и страны, а координаты приводить к строкам', async () => {
             const mockResponse = {

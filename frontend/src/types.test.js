@@ -49,6 +49,19 @@ describe('types.getAqiInfo', () => {
                 expect(getAqiInfo(value).label).toBe('опасно');
             }
         });
+
+        it('должен корректно классифицировать дробные значения на границах диапазонов', () => {
+            expect(getAqiInfo(20.0).label).toBe('отлично');
+            expect(getAqiInfo(20.1).label).toBe('хорошо');
+            expect(getAqiInfo(40.0).label).toBe('хорошо');
+            expect(getAqiInfo(40.1).label).toBe('удовлетворительно');
+            expect(getAqiInfo(60.0).label).toBe('удовлетворительно');
+            expect(getAqiInfo(60.1).label).toBe('плохо');
+            expect(getAqiInfo(80.0).label).toBe('плохо');
+            expect(getAqiInfo(80.1).label).toBe('очень плохо');
+            expect(getAqiInfo(100.0).label).toBe('очень плохо');
+            expect(getAqiInfo(100.1).label).toBe('опасно');
+        });
     });
 
     describe('Структура результата', () => {
@@ -79,6 +92,12 @@ describe('types.getAqiInfo', () => {
                 getAqiInfo(120).hex   // опасно
             ];
             expect(new Set(hexes).size).toBe(6);
+        });
+
+        it('должен возвращать иммутабельные (замороженные) объекты описания уровня', () => {
+            expect(Object.isFrozen(getAqiInfo(null))).toBe(true);
+            expect(Object.isFrozen(getAqiInfo(15))).toBe(true);
+            expect(Object.isFrozen(getAqiInfo(150))).toBe(true);
         });
     });
 });

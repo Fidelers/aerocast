@@ -110,6 +110,33 @@ describe('Controller: airController.getAirQuality', () => {
             expect(res.json).toHaveBeenCalledWith({ error: 'Missing lat or lon parameters' });
         });
 
+        it('должен возвращать 400, если lat < -90 или lon < -180', async () => {
+            req.query = { lat: '-95', lon: '37.61', source: 'auto' };
+            await airController.getAirQuality(req, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+
+            req.query = { lat: '55.75', lon: '-195', source: 'auto' };
+            await airController.getAirQuality(req, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('должен корректно принимать допустимые граничные координаты (-90, 90, -180, 180, 0, 0)', async () => {
+            const boundaries = [
+                { lat: '-90', lon: '0' },
+                { lat: '90', lon: '0' },
+                { lat: '0', lon: '-180' },
+                { lat: '0', lon: '180' },
+                { lat: '0', lon: '0' }
+            ];
+
+            for (const coords of boundaries) {
+                req.query = { ...coords, source: 'auto' };
+                primaryAirService.fetchAirQuality.mockResolvedValue({ used_source: 'open-meteo' });
+                await airController.getAirQuality(req, res);
+                expect(res.status).not.toHaveBeenCalledWith(400);
+            }
+        });
+
         it('должен возвращать 400 при передаче невалидного source', async () => {
             req.query = { lat: '55.75', lon: '37.61', source: 'unknown_source' };
 
@@ -117,6 +144,24 @@ describe('Controller: airController.getAirQuality', () => {
 
             expect(res.status).toHaveBeenCalledWith(400);
             expect(res.json).toHaveBeenCalledWith({ error: 'Invalid source parameter' });
+        });
+
+        it('должен поддерживать синонимы source: primary и backup (из README)', async () => {
+            // source: 'primary' -> как 'open-meteo'
+            req.query = { lat: '55.75', lon: '37.61', source: 'primary' };
+            primaryAirService.fetchAirQuality.mockResolvedValue({ used_source: 'open-meteo' });
+
+            await airController.getAirQuality(req, res);
+            expect(primaryAirService.fetchAirQuality).toHaveBeenCalledWith(55.75, 37.61);
+
+            jest.clearAllMocks();
+
+            // source: 'backup' -> как 'open-weather-map'
+            req.query = { lat: '55.75', lon: '37.61', source: 'backup' };
+            backupAirService.fetchAirQuality.mockResolvedValue({ used_source: 'open-weather-map' });
+
+            await airController.getAirQuality(req, res);
+            expect(backupAirService.fetchAirQuality).toHaveBeenCalledWith(55.75, 37.61);
         });
 
         it('должен использовать source = auto по умолчанию, если параметр source опущен', async () => {
@@ -217,6 +262,8 @@ describe('Controller: airController.getAirQuality', () => {
             expect(backupAirService.fetchAirQuality).toHaveBeenCalledWith(lat, lon);
             expect(primaryAirService.fetchAirQuality).not.toHaveBeenCalled();
             expect(cacheService.setCache).toHaveBeenCalledWith('air_open-weather-map_55.75_37.61', backupData, 3600);
+            expect(historyService.saveFromResponse).toHaveBeenCalledWith(backupData);
+            expect(historyService.mergeWithFresh).toHaveBeenCalledWith(backupData, lat, lon);
             expect(res.json).toHaveBeenCalledWith(backupData);
         });
     });
@@ -234,6 +281,8 @@ describe('Controller: airController.getAirQuality', () => {
             expect(backupAirService.fetchAirQuality).not.toHaveBeenCalled();
             expect(cacheService.setCache).toHaveBeenCalledWith('air_auto_55.75_37.61', primaryData, 3600);
             expect(historyService.saveFromResponse).toHaveBeenCalledWith(primaryData);
+            expect(historyService.mergeWithFresh).toHaveBeenCalledWith(primaryData, lat, lon);
+            expect(res.json).toHaveBeenCalledWith(primaryData);
         });
 
         it('должен автоматически переключиться на резервный источник при сбое основного', async () => {
@@ -312,7 +361,9 @@ describe('Controller: airController.getAirQuality', () => {
                 latitude: lat,
                 longitude: lon,
                 used_source: 'offline_database',
+                timezone: 'Europe/Moscow',
                 hourly: expect.objectContaining({
+                    time: expect.arrayContaining([expect.any(String)]),
                     european_aqi: [42],
                     pm10: [30]
                 })

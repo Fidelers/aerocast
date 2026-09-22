@@ -63,6 +63,18 @@ describe('Controller: searchController.search', () => {
             expect(res.json).toHaveBeenCalledWith({ error: 'Missing query parameter q' });
         });
 
+        it('должен возвращать 400, если q не является строкой', async () => {
+            req.query = { q: 123 };
+            await searchController.search(req, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Missing query parameter q' });
+
+            req.query = { q: ['москва'] };
+            await searchController.search(req, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Missing query parameter q' });
+        });
+
         it('не должен обращаться к кэшу и геокодеру при невалидном q', async () => {
             req.query = { q: '  ' };
 
@@ -87,6 +99,21 @@ describe('Controller: searchController.search', () => {
             expect(cacheService.getCache).toHaveBeenCalledWith('search_москва', false);
             expect(geocodingService.search).toHaveBeenCalledWith('москва');
             expect(cacheService.setCache).toHaveBeenCalledWith('search_москва', results, 86400);
+            expect(res.json).toHaveBeenCalledWith(results);
+        });
+
+        it('должен корректно обрабатывать составные названия с дефисом и несколькими словами', async () => {
+            const results = [
+                { lat: '59.93863', lon: '30.31413', display_name: 'Санкт-Петербург, Россия' }
+            ];
+
+            req.query = { q: '  Санкт-Петербург  ' };
+            geocodingService.search.mockResolvedValue(results);
+
+            await searchController.search(req, res);
+
+            expect(cacheService.getCache).toHaveBeenCalledWith('search_санкт-петербург', false);
+            expect(geocodingService.search).toHaveBeenCalledWith('санкт-петербург');
             expect(res.json).toHaveBeenCalledWith(results);
         });
 
@@ -134,6 +161,19 @@ describe('Controller: searchController.search', () => {
 
             expect(res.status).toHaveBeenCalledWith(500);
             expect(res.json).toHaveBeenCalledWith({ error: 'Failed to search location' });
+        });
+
+        it('должен возвращать найденные результаты клиенту, даже если запись в кэш упала', async () => {
+            const results = [
+                { lat: '55.75583', lon: '37.61778', display_name: 'Москва, Россия' }
+            ];
+            req.query = { q: 'Москва' };
+            geocodingService.search.mockResolvedValue(results);
+            cacheService.setCache.mockRejectedValue(new Error('cache write failed'));
+
+            await searchController.search(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(results);
         });
     });
 });

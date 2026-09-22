@@ -247,5 +247,32 @@ describe('GET /ping', () => {
             expect(res.body).toEqual(airQualityData);
             expect(airController.getAirQuality).toHaveBeenCalledTimes(1);
         });
+
+        it('должен передавать параметры lat, lon и source в контроллер', async () => {
+            let receivedQuery = null;
+            airController.getAirQuality.mockImplementation((req, res) => {
+                receivedQuery = { ...req.query };
+                return res.json(airQualityData);
+            });
+
+            await request(app)
+                .get('/api/air')
+                .query({ lat: '55.75', lon: '37.61', source: 'auto' });
+
+            expect(receivedQuery).toEqual({ lat: '55.75', lon: '37.61', source: 'auto' });
+        });
+
+        it('должен возвращать 400 при отсутствии координат', async () => {
+            const res = await request(app).get('/api/air');
+            expect(res.status).toBe(400);
+            expect(res.body).toEqual({ error: 'Missing lat or lon parameters' });
+        });
+    });
+
+    describe('Неизвестные маршруты API', () => {
+        it('должен возвращать 404 для несуществующих маршрутов API', async () => {
+            const res = await request(app).get('/api/non-existent-endpoint');
+            expect(res.status).toBe(404);
+        });
     });
 });
