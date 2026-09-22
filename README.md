@@ -49,10 +49,13 @@ aerocast/
     │   ├── geocodingService.js     # Геокодирование городов — Open-Meteo (реализовано)
     │   └── timeUtils.js            # Утилиты времени: ISO-часы, Europe/Moscow (реализовано)
     ├── tests/                      # Unit-тесты (Jest), стиль TDD
-    │   ├── controllers/            # airController, searchController, timeUtils
-    │   ├── routes/                 # api
-    │   └── services/               # aqiCalculator, backupAirService, cacheService,
-    │                               # geocodingService, historyService, primaryAirService
+    │   ├── config/                 # db (реализовано)
+    │   ├── controllers/            # airController, searchController (заготовки)
+    │   ├── routes/                 # api (в разработке)
+    │   └── services/               # aqiCalculator (заготовка), backupAirService (реализовано),
+    │                               # cacheService (реализовано), geocodingService (реализовано),
+    │                               # historyService (реализовано), primaryAirService (реализовано),
+    │                               # timeUtils (реализовано)
     ├── .env.example                # Шаблон переменных окружения
     ├── cache.db                    # База данных SQLite (создаётся автоматически, игнорируется git)
     ├── server.js                   # Точка входа: Express, CORS
@@ -123,13 +126,13 @@ npm run dev      # с автоперезапуском при изменения
 
 Доступные и разрабатываемые маршруты:
 
-| Метод | Путь          | Назначение                                  | Статус                                             |
-|-------|---------------|---------------------------------------------|----------------------------------------------------|
-| GET   | `/ping`       | Проверка, что сервер работает               | реализован                                         |
-| GET   | `/api/air`    | Данные о качестве воздуха (`lat`, `lon`, опц. `source`) | зарегистрирован, пока отдаёт 501-заглушку (контроллер в разработке) |
-| GET   | `/api/search` | Поиск населённых пунктов по названию (`q`)  | в разработке (TDD-тесты написаны)                  |
+| Метод | Путь                               | Назначение                                  | Статус                                             |
+|-------|------------------------------------|---------------------------------------------|----------------------------------------------------|
+| GET   | `/ping`                            | Проверка, что сервер работает               | реализован                                         |
+| GET   | `/api/air` (`/api/air-quality`)    | Данные о качестве воздуха (`lat`, `lon`, опц. `source`) | зарегистрирован, пока отдаёт 501-заглушку (контроллер в разработке) |
+| GET   | `/api/search`                      | Поиск населённых пунктов по названию (`q`)  | в разработке (TDD-тесты написаны)                  |
 
-Параметры `/api/air`: `lat` и `lon` — обязательные координаты, `source` (`auto` | `primary` | `backup`) — опциональный источник (по умолчанию `auto`).  
+Параметры `/api/air` (`/api/air-quality`): `lat` и `lon` — обязательные координаты, `source` (`auto` | `primary` | `backup`) — опциональный источник (по умолчанию `auto`).  
 Параметры `/api/search`: `q` — поисковая строка (название города).
 
 ### 2. Фронтенд
@@ -149,18 +152,24 @@ npm run dev
 
 ```bash
 cd server
-npm test       # jest в режиме watch (перезапуск при изменениях)
-npx jest       # разовый прогон без watch
+npm test              # разовый прогон тестов (jest)
+npm run test:watch    # запуск в режиме watch (jest --watchAll)
+npm run test:coverage # запуск с отчётом о покрытии кода (jest --coverage)
 ```
 
-- **Успешно проходят тесты реализованных модулей**:
+- **Успешно проходят тесты реализованных модулей** (7 сьютов, 46 тестов):
+  - `tests/config/db.test.js` — подключение к SQLite, миграции структуры таблиц (`api_cache`, `air_quality_history`) и закрытие соединения.
   - `tests/services/primaryAirService.test.js` — получение данных качества воздуха из Open-Meteo.
+  - `tests/services/backupAirService.test.js` — опрос резервного источника (OpenWeatherMap) и преобразование ответа в единый формат.
   - `tests/services/geocodingService.test.js` — геокодирование городов через Open-Meteo.
-  - `tests/services/cacheService.test.js` — кэширование в SQLite и fallback.
-  - `tests/services/historyService.test.js` — сохранение архива замеров и слияние данных.
-  - `tests/controllers/timeUtils.test.js` — форматирование времени в часовом поясе `Europe/Moscow`.
-- **В разработке (TDD)**:
-  - `tests/services/aqiCalculator.test.js`, `tests/services/backupAirService.test.js`, `tests/controllers/airController.test.js`, `tests/controllers/searchController.test.js`, `tests/routes/api.test.js`.
+  - `tests/services/cacheService.test.js` — кэширование в SQLite и in-memory fallback при сбоях БД.
+  - `tests/services/historyService.test.js` — сохранение архива замеров и слияние исторических данных со свежими.
+  - `tests/services/timeUtils.test.js` — форматирование времени в ISO-часы с учётом таймзоны `Europe/Moscow`.
+- **В разработке (TDD)** (4 сьюта, 58 тестов):
+  - `tests/services/aqiCalculator.test.js` — расчёт индекса EAQI по отдельным загрязнителям.
+  - `tests/controllers/airController.test.js` — стратегия источников (`auto`/`primary`/`backup`), работа с кэшем и историей.
+  - `tests/controllers/searchController.test.js` — валидация параметра `q` и кэширование геокодирования на 24 часа.
+  - `tests/routes/api.test.js` — интеграционные тесты контрактов маршрутов `/api/air` (`/api/air-quality`) и `/api/search`.
 
 ### Фронтенд (Vitest)
 
