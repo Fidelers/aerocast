@@ -2,7 +2,7 @@
 
 Проект карты химического состава воздуха и прогнозирования на 3 дня.
 
-Стек: **React (Vite)** — фронтенд, **Express** — бэкенд, оба на Node.js.
+Стек: **React (Vite)** — фронтенд, **Express** + **SQLite** — бэкенд, оба на Node.js.
 
 ## Требования
 
@@ -32,17 +32,17 @@ aerocast/
 │   ├── index.html
 │   ├── vite.config.js
 │   └── package.json
-└── server/                         # Серверная часть (Express)
+└── server/                         # Серверная часть (Express + SQLite)
     ├── config/
-    │   └── db.js                   # Подключение к БД (заготовка)
+    │   └── db.js                   # Подключение к SQLite (cache.db), миграции таблиц (реализовано)
     ├── controllers/
     │   ├── airController.js        # Логика /api/air: стратегия источников, кэш, история (заготовка, TDD-тесты написаны)
-    │   └── searchController.js     # Логика /api/search: геокодер (заготовка, TDD-тесты написаны)
+    │   └── searchController.js     # Логика /api/search: геокодер с кэшированием (заготовка, TDD-тесты написаны)
     ├── routes/
     │   └── api.js                  # Регистрация маршрутов API (/ping, /api/air)
     ├── services/
-    │   ├── cacheService.js         # Кэширование ответов внешних запросов (заготовка)
-    │   ├── historyService.js       # Хранение и история замеров (заготовка)
+    │   ├── cacheService.js         # Кэширование ответов внешних запросов в SQLite c in-memory fallback (реализовано)
+    │   ├── historyService.js       # Хранение и слияние истории замеров в SQLite (реализовано)
     │   ├── primaryAirService.js    # Основной источник — Open-Meteo (реализовано)
     │   ├── backupAirService.js     # Резервный источник — OpenWeatherMap (реализовано)
     │   ├── aqiCalculator.js        # Расчёт индекса EAQI (заготовка)
@@ -54,6 +54,7 @@ aerocast/
     │   └── services/               # aqiCalculator, backupAirService, cacheService,
     │                               # geocodingService, historyService, primaryAirService
     ├── .env.example                # Шаблон переменных окружения
+    ├── cache.db                    # База данных SQLite (создаётся автоматически, игнорируется git)
     ├── server.js                   # Точка входа: Express, CORS
     └── package.json
 ```
@@ -64,7 +65,7 @@ aerocast/
 Зависимости прописаны в `package.json`, поэтому достаточно выполнить одну команду в каждой папке (порядок не важен):
 
 ```bash
-# Бэкенд (Express + CORS)
+# Бэкенд (Express + SQLite + Axios + CORS)
 cd server
 npm install
 cd ..
@@ -86,15 +87,25 @@ cd server
 copy .env.example .env
 ```
 
-Переменные из `server/.env.example`:
+Переменные окружения (`server/.env`):
 
-| Переменная         | Назначение                                                | Где используется              |
-|--------------------|-----------------------------------------------------------|-------------------------------|
-| `PORT`             | Порт бэкенда (по умолчанию `3000`)                        | `server.js`                   |
-| `BACKUP_API_KEY`   | Ключ резервного источника данных (OpenWeatherMap)         | `services/backupAirService.js` |
-| `FRONTEND_URL`     | Адрес фронтенда для CORS (по умолчанию http://localhost:5173) | резерв — пока CORS открыт для всех |
+| Переменная         | Назначение                                                                     | Где используется              |
+|--------------------|--------------------------------------------------------------------------------|-------------------------------|
+| `PORT`             | Порт бэкенда (по умолчанию `3000`)                                             | `server.js`                   |
+| `DB_PATH`          | Путь к файлу базы данных SQLite (по умолчанию `server/cache.db`)                | `config/db.js`                |
+| `BACKUP_API_KEY`   | Ключ резервного источника данных (OpenWeatherMap)                              | `services/backupAirService.js` |
+| `FRONTEND_URL`     | Адрес фронтенда для CORS (по умолчанию `http://localhost:5173`)                | резерв — пока CORS открыт для всех |
 
 > Примечание: ключ геокодера не нужен — `services/geocodingService.js` работает через бесплатный API Open-Meteo. Основной источник (`primaryAirService`) тоже не требует ключа.
+
+## База данных (SQLite)
+
+В проекте используется встроенная база данных **SQLite** (`sqlite3` + `sqlite`):
+- **Файл базы**: по умолчанию создаётся в `server/cache.db` (при необходимости путь можно переопределить через `DB_PATH`).
+- **Таблицы**:
+  - `api_cache` — быстрый кэш ответов внешних API с поддержкой TTL и автоматической очисткой записей старше 7 суток.
+  - `air_quality_history` — архив фактических замеров качества воздуха (до 7 суток) с сохранением координат и показателей загрязнителей.
+- **Отказоустойчивость**: при отсутствии или недоступности файла БД сервисы автоматически деградируют во временный in-memory fallback без падения сервера.
 
 ## Запуск
 
@@ -110,14 +121,16 @@ npm run dev      # с автоперезапуском при изменения
 
 Сервер поднимется на `http://localhost:3000` (или на порту из `PORT` в `server/.env`). Проверка: откройте в браузере `http://localhost:3000/ping` — должен вернуться JSON `{ "message": "Бэкенд на связи!" }`.
 
-Доступные маршруты:
+Доступные и разрабатываемые маршруты:
 
 | Метод | Путь          | Назначение                                  | Статус                                             |
 |-------|---------------|---------------------------------------------|----------------------------------------------------|
 | GET   | `/ping`       | Проверка, что сервер работает               | реализован                                         |
-| GET   | `/api/air`    | Данные о качестве воздуха (`lat`, `lon`, опц. `source`) | зарегистрирован, пока отдаёт 501-заглушку (контроллер не реализован) |
+| GET   | `/api/air`    | Данные о качестве воздуха (`lat`, `lon`, опц. `source`) | зарегистрирован, пока отдаёт 501-заглушку (контроллер в разработке) |
+| GET   | `/api/search` | Поиск населённых пунктов по названию (`q`)  | в разработке (TDD-тесты написаны)                  |
 
-Когда `/api/air` будет реализован: параметры `lat` и `lon` — обязательные, `source` (`auto` | `primary` | `backup`) — опциональный (по умолчанию `auto`).
+Параметры `/api/air`: `lat` и `lon` — обязательные координаты, `source` (`auto` | `primary` | `backup`) — опциональный источник (по умолчанию `auto`).  
+Параметры `/api/search`: `q` — поисковая строка (название города).
 
 ### 2. Фронтенд
 
@@ -130,7 +143,7 @@ npm run dev
 
 ## Тестирование
 
-Тесты пишутся в стиле TDD — часть из них опережает реализацию и сейчас падает (это ожидаемо, пока соответствующие сервисы и контроллеры не реализованы).
+Тесты пишутся в стиле TDD — часть из них опережает реализацию и проверяет контракты ещё не завершённых модулей.
 
 ### Бэкенд (Jest)
 
@@ -140,7 +153,14 @@ npm test       # jest в режиме watch (перезапуск при изм�
 npx jest       # разовый прогон без watch
 ```
 
-Покрыты: контроллеры (`airController`, `searchController`, `timeUtils`), маршруты (`api`) и сервисы (`aqiCalculator`, `backupAirService`, `cacheService`, `geocodingService`, `historyService`, `primaryAirService`). Сейчас проходят тесты реализованных модулей (`primaryAirService`, `geocodingService`, `timeUtils`).
+- **Успешно проходят тесты реализованных модулей**:
+  - `tests/services/primaryAirService.test.js` — получение данных качества воздуха из Open-Meteo.
+  - `tests/services/geocodingService.test.js` — геокодирование городов через Open-Meteo.
+  - `tests/services/cacheService.test.js` — кэширование в SQLite и fallback.
+  - `tests/services/historyService.test.js` — сохранение архива замеров и слияние данных.
+  - `tests/controllers/timeUtils.test.js` — форматирование времени в часовом поясе `Europe/Moscow`.
+- **В разработке (TDD)**:
+  - `tests/services/aqiCalculator.test.js`, `tests/services/backupAirService.test.js`, `tests/controllers/airController.test.js`, `tests/controllers/searchController.test.js`, `tests/routes/api.test.js`.
 
 ### Фронтенд (Vitest)
 
@@ -150,4 +170,4 @@ npm test            # разовый прогон (vitest run)
 npm run test:watch  # режим watch
 ```
 
-Тесты `src/types.test.js` (классификация AQI) проходят — 10 тестов.
+Тесты `src/types.test.js` (классификация AQI / EAQI) проходят — 10 тестов.
