@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
 :root {
-  --text: #6b6375;
+  --text: #63666b;
   --text-h: #08060d;
   --bg: #fff;
   --border: #e5e4e7;
@@ -14,8 +16,10 @@
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
+  --inter: 'Inter', system-ui, -apple-system, sans-serif;
 
-  font: 18px/145% var(--sans);
+  font: 16px;
+  font-family: var(--inter);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -25,8 +29,22 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  /* === переменные для Sidebar === */
+  --surface-secondary: #f1f5f9;     
+  --surface-card: #ffffff;          
+  --surface-card-forecast: #eff6ff; 
+  --border-input: #c6cbd2;           
+  --border-hover: #93c5fd;           
+  --primary: #2563eb;             
+  --primary-hover: #3571f4;        
+  --primary-fg: #ffffff;             
+  --primary-subtle: rgba(37, 100, 235, 0.15); 
+  --sidebar-divider: #e2e8f0;         
+  --text-muted: #6b7280;             
+  --text-on-light: #1a1f2e;         
+
   @media (max-width: 1024px) {
-    font-size: 16px;
+    font-size: 15px;
   }
 }
 
@@ -43,7 +61,23 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+
+    /* === переменные для Sidebar === */
+    --surface-secondary: #1f2028;
+    --surface-card: #1e1f27;
+    --surface-card-forecast: #1a1d2e;
+    --border-input: #3b3d4a;
+    --border-hover: #4b6cb7;
+    --primary: #3b82f6;
+    --primary-hover: #60a5fa;
+    --primary-fg: #ffffff;
+    --primary-subtle: rgba(59, 130, 246, 0.2);
+    --sidebar-divider: #2e303a;
+    --text-muted: #9ca3af;
+    --text-on-light: #e5e7eb;
   }
+
 
   #social .button-icon {
     filter: invert(1) brightness(2);
@@ -55,10 +89,8 @@ body {
 }
 
 #root {
-  width: 1126px;
   max-width: 100%;
   margin: 0 auto;
-  text-align: center;
   border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
@@ -92,6 +124,11 @@ h2 {
   }
 }
 p {
+  margin: 0;
+}
+h3 {
+  font-size: 18px;
+  font-weight: 500;
   margin: 0;
 }
 
