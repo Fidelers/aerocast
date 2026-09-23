@@ -30,17 +30,6 @@ function Sidebar() {
         />
       </section>
 
-      <section className="data-source">
-        <h2 className="data-source__title">Источник данных</h2>
-        <label htmlFor="data-source" className="data-source__label">
-          Источник данных
-        </label>
-        <select id="data-source" className="data-source__select">
-          <option>WeatherAPI</option>
-        </select>
-      </section>
-
-
       <section className="display-mode">
         <h2 className="display-mode__title">Режим отображения</h2>
         <div className="segmented">
@@ -119,33 +108,33 @@ function Sidebar() {
         <ul className="aqi-scale__list">
           <li className="aqi-row">
             <span className="aqi-row__dot" style={{ backgroundColor: '#22c55e' }} />
-            <span className="aqi-row__range">0–50</span>
-            <span className="aqi-row__label">Хорошее</span>
+            <span className="aqi-row__range">0-20</span>
+            <span className="aqi-row__label">Отлично</span>
           </li>
           <li className="aqi-row">
             <span className="aqi-row__dot" style={{ backgroundColor: '#eab308' }} />
-            <span className="aqi-row__range">51–100</span>
-            <span className="aqi-row__label">Умеренное</span>
+            <span className="aqi-row__range">21-40</span>
+            <span className="aqi-row__label">Хорошо</span>
           </li>
           <li className="aqi-row">
             <span className="aqi-row__dot" style={{ backgroundColor: '#f97316' }} />
-            <span className="aqi-row__range">101–150</span>
-            <span className="aqi-row__label">Нездорово*</span>
+            <span className="aqi-row__range">41-60</span>
+            <span className="aqi-row__label">Удовлетворительно</span>
           </li>
           <li className="aqi-row">
             <span className="aqi-row__dot" style={{ backgroundColor: '#ef4444' }}/>
-            <span className="aqi-row__range">151–200</span>
-            <span className="aqi-row__label">Нездорово</span>
+            <span className="aqi-row__range">61-80</span>
+            <span className="aqi-row__label">Плохо</span>
           </li>
           <li className="aqi-row">
             <span className="aqi-row__dot" style={{ backgroundColor: '#a855f7' }}  />
-            <span className="aqi-row__range">201–300</span>
-            <span className="aqi-row__label">Очень плохое</span>
+            <span className="aqi-row__range">80-100</span>
+            <span className="aqi-row__label">Очень плохо</span>
           </li>
           <li className="aqi-row">
             <span className="aqi-row__dot" style={{ backgroundColor: '#7f1d1d' }}  />
-            <span className="aqi-row__range">300+</span>
-            <span className="aqi-row__label">Опасное</span>
+            <span className="aqi-row__range">100+</span>
+            <span className="aqi-row__label">Опасно</span>
           </li>
         </ul>
       </section>

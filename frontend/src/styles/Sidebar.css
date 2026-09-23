@@ -109,43 +109,6 @@ h2 {
   box-sizing: border-box;
 }
 
-.data-source {
-  padding: 14px 12px 0;
-}
-
-.data-source__title {
-  margin: 0 0 7px;
-  font-size: 16px;
-}
-
-.data-source__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.data-source__select {
-  width: 100%;
-  height: 36px;
-  border: 1px solid var(--border-input);
-  border-radius: 5px;
-  background-color: var(--surface-secondary);
-  padding-left: 8px;
-  color: var(--text-h);
-  font-family: var(--inter);
-  appearance: none;
-  background-image: url("../assets/icons/arrow.svg");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  box-sizing: border-box;
-}
-
 .display-mode {
   padding: 14px 12px 0;
 }
@@ -376,7 +339,7 @@ h2 {
 
 .aqi-row {
   display: grid;
-  grid-template-columns: 10px 58px 1fr;
+  grid-template-columns: 10px 48px 1fr;
   align-items: center;
   gap: 6px;
   padding: 4px 0;
