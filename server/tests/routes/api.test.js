@@ -1,9 +1,6 @@
 // tests/routes/api.test.js — интеграционные тесты маршрутов API
 
-// Контроллеры тестируются отдельно (tests/controllers/*), поэтому здесь их
-// поведение заменяется моками — по контракту из SECRETS (валидация и статусы).
-// Часть тестов написана в стиле TDD и станет зелёной после подключения
-// маршрутов /api/air-quality и /api/search в routes/api.js (см. README).
+// Контроллеры тестируются отдельно (tests/controllers/*), поэтому здесь их поведение заменяется моками
 
 const express = require('express');
 const request = require('supertest');
@@ -91,7 +88,7 @@ describe('Routes: API', () => {
 
         app = createApp();
     });
-describe('GET /ping', () => {
+    describe('GET /ping', () => {
         it('должен возвращать 200 и сообщение «Бэкенд на связи!»', async () => {
             const res = await request(app).get('/ping');
 
