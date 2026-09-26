@@ -392,5 +392,14 @@ describe('Controller: airController.getAirQuality', () => {
             expect(res.status).toHaveBeenCalledWith(500);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(String) }));
         });
+
+        it('должен возвращать дефолтное сообщение об ошибке, если message отсутствует', async () => {
+            cacheService.getCache.mockRejectedValue({});
+
+            await airController.getAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        });
     });
 });
