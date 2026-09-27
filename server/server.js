@@ -1,7 +1,10 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 
 const apiRoutes = require('./routes/api');
+const { initDB, closeDB } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +18,54 @@ app.get('/ping', (req, res) => {
     res.json({ message: 'Бэкенд на связи!' });
 });
 
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на http://localhost:${PORT}`);
-});
+let serverInstance = null;
+
+async function startServer(port = PORT) {
+    try {
+        await initDB();
+        return new Promise((resolve) => {
+            serverInstance = app.listen(port, () => {
+                console.log(`Сервер запущен на http://localhost:${port}`);
+                resolve(serverInstance);
+            });
+        });
+    } catch (error) {
+        console.error('Ошибка инициализации сервера или базы данных:', error);
+        process.exit(1);
+    }
+}
+
+async function stopServer() {
+    return new Promise((resolve) => {
+        if (serverInstance) {
+            serverInstance.close(async () => {
+                await closeDB();
+                serverInstance = null;
+                resolve();
+            });
+        } else {
+            closeDB().then(resolve);
+        }
+    });
+}
+
+function handleSignal(signal) {
+    console.log(`Получен сигнал ${signal}. Завершение работы...`);
+    stopServer().then(() => {
+        console.log('Сервер и соединение с БД успешно закрыты.');
+        process.exit(0);
+    }).catch((err) => {
+        console.error('Ошибка при остановке сервера:', err);
+        process.exit(1);
+    });
+}
+
+if (require.main === module) {
+    startServer();
+    process.on('SIGINT', () => handleSignal('SIGINT'));
+    process.on('SIGTERM', () => handleSignal('SIGTERM'));
+}
+
+module.exports = app;
+module.exports.startServer = startServer;
+module.exports.stopServer = stopServer;

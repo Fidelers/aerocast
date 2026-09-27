@@ -26,7 +26,7 @@ async function fetchAirQuality(lat, lon) {
         throw new Error('Резервный источник недоступен: отсутствует API key (BACKUP_API_KEY)');
     }
 
-    const url = `http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+    const url = `https://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}`;
 
     try {
         const response = await axios.get(url, { timeout: TIMEOUT_MS });

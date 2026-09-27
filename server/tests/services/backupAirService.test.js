@@ -39,7 +39,7 @@ describe('Service: backupAirService.fetchAirQuality', () => {
     });
 
     describe('Успешные запросы и нормализация структуры', () => {
-        const expectedUrl = `http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${mockApiKey}`;
+        const expectedUrl = `https://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${mockApiKey}`;
 
         it('должен корректно нормализовать ответ OpenWeatherMap под формат Open-Meteo', async () => {
             // ARRANGE: OpenWeatherMap отдает Unix timestamp (секунды) в UTC

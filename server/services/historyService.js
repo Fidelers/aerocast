@@ -50,6 +50,7 @@ async function saveFromResponse(data) {
     const lon2 = Number(Number(longitude).toFixed(2));
 
     try {
+        const pointsToInsert = [];
         for (let i = 0; i < hourly.time.length; i += 1) {
             const timestamp = parseMoscowHourToMillis(hourly.time[i]);
             // Только прошедшие часы
@@ -62,10 +63,27 @@ async function saveFromResponse(data) {
             }
             if (Object.keys(point).length === 0) continue;
 
-            await db.run(
-                'INSERT OR IGNORE INTO air_quality_history (latitude, longitude, timestamp, pollutant_data, source) VALUES (?, ?, ?, ?, ?)',
-                [lat2, lon2, timestamp, JSON.stringify(point), source]
-            );
+            pointsToInsert.push([lat2, lon2, timestamp, JSON.stringify(point), source]);
+        }
+
+        if (pointsToInsert.length > 0) {
+            await db.run('BEGIN TRANSACTION');
+            try {
+                for (const params of pointsToInsert) {
+                    await db.run(
+                        'INSERT OR IGNORE INTO air_quality_history (latitude, longitude, timestamp, pollutant_data, source) VALUES (?, ?, ?, ?, ?)',
+                        params
+                    );
+                }
+                await db.run('COMMIT');
+            } catch (txError) {
+                try {
+                    await db.run('ROLLBACK');
+                } catch (rollbackErr) {
+                    // Игнорируем ошибку отката
+                }
+                throw txError;
+            }
         }
 
         // всё, что старше 7 суток, удаляем.

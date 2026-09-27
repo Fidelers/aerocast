@@ -15,6 +15,10 @@ let dbPromise = null;
 // Создаёт таблицы, если их ещё нет (миграция при первом старте).
 async function migrate(db) {
     await db.exec(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA busy_timeout = 5000;
+        PRAGMA synchronous = NORMAL;
+
         CREATE TABLE IF NOT EXISTS api_cache (
             key TEXT PRIMARY KEY,   
             data TEXT,               
