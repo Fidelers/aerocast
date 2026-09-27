@@ -42,8 +42,17 @@ async function migrate(db) {
     return db;
 }
 
+const fs = require('fs');
+
 // Открывает соединение и прогоняет миграции.
 function openDB() {
+    if (DB_FILE !== ':memory:') {
+        const dbDir = path.dirname(DB_FILE);
+        if (!fs.existsSync(dbDir)) {
+            fs.mkdirSync(dbDir, { recursive: true });
+        }
+    }
+
     dbPromise = open({ filename: DB_FILE, driver: sqlite3.Database })
         .then(migrate)
         .catch((error) => {
