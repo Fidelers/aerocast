@@ -26,6 +26,9 @@ async function migrate(db) {
             updated_at INTEGER             
         );
 
+        CREATE INDEX IF NOT EXISTS idx_api_cache_expires_at ON api_cache(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_api_cache_updated_at ON api_cache(updated_at);
+
         CREATE TABLE IF NOT EXISTS air_quality_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             latitude REAL,

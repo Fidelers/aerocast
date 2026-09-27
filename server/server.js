@@ -9,13 +9,41 @@ const { initDB, closeDB } = require('./config/db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
 app.use(express.json());
 
 app.use('/api', apiRoutes);
 
 app.get('/ping', (req, res) => {
     res.json({ message: 'Бэкенд на связи!' });
+});
+
+// Обработчик 404 для неизвестных маршрутов
+app.use((req, res) => {
+    res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Глобальный перехватчик ошибок
+app.use((err, req, res, next) => {
+    if (err.message === 'Not allowed by CORS') {
+        return res.status(403).json({ error: 'CORS forbidden' });
+    }
+    console.error('Unhandled server error:', err.message || err);
+    res.status(500).json({ error: 'Internal server error' });
 });
 
 let serverInstance = null;

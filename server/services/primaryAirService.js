@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const TIMEOUT_MS = 1000;
+const TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS) || 1000;
 
 // Тут функция берет данные о воздухе из Open-Meteo
 // Принимает: lat (широта), lon (долгота)

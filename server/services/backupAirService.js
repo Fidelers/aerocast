@@ -3,7 +3,7 @@ const axios = require('axios');
 const aqiCalculator = require('./aqiCalculator');
 const timeUtils = require('./timeUtils');
 
-const TIMEOUT_MS = 1000;
+const TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS) || 1000;
 const TIMEZONE = 'Europe/Moscow';
 const UTC_OFFSET_SECONDS = 10800;
 

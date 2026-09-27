@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const TIMEOUT_MS = 1000;
+const TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS) || 1000;
 //проверка чтобы функция не принимала пустой текст или неверный тип данных
 async function search(query) {
   if (!query || typeof query !== 'string' || !query.trim()) {
