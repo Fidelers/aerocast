@@ -1,27 +1,19 @@
-import { useState } from 'react'
-import React from 'react'
-import './App.css'
+import { useState } from 'react';
+import React from 'react';
+import './App.css';
 import Test from './components/Test';
+import Sidebar from './components/Sidebar';
+import MapComponent from './components/MapComponent';
 
 function App() {
     return (
-        <div>
-            <h1>Тест</h1>
-            <Test />
+        <div className='layout'>
+            <Sidebar />
+            <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
+                <MapComponent />
+            </div>
         </div>
     );
 }
-export default App;
 
-// //============ Тест на работоспособность компонента карты
-// import MapComponent from './components/MapComponent';
-// import './App.css';
-//
-// export default function App() {
-//     return (
-//         // Задаем жесткие размеры на весь экран, чтобы карте было где развернуться
-//         <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
-//             <MapComponent />
-//         </div>
-//     );
-// }
+export default App;

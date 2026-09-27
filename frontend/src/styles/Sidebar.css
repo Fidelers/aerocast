@@ -4,12 +4,6 @@
     min-height: 100vh;
 }
 
-.main {
-    flex: 1;
-    min-width: 0;
-  
-}
-
 h2 {
   color: var(--text)
 }
@@ -205,7 +199,7 @@ h2 {
 
 .days {
   display: flex;
-  gap: 4px;
+  gap: 5px;
 }
 
 .day-card {
@@ -375,4 +369,68 @@ h2 {
 .sidebar__info-btn:focus-visible {
   box-shadow: 0 0 0 3px var(--accent-bg);
   outline: none;
+}
+
+
+
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100svh;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: none;
+    overflow: visible;
+  }
+
+  .days {
+    gap: 2px;
+  }
+  
+  .day-card {
+    flex: 1; 
+    width: auto;
+    min-width: 0;
+  }
+
+
+  .times {
+    gap: 4px;
+  }
+  
+  .time {
+    flex: 1 0 calc(25% - 4px);
+    width: auto;
+    font-size: 12px;
+  }
+
+
+  .display-mode,
+  .geo-nav,
+  .date-nav,
+  .time-nav,
+  .aqi-scale {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+@media (max-width: 380px) {
+  .time {
+    flex: 1 0 calc(33.33% - 4px);
+  }
+  
+  .day-card__label {
+    font-size: 10px;
+  }
+  
+  .day-card__num {
+    font-size: 12px;
+  }
 }

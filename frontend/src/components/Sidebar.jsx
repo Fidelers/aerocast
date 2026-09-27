@@ -107,32 +107,32 @@ function Sidebar() {
         <h2 className="aqi-scale__title">Шкала AQI</h2>
         <ul className="aqi-scale__list">
           <li className="aqi-row">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#00cc00' }} />
+            <span className="aqi-row__dot aqi-excellent" style={{ backgroundColor: '#00cc00' }} />
             <span className="aqi-row__range">0-20</span>
             <span className="aqi-row__label">Отлично</span>
           </li>
-          <li className="aqi-row">
+          <li className="aqi-row aqi-good">
             <span className="aqi-row__dot" style={{ backgroundColor: '#66ff66' }} />
             <span className="aqi-row__range">21-40</span>
             <span className="aqi-row__label">Хорошо</span>
           </li>
-          <li className="aqi-row">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#f7f21a' }} />
+          <li className="aqi-row aqi-fair">
+            <span className="aqi-row__dot aqi-good" style={{ backgroundColor: '#f7f21a' }} />
             <span className="aqi-row__range">41-60</span>
             <span className="aqi-row__label">Удовлетворительно</span>
           </li>
-          <li className="aqi-row">
+          <li className="aqi-row aqi-poor">
             <span className="aqi-row__dot" style={{ backgroundColor: '#ffa500' }}/>
             <span className="aqi-row__range">61-80</span>
             <span className="aqi-row__label">Плохо</span>
           </li>
-          <li className="aqi-row">
+          <li className="aqi-row aqi-very-poor">
             <span className="aqi-row__dot" style={{ backgroundColor: '#ff0000' }}  />
             <span className="aqi-row__range">80-100</span>
             <span className="aqi-row__label">Очень плохо</span>
           </li>
-          <li className="aqi-row">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#c20000' }}  />
+          <li className="aqi-row aqi-hazardous">
+            <span className="aqi-row__dot " style={{ backgroundColor: '#c20000' }}  />
             <span className="aqi-row__range">100+</span>
             <span className="aqi-row__label">Опасно</span>
           </li>
