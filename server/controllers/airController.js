@@ -75,6 +75,20 @@ async function getAirQuality(req, res) {
 
             // 6. Полный сбой источников -> Офлайн-резерв
 
+const DEFAULT_HOURLY_UNITS = {
+    time: 'iso8601',
+    pm10: 'μg/m³',
+    pm2_5: 'μg/m³',
+    carbon_monoxide: 'μg/m³',
+    nitrogen_dioxide: 'μg/m³',
+    sulphur_dioxide: 'μg/m³',
+    ozone: 'μg/m³',
+    aerosol_optical_depth: '',
+    dust: 'μg/m³',
+    uv_index: '',
+    european_aqi: 'EAQI'
+};
+
             // 6.1 Проверка устаревшего кэша (игнорирование TTL)
             const staleData = await cacheService.getCache(cacheKey, true);
             if (staleData) {
@@ -100,12 +114,23 @@ async function getAirQuality(req, res) {
                     hourly[key] = [value];
                 }
 
+                // Гарантируем наличие базовых полей в hourly
+                const standardFields = ['pm10', 'pm2_5', 'carbon_monoxide', 'nitrogen_dioxide', 'sulphur_dioxide', 'ozone', 'european_aqi'];
+                for (const field of standardFields) {
+                    if (!hourly[field]) {
+                        hourly[field] = [null];
+                    }
+                }
+
                 // Сборка ответа в нормализованном формате
                 return res.json({
                     latitude: lat,
                     longitude: lon,
-                    used_source: 'offline_database',
                     timezone: 'Europe/Moscow',
+                    utc_offset_seconds: 10800,
+                    elevation: 0,
+                    used_source: 'offline_database',
+                    hourly_units: DEFAULT_HOURLY_UNITS,
                     hourly: hourly
                 });
             }

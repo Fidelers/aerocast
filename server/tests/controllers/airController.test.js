@@ -362,10 +362,19 @@ describe('Controller: airController.getAirQuality', () => {
                 longitude: lon,
                 used_source: 'offline_database',
                 timezone: 'Europe/Moscow',
+                utc_offset_seconds: 10800,
+                elevation: 0,
+                hourly_units: expect.objectContaining({
+                    time: 'iso8601',
+                    pm10: 'μg/m³',
+                    pm2_5: 'μg/m³',
+                    european_aqi: 'EAQI'
+                }),
                 hourly: expect.objectContaining({
                     time: expect.arrayContaining([expect.any(String)]),
                     european_aqi: [42],
-                    pm10: [30]
+                    pm10: [30],
+                    pm2_5: [null]
                 })
             }));
         });

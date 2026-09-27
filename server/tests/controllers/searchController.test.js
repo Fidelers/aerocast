@@ -75,6 +75,19 @@ describe('Controller: searchController.search', () => {
             expect(res.json).toHaveBeenCalledWith({ error: 'Missing query parameter q' });
         });
 
+        it('должен возвращать 400, если длина q превышает 100 символов', async () => {
+            req.query = { q: 'a'.repeat(101) };
+
+            await searchController.search(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                error: 'Query parameter q is too long (maximum 100 characters)'
+            });
+            expect(cacheService.getCache).not.toHaveBeenCalled();
+            expect(geocodingService.search).not.toHaveBeenCalled();
+        });
+
         it('не должен обращаться к кэшу и геокодеру при невалидном q', async () => {
             req.query = { q: '  ' };
 

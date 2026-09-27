@@ -11,8 +11,13 @@ async function search(req, res) {
       return res.status(400).json({ error: 'Missing query parameter q' });
     }
 
+    const trimmed = q.trim();
+    if (trimmed.length > 100) {
+      return res.status(400).json({ error: 'Query parameter q is too long (maximum 100 characters)' });
+    }
+
     // чтобы запрос МОСКВА или москва считались за одно и тоже
-    const query = q.trim().toLowerCase();
+    const query = trimmed.toLowerCase();
     const cacheKey = `search_${query}`;
 
     // проверка, что запрос попал в кэш чтобы не гуглился один и тот же запрос несколько раз
