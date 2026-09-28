@@ -1,5 +1,5 @@
 // tests/components/Sidebar.test.jsx — тесты компонента Sidebar (навигация по времени и переключатели режимов)
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import Sidebar from '../../src/components/Sidebar';
@@ -172,5 +172,63 @@ describe('Sidebar component (TDD — переключатели режимов �
 
         expect(screen.getByRole('button', { name: 'Цифровой' }).className).toContain('segmented__btn--active');
         expect(screen.getByRole('button', { name: 'Цветовой' }).className).not.toContain('segmented__btn--active');
+    });
+});
+
+describe('Sidebar component (TDD — Геолокация пользователя)', () => {
+    let originalGeolocation;
+
+    beforeEach(() => {
+        originalGeolocation = globalThis.navigator.geolocation;
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn(),
+        };
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.restoreAllMocks();
+        globalThis.navigator.geolocation = originalGeolocation;
+    });
+
+    it('1. При клике на "Моё местоположение" запрашивает права на гео (вызывает getCurrentPosition)', () => {
+        render();
+
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(globalThis.navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+    });
+
+    it('2. При успешном получении координат вызывает onLocationSelect с широтой и долготой (lat, lon)', () => {
+        const handleLocationSelect = vi.fn();
+
+        globalThis.navigator.geolocation.getCurrentPosition.mockImplementationOnce((successCb) => {
+            successCb({
+                coords: { latitude: 55.75, longitude: 37.61 }
+            });
+        });
+
+        render();
+
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(handleLocationSelect).toHaveBeenCalledTimes(1);
+        expect(handleLocationSelect).toHaveBeenCalledWith(55.75, 37.61, expect.any(String));
+    });
+
+    it('3. При запрете доступа или ошибке показывает аккуратное сообщение об ошибке (без падения)', async () => {
+        globalThis.navigator.geolocation.getCurrentPosition.mockImplementationOnce((successCb, errorCb) => {
+            errorCb({ message: 'User denied Geolocation' });
+        });
+
+        render();
+
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        const errorMessage = await screen.findByText(/ошибк|не удалось|запрещен/i);
+        expect(errorMessage).toBeTruthy();
     });
 });
