@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const apiRoutes = require('./routes/api');
-const { initDB, closeDB } = require('./config/db');
+const db = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,9 +55,10 @@ let serverInstance = null;
 
 async function startServer(port = PORT) {
     try {
-        await initDB();
+        await db.initDB();
         return new Promise((resolve, reject) => {
-            const server = app.listen(port, () => {
+            let server;
+            server = app.listen(port, () => {
                 serverInstance = server;
                 console.log(`Сервер запущен на http://localhost:${port}`);
                 resolve(serverInstance);
@@ -75,30 +76,32 @@ async function startServer(port = PORT) {
         });
     } catch (error) {
         console.error('Ошибка инициализации сервера или базы данных:', error.message || error);
-        if (require.main === module) {
-            process.exit(1);
-        }
         throw error;
     }
 }
 
 async function stopServer() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         if (serverInstance) {
-            serverInstance.close(async () => {
-                await closeDB();
+            serverInstance.close(async (err) => {
                 serverInstance = null;
-                resolve();
+                if (err) return reject(err);
+                try {
+                    await db.closeDB();
+                    resolve();
+                } catch (closeErr) {
+                    reject(closeErr);
+                }
             });
         } else {
-            closeDB().then(resolve);
+            db.closeDB().then(resolve).catch(reject);
         }
     });
 }
 
 function handleSignal(signal) {
     console.log(`\nПолучен сигнал ${signal}. Завершение работы...`);
-    stopServer().then(() => {
+    return stopServer().then(() => {
         console.log('Сервер и соединение с БД успешно закрыты.');
         process.exit(0);
     }).catch((err) => {
@@ -107,8 +110,8 @@ function handleSignal(signal) {
     });
 }
 
-if (require.main === module) {
-    startServer().catch(() => process.exit(1));
+function startCli() {
+    const startPromise = startServer().catch(() => process.exit(1));
 
     process.on('SIGINT', () => handleSignal('SIGINT'));
     process.on('SIGTERM', () => handleSignal('SIGTERM'));
@@ -121,8 +124,16 @@ if (require.main === module) {
         console.error('Uncaught Exception:', err);
         handleSignal('uncaughtException');
     });
+
+    return startPromise;
+}
+
+if (require.main === module || process.env.NODE_ENV === 'cli-test') {
+    startCli();
 }
 
 module.exports = app;
 module.exports.startServer = startServer;
 module.exports.stopServer = stopServer;
+module.exports.handleSignal = handleSignal;
+module.exports.startCli = startCli;

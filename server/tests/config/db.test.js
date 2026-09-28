@@ -105,4 +105,30 @@ describe('Config: db', () => {
         await expect(freshDbConfig.getDB()).rejects.toThrow('Connection failure');
         openSpy.mockRestore();
     });
+
+    it('должен создавать директорию для базы данных, если она отсутствует', async () => {
+        jest.resetModules();
+        const fs = require('fs');
+        const sqlite = require('sqlite');
+        const mockInstance = {
+            exec: jest.fn().mockResolvedValue(),
+            close: jest.fn().mockResolvedValue()
+        };
+        const openSpy = jest.spyOn(sqlite, 'open').mockResolvedValueOnce(mockInstance);
+        const existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
+        const mkdirSpy = jest.spyOn(fs, 'mkdirSync').mockReturnValueOnce(undefined);
+
+        process.env.DB_PATH = 'non_existent_dir/custom.db';
+        const freshDbConfig = require('../../config/db');
+
+        await freshDbConfig.getDB();
+
+        expect(existsSpy).toHaveBeenCalled();
+        expect(mkdirSpy).toHaveBeenCalledWith(expect.stringContaining('non_existent_dir'), { recursive: true });
+
+        await freshDbConfig.closeDB();
+        openSpy.mockRestore();
+        existsSpy.mockRestore();
+        mkdirSpy.mockRestore();
+    });
 });

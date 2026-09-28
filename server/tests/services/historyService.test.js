@@ -92,6 +92,52 @@ describe('Service: historyService', () => {
             await expect(historyService.saveFromResponse(mockData)).resolves.not.toThrow();
         });
 
+        it('должен выполнять ROLLBACK при ошибке во время транзакции вставки', async () => {
+            mockDb.run.mockImplementation(async (sql) => {
+                if (sql === 'BEGIN TRANSACTION') return;
+                if (sql.includes('INSERT OR IGNORE')) {
+                    throw new Error('Insert constraint failed');
+                }
+                if (sql === 'ROLLBACK') return;
+            });
+
+            const mockData = {
+                latitude: 55.75,
+                longitude: 37.61,
+                hourly: {
+                    time: ['2026-09-19T11:00'],
+                    pm10: [10]
+                }
+            };
+
+            await expect(historyService.saveFromResponse(mockData)).resolves.not.toThrow();
+            expect(mockDb.run).toHaveBeenCalledWith('ROLLBACK');
+        });
+
+        it('должен игнорировать ошибку ROLLBACK, если откат транзакции завершился сбоем', async () => {
+            mockDb.run.mockImplementation(async (sql) => {
+                if (sql === 'BEGIN TRANSACTION') return;
+                if (sql.includes('INSERT OR IGNORE')) {
+                    throw new Error('Insert constraint failed');
+                }
+                if (sql === 'ROLLBACK') {
+                    throw new Error('Rollback failed');
+                }
+            });
+
+            const mockData = {
+                latitude: 55.75,
+                longitude: 37.61,
+                hourly: {
+                    time: ['2026-09-19T11:00'],
+                    pm10: [10]
+                }
+            };
+
+            await expect(historyService.saveFromResponse(mockData)).resolves.not.toThrow();
+            expect(mockDb.run).toHaveBeenCalledWith('ROLLBACK');
+        });
+
         it('должен выходить без ошибок, если база данных недоступна (getDB вернул null или ошибку)', async () => {
             dbConfig.getDB.mockRejectedValueOnce(new Error('db down'));
             await expect(historyService.saveFromResponse({ hourly: { time: ['2026-09-19T11:00'] } })).resolves.toBeUndefined();

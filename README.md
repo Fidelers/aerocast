@@ -60,7 +60,7 @@ aerocast/
 │   ├── cache.db                    # База данных SQLite (создаётся автоматически, игнорируется git)
 │   ├── server.js                   # Точка входа: Express, CORS, Graceful Shutdown, 404/Error Middleware
 │   └── package.json
-└── SECRETS/                        # Документация архитектуры и планы (endpoints.txt, logic.txt, steps2.txt)
+└── SECRETS/                        # Документация архитектуры и планы (endpoints.txt, logic.txt)
 ```
 
 
@@ -99,7 +99,7 @@ copy .env.example .env
 | `DB_PATH`          | Путь к файлу базы данных SQLite (по умолчанию `server/cache.db`)                | `config/db.js`                |
 | `BACKUP_API_KEY`   | Ключ резервного источника данных (OpenWeatherMap)                              | `services/backupAirService.js` |
 | `FRONTEND_URL`     | Адрес фронтенда для CORS (по умолчанию `http://localhost:5173`)                | `server.js` (белый список CORS) |
-| `API_TIMEOUT_MS`   | Таймаут внешних сетевых запросов в мс (по умолчанию `1000`, реком. `3000`)     | `services/*AirService.js`, `services/geocodingService.js` |
+| `API_TIMEOUT_MS`   | Таймаут внешних сетевых запросов в мс (по умолчанию `1000`)     | `services/*AirService.js`, `services/geocodingService.js` |
 
 > Примечание: ключ геокодера не нужен — `services/geocodingService.js` работает через бесплатный API Open-Meteo. Основной источник (`primaryAirService`) тоже не требует ключа.
 

@@ -45,6 +45,15 @@ describe('Controller: searchController.search', () => {
             expect(res.json).toHaveBeenCalledWith({ error: 'Missing query parameter q' });
         });
 
+        it('должен возвращать 400, если req.query не передан (undefined)', async () => {
+            req = {};
+
+            await searchController.search(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Missing query parameter q' });
+        });
+
         it('должен возвращать 400, если q — пустая строка', async () => {
             req.query = { q: '' };
 
