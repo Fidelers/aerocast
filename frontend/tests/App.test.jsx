@@ -7,7 +7,7 @@ import App from '../src/App';
 import { findDefaultTimeIndex } from '../src/utils/timeUtils';
 
 // 1. Мокаем дочерние компоненты (через React.createElement, чтобы не ломать парсер угловыми скобками)
-vi.mock('./components/Sidebar', () => {
+vi.mock('../src/components/Sidebar', () => {
     return {
         default: function DummySidebar(props) {
             return React.createElement('div', { 'data-testid': 'sidebar' },
@@ -24,7 +24,7 @@ vi.mock('./components/Sidebar', () => {
     };
 });
 
-vi.mock('./components/MapComponent', () => {
+vi.mock('../src/components/MapComponent', () => {
     return {
         default: function DummyMap(props) {
             return React.createElement('div', { 'data-testid': 'map' },
@@ -36,7 +36,7 @@ vi.mock('./components/MapComponent', () => {
 });
 
 // 2. Мокаем вспомогательную утилиту
-vi.mock('./utils/timeUtils', () => ({
+vi.mock('../src/utils/timeUtils', () => ({
     findDefaultTimeIndex: vi.fn()
 }));
 

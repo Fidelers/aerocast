@@ -192,7 +192,7 @@ describe('Sidebar component (TDD — Геолокация пользовател
     });
 
     it('1. При клике на "Моё местоположение" запрашивает права на гео (вызывает getCurrentPosition)', () => {
-        render();
+        render(<Sidebar />);
 
         const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
         fireEvent.click(geoBtn);
@@ -209,7 +209,7 @@ describe('Sidebar component (TDD — Геолокация пользовател
             });
         });
 
-        render();
+        render(<Sidebar onLocationSelect={handleLocationSelect} />);
 
         const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
         fireEvent.click(geoBtn);
@@ -223,7 +223,7 @@ describe('Sidebar component (TDD — Геолокация пользовател
             errorCb({ message: 'User denied Geolocation' });
         });
 
-        render();
+        render(<Sidebar />);
 
         const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
         fireEvent.click(geoBtn);
