@@ -200,6 +200,9 @@ h2 {
 .days {
   display: flex;
   gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
 }
 
 .day-card {
@@ -207,6 +210,7 @@ h2 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 32px;
   height: 54px;
   background: var(--surface-card);
@@ -240,18 +244,23 @@ h2 {
   margin-top: 1px;
 }
 
-.day-card--active {
+.day-card--active,
+.day-card--forecast.day-card--active {
   background: var(--primary);
   border-color: var(--primary);
 }
 
 .day-card--active .day-card__label,
 .day-card--active .day-card__num,
-.day-card--active .day-card__extra {
+.day-card--active .day-card__extra,
+.day-card--forecast.day-card--active .day-card__label,
+.day-card--forecast.day-card--active .day-card__num,
+.day-card--forecast.day-card--active .day-card__extra {
   color: var(--primary-fg);
 }
 
-.day-card--active:hover {
+.day-card--active:hover,
+.day-card--forecast.day-card--active:hover {
   background: var(--primary);
   border-color: var(--primary);
 }
@@ -270,6 +279,12 @@ h2 {
 .day-card--forecast:hover {
   background: var(--primary-subtle);
   border-color: var(--primary);
+}
+
+.time-nav__empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 4px 0;
 }
 
 
