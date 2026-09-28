@@ -19,17 +19,23 @@ aerocast/
 │   │   ├── assets/                 # Картинки (hero.png, react.svg, vite.svg)
 │   │   ├── components/
 │   │   │   ├── Test.jsx            # Проверка связи с бэкендом (/ping)
-│   │   │   ├── Sidebar.jsx         # Боковая панель: поиск, переключатели (заготовка)
+│   │   │   ├── CitySearch.jsx      # Поиск города с автодополнением (TDD в процессе)
+│   │   │   ├── Sidebar.jsx         # Боковая панель: выбор дней и часов (реализовано)
 │   │   │   └── MapComponent.jsx    # Карта и отрисовка данных (заготовка)
 │   │   ├── styles/
-│   │   │   ├── Sidebar.css         # Стили боковой панели (заготовка)
+│   │   │   ├── Sidebar.css         # Стили боковой панели
 │   │   │   └── mapStyle.js         # Конфигурация тайлового слоя карты OpenStreetMap
+│   │   ├── utils/
+│   │   │   └── timeUtils.js        # Утилиты группировки времени по суткам и часам (реализовано)
 │   │   ├── App.jsx                 # Главный компонент
 │   │   ├── main.jsx                # Точка входа React
 │   │   ├── types.js                # Классификация AQI: уровни, подписи, цвета (реализовано)
-│   │   ├── types.test.js           # Тесты types.js (Vitest)
 │   │   ├── App.css
 │   │   └── index.css
+│   ├── tests/                      # Unit и компонентные тесты (Vitest)
+│   │   ├── components/             # CitySearch.test.jsx, Sidebar.test.jsx
+│   │   ├── utils/                  # timeUtils.test.js
+│   │   └── types.test.js           # Тесты классификации AQI
 │   ├── index.html
 │   ├── vite.config.js
 │   └── package.json
@@ -189,4 +195,8 @@ npm test            # разовый прогон (vitest run)
 npm run test:watch  # режим watch
 ```
 
-Тесты `src/types.test.js` (классификация AQI / EAQI) проходят — 12 тестов.
+Тесты фронтенда расположены в `frontend/tests/`:
+- `tests/types.test.js` — классификация AQI / EAQI (12 тестов).
+- `tests/utils/timeUtils.test.js` — утилиты группировки дат и 3-часовой сетки (19 тестов).
+- `tests/components/Sidebar.test.jsx` — рендеринг карточек дней и часов (4 теста).
+- `tests/components/CitySearch.test.jsx` — TDD-тесты поиска городов с геокодером и дебаунсом (8 тестов, RED-фаза).

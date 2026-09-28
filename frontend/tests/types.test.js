@@ -1,6 +1,6 @@
-// types.test.js — тесты классификации AQI (Vitest)
+// tests/types.test.js — тесты классификации AQI (Vitest)
 import { describe, it, expect } from 'vitest';
-import { getAqiInfo } from './types.js';
+import { getAqiInfo } from '../src/types.js';
 
 describe('types.getAqiInfo', () => {
     describe('Отсутствие данных', () => {

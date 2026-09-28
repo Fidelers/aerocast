@@ -1,7 +1,7 @@
-// src/components/Sidebar.test.jsx — тесты компонента Sidebar
+// tests/components/Sidebar.test.jsx — тесты компонента Sidebar
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import Sidebar from './Sidebar';
+import Sidebar from '../../src/components/Sidebar';
 
 describe('Sidebar component', () => {
     const mockAirData = {
@@ -40,12 +40,11 @@ describe('Sidebar component', () => {
         expect(html).toContain('28');
         expect(html).toContain('29');
 
-        // Проверяем наличие русских дней недели
+        // Проверяем наличие дней недели
         expect(html).toContain('ВС');
         expect(html).toContain('ПН');
         expect(html).toContain('ВТ');
 
-        // Проверяем отсутствие старого хардкода (10, 11, 12, 13, 14, 15, 16)
         expect(html).not.toContain('<span class="day-card__num">10</span>');
         expect(html).not.toContain('<span class="day-card__num">16</span>');
     });

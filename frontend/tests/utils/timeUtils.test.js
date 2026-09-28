@@ -1,4 +1,4 @@
-// src/utils/timeUtils.test.js — тесты утилит группировки времени
+// tests/utils/timeUtils.test.js — тесты утилит группировки времени
 import { describe, it, expect } from 'vitest';
 import {
     parseIsoTimeString,
@@ -6,7 +6,7 @@ import {
     getDayInfo,
     groupTimesByDay,
     findDefaultTimeIndex
-} from './timeUtils.js';
+} from '../../src/utils/timeUtils.js';
 
 describe('timeUtils', () => {
     describe('parseIsoTimeString', () => {
@@ -37,7 +37,7 @@ describe('timeUtils', () => {
     });
 
     describe('getDayInfo', () => {
-        it('корректно вычисляет русские дни недели и число месяца', () => {
+        it('корректно вычисляет дни недели и число месяца', () => {
             // 2026-09-21 — понедельник
             expect(getDayInfo('2026-09-21')).toEqual({ dayOfWeek: 'ПН', dayOfMonth: '21' });
             // 2026-09-22 — вторник
