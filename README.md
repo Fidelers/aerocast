@@ -33,7 +33,7 @@ aerocast/
 │   │   ├── App.css
 │   │   └── index.css
 │   ├── tests/                      # Unit и компонентные тесты (Vitest)
-│   │   ├── components/             # CitySearch.test.jsx, Sidebar.test.jsx
+│   │   ├── components/             # CitySearch.test.jsx, MapComponent.test.jsx, Sidebar.test.jsx
 │   │   ├── utils/                  # timeUtils.test.js
 │   │   └── types.test.js           # Тесты классификации AQI
 │   ├── index.html
@@ -191,12 +191,14 @@ npm run test:coverage # запуск с отчётом о покрытии ко�
 
 ```bash
 cd frontend
-npm test            # разовый прогон (vitest run)
-npm run test:watch  # режим watch
+npm test                 # разовый прогон (vitest run)
+npm run test:watch       # режим watch
+npm run test:coverage    # отчёт о покрытии кода (v8)
 ```
 
 Тесты фронтенда расположены в `frontend/tests/`:
 - `tests/types.test.js` — классификация AQI / EAQI (12 тестов).
 - `tests/utils/timeUtils.test.js` — утилиты группировки дат и 3-часовой сетки (19 тестов).
-- `tests/components/Sidebar.test.jsx` — рендеринг карточек дней и часов (4 теста).
+- `tests/components/Sidebar.test.jsx` — карточки дней/часов и переключатели режимов отображения (11 тестов, RED-фаза).
 - `tests/components/CitySearch.test.jsx` — TDD-тесты поиска городов с геокодером и дебаунсом (8 тестов, RED-фаза).
+- `tests/components/MapComponent.test.jsx` — TDD-тесты управления камерой карты и отрисовки маркеров качества воздуха (14 тестов, RED-фаза).

@@ -5,3 +5,4 @@
 /SECRETS
 /server/cache.db*
 /server/coverage/
+/frontend/coverage/
