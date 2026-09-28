@@ -1,13 +1,15 @@
 // tests/components/MapComponent.test.jsx — TDD-тесты для управления камерой и отрисовки маркеров качества воздуха
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import { getAqiInfo } from '../../src/types';
+import React from 'react';
 
 // Подготовка hoisted моков для Vitest
 const {
     MockMap,
     MockMarker,
+    MockPopup,
     MockNavigationControl,
     mockFlyTo,
     mockRemove,
@@ -16,7 +18,9 @@ const {
     mockMarkerAddTo,
     mockMarkerRemove,
     getCreatedMarkers,
-    clearCreatedMarkers
+    clearCreatedMarkers,
+    getCreatedPopups,
+    clearCreatedPopups
 } = vi.hoisted(() => {
     const mockFlyTo = vi.fn();
     const mockRemove = vi.fn();
@@ -26,6 +30,7 @@ const {
     const mockMarkerRemove = vi.fn().mockReturnThis();
 
     let createdMarkers = [];
+    let createdPopups = [];
 
     const MockMap = vi.fn().mockImplementation(function (options) {
         this.options = options;
@@ -45,10 +50,43 @@ const {
 
     const MockNavigationControl = vi.fn();
 
+    const MockPopup = vi.fn().mockImplementation(function (options = {}) {
+        this.options = options;
+        this._isOpen = false;
+        this._html = '';
+        this._dom = null;
+        this.setLngLat = vi.fn().mockImplementation((coords) => {
+            this.coords = coords;
+            return this;
+        });
+        this.setHTML = vi.fn().mockImplementation((html) => {
+            this._html = html;
+            return this;
+        });
+        this.setDOMContent = vi.fn().mockImplementation((dom) => {
+            this._dom = dom;
+            return this;
+        });
+        this.addTo = vi.fn().mockImplementation((mapInstance) => {
+            this.map = mapInstance;
+            this._isOpen = true;
+            return this;
+        });
+        this.remove = vi.fn().mockImplementation(() => {
+            this._isOpen = false;
+            return this;
+        });
+        this.isOpen = vi.fn().mockImplementation(() => this._isOpen);
+
+        createdPopups.push(this);
+        return this;
+    });
+
     const MockMarker = vi.fn().mockImplementation(function (options = {}) {
         const el = options?.element || document.createElement('div');
         this.element = el;
         this.options = options;
+        this.popup = null;
         this.setLngLat = vi.fn().mockImplementation((coords) => {
             this.coords = coords;
             mockMarkerSetLngLat(coords);
@@ -66,6 +104,30 @@ const {
         this.getElement = vi.fn().mockImplementation(() => {
             return this.element;
         });
+        this.setPopup = vi.fn().mockImplementation((popupInstance) => {
+            this.popup = popupInstance;
+            this.element.addEventListener('click', () => {
+                if (this.popup) {
+                    if (this.popup.isOpen()) {
+                        this.popup.remove();
+                    } else if (this.map) {
+                        this.popup.addTo(this.map);
+                    }
+                }
+            });
+            return this;
+        });
+        this.getPopup = vi.fn().mockImplementation(() => this.popup);
+        this.togglePopup = vi.fn().mockImplementation(() => {
+            if (this.popup) {
+                if (this.popup.isOpen()) {
+                    this.popup.remove();
+                } else if (this.map) {
+                    this.popup.addTo(this.map);
+                }
+            }
+            return this;
+        });
 
         createdMarkers.push(this);
         return this;
@@ -74,6 +136,7 @@ const {
     return {
         MockMap,
         MockMarker,
+        MockPopup,
         MockNavigationControl,
         mockFlyTo,
         mockRemove,
@@ -82,7 +145,9 @@ const {
         mockMarkerAddTo,
         mockMarkerRemove,
         getCreatedMarkers: () => createdMarkers,
-        clearCreatedMarkers: () => { createdMarkers = []; }
+        clearCreatedMarkers: () => { createdMarkers = []; },
+        getCreatedPopups: () => createdPopups,
+        clearCreatedPopups: () => { createdPopups = []; }
     };
 });
 
@@ -92,10 +157,12 @@ vi.mock('maplibre-gl', () => {
         default: {
             Map: MockMap,
             Marker: MockMarker,
+            Popup: MockPopup,
             NavigationControl: MockNavigationControl,
         },
         Map: MockMap,
         Marker: MockMarker,
+        Popup: MockPopup,
         NavigationControl: MockNavigationControl,
     };
 });
@@ -437,5 +504,198 @@ describe('MapComponent (TDD — отрисовка маркеров качест
         unmount();
 
         expect(mockMarkerRemove).toHaveBeenCalled();
+    });
+});
+
+describe('MapComponent (TDD — интерактивный Popup с детальной статистикой)', () => {
+    const mockFullAirData = {
+        latitude: 53.7596,
+        longitude: 87.1467,
+        used_source: 'open-meteo',
+        hourly: {
+            time: [
+                '2026-09-28T00:00',
+                '2026-09-28T03:00'
+            ],
+            european_aqi: [15, 85],
+            pm10: [12.5, 45.0],
+            pm2_5: [8.2, 32.1],
+            carbon_monoxide: [210, 500],
+            nitrogen_dioxide: [18.4, 42.1],
+            sulphur_dioxide: [5.1, 15.3],
+            ozone: [45.2, 90.0]
+        }
+    };
+
+    // Вспомогательная функция для извлечения HTML-содержимого из экземпляра попапа
+    function getPopupHtml(popup) {
+        if (!popup) return '';
+        if (popup._html) return popup._html;
+        if (popup._dom) return popup._dom.innerHTML || popup._dom.textContent || '';
+        if (popup.setHTML?.mock?.calls?.length) {
+            return popup.setHTML.mock.calls.at(-1)[0] || '';
+        }
+        if (popup.setDOMContent?.mock?.calls?.length) {
+            const arg = popup.setDOMContent.mock.calls.at(-1)[0];
+            return arg?.innerHTML || arg?.textContent || '';
+        }
+        return '';
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearCreatedMarkers();
+        clearCreatedPopups();
+    });
+
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('1. Привязывает экземпляр maplibregl.Popup к маркеру и открывает его при клике по маркеру', () => {
+        render(React.createElement(MapComponent, {
+            airData: mockFullAirData,
+            selectedTimeIndex: 0,
+            viewMode: 'combo'
+        }));
+
+        const markerInstance = getCreatedMarkers().at(-1);
+        expect(markerInstance).toBeDefined();
+
+        // Проверяем, что попап был создан и привязан к маркеру
+        expect(MockPopup).toHaveBeenCalled();
+        expect(markerInstance.setPopup).toHaveBeenCalled();
+
+        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+        expect(popupInstance).toBeDefined();
+        expect(popupInstance.isOpen()).toBe(false);
+
+        // Имитируем клик пользователя по маркеру
+        fireEvent.click(markerInstance.getElement());
+
+        // Окно попапа должно стать открытым
+        expect(popupInstance.isOpen()).toBe(true);
+    });
+
+    it('2. Отображает в содержимом попапа фактический источник данных (из поля used_source)', () => {
+        render(React.createElement(MapComponent, {
+            airData: mockFullAirData,
+            selectedTimeIndex: 0,
+            viewMode: 'combo'
+        }));
+
+        const markerInstance = getCreatedMarkers().at(-1);
+        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+        const content = getPopupHtml(popupInstance);
+
+        expect(content).toContain('open-meteo');
+    });
+
+    it('3. Отображает словесную классификацию качества воздуха через getAqiInfo и числовой индекс EAQI', () => {
+        render(React.createElement(MapComponent, {
+            airData: mockFullAirData,
+            selectedTimeIndex: 0, // aqi = 15
+            viewMode: 'combo'
+        }));
+
+        const markerInstance = getCreatedMarkers().at(-1);
+        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+        const content = getPopupHtml(popupInstance);
+        const expectedInfo = getAqiInfo(15);
+
+        // Проверяем наличие словесной оценки («отлично») и цифры индекса (15)
+        expect(content.toLowerCase()).toContain(expectedInfo.label.toLowerCase());
+        expect(content).toContain('15');
+    });
+
+    it('4. Отображает таблицу концентраций загрязнителей (PM10, PM2.5, CO, NO2, SO2, O3) для выбранного времени', () => {
+        render(React.createElement(MapComponent, {
+            airData: mockFullAirData,
+            selectedTimeIndex: 0,
+            viewMode: 'combo'
+        }));
+
+        const markerInstance = getCreatedMarkers().at(-1);
+        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+        const content = getPopupHtml(popupInstance);
+
+        // Проверяем обозначения основных загрязнителей
+        expect(content).toMatch(/pm10/i);
+        expect(content).toMatch(/pm2[._]?5/i);
+        expect(content).toMatch(/co\b|carbon/i);
+        expect(content).toMatch(/no2/i);
+        expect(content).toMatch(/so2/i);
+        expect(content).toMatch(/o3|ozone/i);
+
+        // Проверяем численные значения концентраций для нулевого часа
+        expect(content).toContain('12.5'); // pm10
+        expect(content).toContain('8.2');  // pm2_5
+        expect(content).toContain('210');  // carbon_monoxide
+        expect(content).toContain('18.4'); // nitrogen_dioxide
+        expect(content).toContain('5.1');  // sulphur_dioxide
+        expect(content).toContain('45.2'); // ozone
+    });
+
+    it('5. Заменяет отсутствующие загрязнители (null или undefined) прочерком («—» или «-»)', () => {
+        const dataWithMissingPollutants = {
+            ...mockFullAirData,
+            hourly: {
+                time: ['2026-09-28T00:00'],
+                european_aqi: [25],
+                pm10: [null],
+                pm2_5: [10],
+                carbon_monoxide: [undefined],
+                nitrogen_dioxide: [null],
+                sulphur_dioxide: [null],
+                ozone: [null]
+            }
+        };
+
+        render(React.createElement(MapComponent, {
+            airData: dataWithMissingPollutants,
+            selectedTimeIndex: 0,
+            viewMode: 'combo'
+        }));
+
+        const markerInstance = getCreatedMarkers().at(-1);
+        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+        const content = getPopupHtml(popupInstance);
+
+        // При отсутствии значения в таблице должен выводиться прочерк
+        expect(content).toMatch(/[—–-]/);
+    });
+
+    it('6. Динамически пересчитывает концентрации и классификацию в открытом попапе при смене selectedTimeIndex', () => {
+        const { rerender } = render(React.createElement(MapComponent, {
+            airData: mockFullAirData,
+            selectedTimeIndex: 0, // aqi = 15 (отлично), pm10 = 12.5
+            viewMode: 'combo'
+        }));
+
+        const markerInstance = getCreatedMarkers().at(-1);
+        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+
+        // Открываем попап
+        fireEvent.click(markerInstance.getElement());
+        expect(popupInstance.isOpen()).toBe(true);
+
+        let content = getPopupHtml(popupInstance);
+        expect(content).toContain('15');
+        expect(content).toContain('12.5');
+
+        // Пользователь переключает время в сайдбаре на index 1 (aqi = 85 (очень плохо), pm10 = 45.0)
+        rerender(React.createElement(MapComponent, {
+            airData: mockFullAirData,
+            selectedTimeIndex: 1,
+            viewMode: 'combo'
+        }));
+
+        const updatedPopupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
+        content = getPopupHtml(updatedPopupInstance);
+
+        // Данные внутри попапа обновились налету
+        expect(content).toContain('85');
+        expect(content).toContain('45');
+        expect(content.toLowerCase()).toContain(getAqiInfo(85).label.toLowerCase());
     });
 });
