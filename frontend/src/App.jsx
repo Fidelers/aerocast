@@ -13,6 +13,7 @@ const DEFAULT_COORDS = {
 function App() {
     const [airData, setAirData] = useState(null);
     const [selectedTimeIndex, setSelectedTimeIndex] = useState(null);
+    const [viewMode, setViewMode] = useState('combo');
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
 
@@ -56,12 +57,18 @@ function App() {
         setSelectedTimeIndex(newIndex);
     };
 
+    const handleViewModeChange = (mode) => {
+        setViewMode(mode);
+    };
+
     return (
         <div className="layout">
             <Sidebar
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
                 onSelectTime={handleSelectTime}
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
                 isLoading={isLoading}
                 loadError={loadError}
             />
@@ -69,6 +76,7 @@ function App() {
                 <MapComponent
                     airData={airData}
                     selectedTimeIndex={selectedTimeIndex}
+                    viewMode={viewMode}
                 />
             </div>
         </div>
