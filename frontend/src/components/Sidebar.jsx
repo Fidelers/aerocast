@@ -17,6 +17,7 @@ function Sidebar({
   onLocationSelect,
   onCitySelect,
   onOpenAbout,
+  onLocateMe,
   isLoading,
   loadError
 }) {
@@ -85,6 +86,9 @@ function Sidebar({
 
   // Клик по кнопке местоположения 
   const handleLocationClick = () => {
+    if (typeof onLocateMe === 'function') {
+      onLocateMe();
+    }
     setGeoError(null);
     
     if (!navigator.geolocation) {

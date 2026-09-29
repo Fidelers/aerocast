@@ -70,9 +70,25 @@ function App() {
 
     const handleLocationSelect = (loc, maybeLon) => {
         if (typeof loc === 'object' && loc !== null) {
-            setCoords({ lat: Number(loc.lat), lon: Number(loc.lon) });
+            if (loc.lat == null || loc.lon == null) {
+                setCoords({ lat: null, lon: null });
+                return;
+            }
+            const lat = Number(loc.lat);
+            const lon = Number(loc.lon);
+            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                setCoords({ lat, lon });
+            }
         } else if (loc !== undefined && maybeLon !== undefined) {
-            setCoords({ lat: Number(loc), lon: Number(maybeLon) });
+            if (loc == null || maybeLon == null) {
+                setCoords({ lat: null, lon: null });
+                return;
+            }
+            const lat = Number(loc);
+            const lon = Number(maybeLon);
+            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                setCoords({ lat, lon });
+            }
         }
     };
 
