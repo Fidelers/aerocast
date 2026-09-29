@@ -29,7 +29,7 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
     }).join('');
 
     //Заполняем информацию про AQI для вывода
-    const aqiList = hourly?.european_aqi || airData?.european_aqi; 
+    const aqiList = hourly?.european_aqi || airData?.european_aqi;
     const aqiValue = aqiList?.[selectedTimeIndex];
     let aqiNumber = '—';
     let aqiLabel = '';
