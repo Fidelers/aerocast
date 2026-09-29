@@ -34,6 +34,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             center: [87.1467, 53.7596], // Новокузнецк
             zoom: 11,
             maxZoom: 19,
+            attributionControl: false,
         });
 
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
