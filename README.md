@@ -16,26 +16,28 @@ aerocast/
 ├── frontend/                       # React-приложение (Vite)
 │   ├── public/                     # Статика (favicon.svg, icons.svg)
 │   ├── src/
-│   │   ├── assets/                 # Картинки (hero.png, react.svg, vite.svg)
+│   │   ├── assets/                 # Графика и иконки (hero.png, react.svg, vite.svg, icons/logo.svg)
 │   │   ├── components/
-│   │   │   ├── Test.jsx            # Проверка связи с бэкендом (/ping)
-│   │   │   ├── CitySearch.jsx      # Поиск города с автодополнением (TDD в процессе)
-│   │   │   ├── Sidebar.jsx         # Боковая панель: выбор дней и часов (реализовано)
-│   │   │   └── MapComponent.jsx    # Карта и отрисовка данных (заготовка)
+│   │   │   ├── AboutModal.jsx      # Информационное окно: описание проекта, загрязнители, шкала EAQI и источники (реализовано)
+│   │   │   ├── CitySearch.jsx      # Поиск города с автодополнением, дебаунсом и геокодированием (реализовано)
+│   │   │   ├── Sidebar.jsx         # Боковая панель: выбор дней и часов, режимы, геолокация (реализовано)
+│   │   │   ├── MapComponent.jsx    # Интерактивная карта Leaflet/OSM, маркеры качества воздуха (реализовано)
+│   │   │   └── Test.jsx            # Проверка связи с бэкендом (/ping) (реализовано)
 │   │   ├── styles/
 │   │   │   ├── Sidebar.css         # Стили боковой панели
 │   │   │   └── mapStyle.js         # Конфигурация тайлового слоя карты OpenStreetMap
 │   │   ├── utils/
-│   │   │   └── timeUtils.js        # Утилиты группировки времени по суткам и часам (реализовано)
-│   │   ├── App.jsx                 # Главный компонент
+│   │   │   └── timeUtils.js        # Утилиты группировки времени по суткам и 3-часовой сетке (реализовано)
+│   │   ├── App.jsx                 # Главный компонент (координация карты, сайдбара и модального окна)
 │   │   ├── main.jsx                # Точка входа React
-│   │   ├── types.js                # Классификация AQI: уровни, подписи, цвета (реализовано)
+│   │   ├── types.js                # Классификация AQI: уровни, диапазоны, цвета, подписи (реализовано)
 │   │   ├── App.css
 │   │   └── index.css
 │   ├── tests/                      # Unit и компонентные тесты (Vitest)
-│   │   ├── components/             # CitySearch.test.jsx, MapComponent.test.jsx, Sidebar.test.jsx
-│   │   ├── utils/                  # timeUtils.test.js
-│   │   └── types.test.js           # Тесты классификации AQI
+│   │   ├── App.test.jsx            # Интеграционные тесты взаимодействия компонентов
+│   │   ├── components/             # AboutModal, CitySearch, MapComponent, Sidebar, Test
+│   │   ├── utils/                  # timeUtils.test.js (группировка дат и 3-часовой сетки)
+│   │   └── types.test.js           # Тесты классификации AQI / EAQI
 │   ├── index.html
 │   ├── vite.config.js
 │   └── package.json
@@ -55,7 +57,7 @@ aerocast/
 │   │   ├── aqiCalculator.js        # Расчёт индекса EAQI по европейской шкале (реализовано)
 │   │   ├── geocodingService.js     # Геокодирование городов — Open-Meteo (реализовано)
 │   │   └── timeUtils.js            # Утилиты времени: ISO-часы, Europe/Moscow (реализовано)
-│   ├── tests/                      # Unit и интеграционные тесты (Jest)
+│   ├── tests/                      # Unit и интеграционные тесты (Jest, 12 сьютов, 177 тестов, 100% PASS)
 │   │   ├── config/                 # db.test.js (реализовано)
 │   │   ├── controllers/            # airController.test.js, searchController.test.js (реализовано)
 │   │   ├── routes/                 # api.test.js (реализовано)
@@ -103,11 +105,92 @@ copy .env.example .env
 |--------------------|--------------------------------------------------------------------------------|-------------------------------|
 | `PORT`             | Порт бэкенда (по умолчанию `3000`)                                             | `server.js`                   |
 | `DB_PATH`          | Путь к файлу базы данных SQLite (по умолчанию `server/cache.db`)                | `config/db.js`                |
-| `BACKUP_API_KEY`   | Ключ резервного источника данных (OpenWeatherMap)                              | `services/backupAirService.js` |
+| `BACKUP_API_KEY`   | Ключ резервного источника (OpenWeatherMap, [инструкция ниже](#как-получить-backup_api_key-openweathermap)) | `services/backupAirService.js` |
 | `FRONTEND_URL`     | Адрес фронтенда для CORS (по умолчанию `http://localhost:5173`)                | `server.js` (белый список CORS) |
 | `API_TIMEOUT_MS`   | Таймаут внешних сетевых запросов в мс (по умолчанию `1000`)     | `services/*AirService.js`, `services/geocodingService.js` |
 
-> Примечание: ключ геокодера не нужен — `services/geocodingService.js` работает через бесплатный API Open-Meteo. Основной источник (`primaryAirService`) тоже не требует ключа.
+> Примечание: ключ геокодера не нужен — `services/geocodingService.js` работает через бесплатный API Open-Meteo. Основной источник (`primaryAirService`) также не требует ключа.
+
+### Как получить BACKUP_API_KEY (OpenWeatherMap)
+
+Переменная `BACKUP_API_KEY` необходима для работы резервного провайдера качества воздуха (`services/backupAirService.js`).
+
+#### 1. Зачем нужен этот ключ
+Aerocast построен по принципу высокой доступности и отказоустойчивости:
+- **Основной источник (Primary)**: сервис [Open-Meteo](https://open-meteo.com/) — бесплатный, открытый, работает без авторизации.
+- **Резервный источник (Backup)**: [OpenWeatherMap Air Pollution API](https://openweathermap.org/api/air-pollution) — подключается автоматически, если основной источник недоступен, возвращает сетевую ошибку или превышает лимит таймаута (`API_TIMEOUT_MS`), а также при явном запросе клиента с параметром `?source=backup` или `?source=open-weather-map`.
+- Для выполнения запросов к API OpenWeatherMap обязательно требуется передавать персональный ключ авторизации в параметре `appid`.
+
+#### 2. Стоимость и лимиты тарифа
+- Для работы проекта используется стандартный **бесплатный тариф (Free Plan)** OpenWeather.
+- Бесплатный тариф включает **60 запросов в минуту** и до **1 000 000 бесплатных запросов в месяц**.
+
+#### 3. Пошаговая инструкция получения ключа
+
+1. **Регистрация аккаунта OpenWeather**:
+   - Перейдите на страницу создания аккаунта: [home.openweathermap.org/users/sign_up](https://home.openweathermap.org/users/sign_up) (или откройте [openweathermap.org](https://openweathermap.org/) и в правом верхнем углу нажмите **Sign In** ➔ **Create an Account**).
+   - Заполните поля формы:
+     - **Username**: имя пользователя (латинские буквы и цифры);
+     - **Email**: ваш действующий почтовый ящик;
+     - **Password** и **Repeat Password**: надёжный пароль (от 8 символов).
+   - Установите обязательные согласия:
+     - ☑ *I am 16 years old and over* (мне исполнилось 16 лет);
+     - ☑ *I agree to the Terms and Conditions of service, Privacy Policy...* (согласие с условиями).
+   - Пройдите капчу и нажмите кнопку **Create Account**.
+   - При вопросе о сфере деятельности или целях использования выберите любой вариант (например, *Education/Student* или *Other*) и сохраните.
+
+2. **Подтверждение адреса электронной почты (ОБЯЗАТЕЛЬНО!)**:
+   - Откройте ваш почтовый ящик, указанный при регистрации.
+   - Найдите входящее письмо от **OpenWeather** с темой *«Verify your email address»* (или проверьте папку «Спам», если письма нет во входящих).
+   - Перейдите по ссылке или нажмите кнопку **Verify your email**.
+   > [!IMPORTANT]
+   > Если не подтвердить почту по ссылке из письма, ваш API-ключ не перейдёт в активное состояние и запросы будут отклоняться с ошибкой `401 Unauthorized`.
+
+3. **Переход в раздел управления ключами (API Keys)**:
+   - Авторизуйтесь на сайте [openweathermap.org](https://openweathermap.org/).
+   - В верхнем правом углу нажмите на имя вашей учётной записи.
+   - В выпадающем меню выберите пункт **My API keys** (прямая ссылка: [home.openweathermap.org/api_keys](https://home.openweathermap.org/api_keys)).
+
+4. **Копирование или создание ключа**:
+   - В таблице ключей уже присутствует сгенерированный системой ключ по умолчанию с именем `Default`.
+   - Вы можете использовать его, либо создать отдельный именованный ключ для проекта:
+     - В блоке справа **Create key** введите имя ключа (например, `aerocast-backup`);
+     - Нажмите кнопку **Generate**;
+   - В колонке **Key** скопируйте 32-значный ключ (шестнадцатеричная строка из букв и цифр, например `1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d`).
+
+5. **Ожидание активации ключа на серверах OpenWeather**:
+   > [!WARNING]
+   > **Новые API-ключи активируются не мгновенно!** Процесс распределения нового ключа по серверам OpenWeather занимает **от 10 до 30 минут** (в редких случаях до 1–2 часов).
+   > Если сразу после регистрации вы получаете ошибку `401 Unauthorized` с сообщением `{"cod":401, "message": "Invalid API key..."}`, это нормально — подождите 15–30 минут, после чего ключ заработает автоматически.
+
+6. **Добавление ключа в конфигурацию проекта**:
+   - Перейдите в каталог `server/` проекта.
+   - Откройте файл `.env` (если файл ещё не создан, скопируйте его из образца: `copy .env.example .env` в Windows или `cp .env.example .env` в macOS/Linux).
+   - Вставьте ваш ключ в переменную `BACKUP_API_KEY`:
+     ```env
+     BACKUP_API_KEY="1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d"
+     ```
+   - Сохраните файл.
+   - Перезапустите бэкенд, если он уже был запущен (`npm run dev` или `npm start`).
+
+#### 4. Проверка работоспособности ключа
+
+Проверить, что ключ активирован и отдаёт корректные данные, можно следующими способами:
+
+- **Способ 1: Прямой запрос к OpenWeather API через терминал (curl)**:
+  ```bash
+  curl "https://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=55.75&lon=37.61&appid=ВАШ_КЛЮЧ"
+  ```
+  *(или откройте эту же ссылку в адресной строке любого браузера, заменив `ВАШ_КЛЮЧ` на ваш токен).*
+  - **Успех**: вернётся статус `200 OK` и JSON-ответ с массивом прогноза `list`, включающим `components` (`pm2_5`, `pm10`, `no2`, `so2`, `co`, `o3`).
+  - **Ключ ещё не активирован**: вернётся `{"cod":401, "message": "Invalid API key. Please see https://openweathermap.org/faq#error401 for more info."}` — подождите ещё немного.
+
+- **Способ 2: Запрос через бэкенд Aerocast**:
+  Запустите сервер (`cd server && npm run dev`) и перейдите в браузере по адресу:
+  ```
+  http://localhost:3000/api/air?lat=55.75&lon=37.61&source=backup
+  ```
+  В ответе должен вернуться структурированный JSON с полем `"used_source": "open-weather-map"`.
 
 ## База данных (SQLite)
 
@@ -171,7 +254,7 @@ npm run test:watch    # запуск в режиме watch (jest --watchAll)
 npm run test:coverage # запуск с отчётом о покрытии кода (jest --coverage)
 ```
 
-- **Все модули бэкенда полностью реализованы и протестированы (12 сьютов, 152 теста — 100% PASS)**:
+- **Все модули бэкенда полностью реализованы и протестированы (12 сьютов, 177 тестов — 100% PASS)**:
   - `tests/config/db.test.js` — подключение к SQLite, WAL-режим, миграции таблиц и индексов, закрытие соединения.
   - `tests/services/primaryAirService.test.js` — получение данных качества воздуха из Open-Meteo.
   - `tests/services/backupAirService.test.js` — опрос резервного источника (OpenWeatherMap по HTTPS) и нормализация данных.
@@ -197,8 +280,11 @@ npm run test:coverage    # отчёт о покрытии кода (v8)
 ```
 
 Тесты фронтенда расположены в `frontend/tests/`:
-- `tests/types.test.js` — классификация AQI / EAQI (12 тестов).
-- `tests/utils/timeUtils.test.js` — утилиты группировки дат и 3-часовой сетки (19 тестов).
-- `tests/components/Sidebar.test.jsx` — карточки дней/часов и переключатели режимов отображения (11 тестов, RED-фаза).
-- `tests/components/CitySearch.test.jsx` — TDD-тесты поиска городов с геокодером и дебаунсом (8 тестов, RED-фаза).
-- `tests/components/MapComponent.test.jsx` — TDD-тесты управления камерой карты и отрисовки маркеров качества воздуха (14 тестов, RED-фаза).
+- `tests/App.test.jsx` — интеграционные тесты координации компонентов, загрузки данных с бэкенда и модального окна.
+- `tests/components/AboutModal.test.jsx` — информационное окно: расшифровка загрязнителей (PM2.5, PM10, NO2, SO2, CO, O3), шкала EAQI и источники данных.
+- `tests/components/CitySearch.test.jsx` — поиск населенных пунктов, автодополнение подсказок, выбор города и дебаунс.
+- `tests/components/MapComponent.test.jsx` — интерактивная карта, маркеры качества воздуха, переключение режимов визуализации и всплывающие подсказки.
+- `tests/components/Sidebar.test.jsx` — боковая панель: выбор дней и часов, переключение режимов (цветовой, цифровой, комбо), геолокация, легенда AQI.
+- `tests/components/Test.test.jsx` — отладочный компонент проверки связи и доступности бэкенда.
+- `tests/utils/timeUtils.test.js` — утилиты группировки дат и 3-часовой сетки замеров.
+- `tests/types.test.js` — классификация AQI / EAQI по уровням, числовым диапазонам, подписям и цветам.
