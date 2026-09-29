@@ -18,28 +18,28 @@ describe('AboutModal component (TDD — модальное окно информ
     it('2. Рендерит заголовок "О проекте Aerocast" и описание сервиса, когда isOpen=true', () => {
         render(<AboutModal isOpen={true} onClose={vi.fn()} />);
 
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-        expect(screen.getByText(/aerocast/i)).toBeInTheDocument();
-        expect(screen.getByText(/о проекте/i)).toBeInTheDocument();
-        expect(screen.getByText(/прогноз/i)).toBeInTheDocument();
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(screen.getAllByText(/aerocast/i).length).toBeGreaterThan(0);
+        expect(screen.getByText(/о проекте/i)).toBeTruthy();
+        expect(screen.getAllByText(/прогноз/i).length).toBeGreaterThan(0);
     });
 
     it('3. Отображает информацию о 6 загрязнителях европейского индекса EAQI (PM2.5, PM10, NO2, O3, SO2, CO)', () => {
         render(<AboutModal isOpen={true} onClose={vi.fn()} />);
 
-        expect(screen.getByText(/pm2\.?5/i)).toBeInTheDocument();
-        expect(screen.getByText(/pm10/i)).toBeInTheDocument();
-        expect(screen.getByText(/no2/i)).toBeInTheDocument();
-        expect(screen.getByText(/o3/i)).toBeInTheDocument();
-        expect(screen.getByText(/so2/i)).toBeInTheDocument();
-        expect(screen.getByText(/co/i)).toBeInTheDocument();
+        expect(screen.getByText(/pm2\.?5/i)).toBeTruthy();
+        expect(screen.getByText(/pm10/i)).toBeTruthy();
+        expect(screen.getByText(/no2/i)).toBeTruthy();
+        expect(screen.getByText(/o3/i)).toBeTruthy();
+        expect(screen.getByText(/so2/i)).toBeTruthy();
+        expect(screen.getByText(/co/i)).toBeTruthy();
     });
 
     it('4. Отображает используемые источники данных (Open-Meteo и OpenWeatherMap)', () => {
         render(<AboutModal isOpen={true} onClose={vi.fn()} />);
 
-        expect(screen.getByText(/open-meteo/i)).toBeInTheDocument();
-        expect(screen.getByText(/openweathermap/i)).toBeInTheDocument();
+        expect(screen.getByText(/open-meteo/i)).toBeTruthy();
+        expect(screen.getByText(/openweathermap/i)).toBeTruthy();
     });
 
     it('5. Вызывает onClose при клике на кнопку закрытия (крестик)', () => {

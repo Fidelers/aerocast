@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import Logo from '../assets/icons/logo.svg';
 import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
+import AboutModal from './AboutModal';
 import { groupTimesByDay, formatDateKey } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
@@ -15,11 +16,13 @@ function Sidebar({
   onViewModeChange,
   onLocationSelect,
   onCitySelect,
+  onOpenAbout,
   isLoading,
   loadError
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   // Извлечение массива меток времени из airData
   const timeArray = useMemo(() => {
@@ -84,7 +87,19 @@ function Sidebar({
           <img src={Logo} alt="AeroCast" className="sidebar__logo" />
           <div className="sidebar__title">Aerocast</div>
         </div>
-        <a href="#" className="sidebar__info-btn" aria-label="Информация о проекте">
+        <a
+          href="#"
+          className="sidebar__info-btn"
+          aria-label="Информация о проекте"
+          onClick={(e) => {
+            e.preventDefault();
+            if (typeof onOpenAbout === 'function') {
+              onOpenAbout();
+            } else {
+              setIsAboutOpen(true);
+            }
+          }}
+        >
           <img src={InfoIcon} className="sidebar__info-icon" alt="" />
         </a>
       </div>
@@ -237,6 +252,13 @@ function Sidebar({
           </li>
         </ul>
       </section>
+
+      {!onOpenAbout && (
+        <AboutModal
+          isOpen={isAboutOpen}
+          onClose={() => setIsAboutOpen(false)}
+        />
+      )}
     </aside>
   );
 }

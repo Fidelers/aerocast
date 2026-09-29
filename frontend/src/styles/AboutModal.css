@@ -1,0 +1,261 @@
+/* AboutModal.css — стили модального окна «О проекте» и методологии EAQI */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg, #ffffff);
+  color: var(--text, #374151);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  padding: 28px;
+  animation: modalScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--inter, system-ui, sans-serif);
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Кастомный аккуратный скроллбар */
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-content::-webkit-scrollbar-thumb {
+  background: var(--border, #cbd5e1);
+  border-radius: 4px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.modal-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-header__logo {
+  width: 36px;
+  height: 36px;
+}
+
+.modal-header__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-h, #111827);
+}
+
+.modal-header__subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: var(--surface-secondary, #f1f5f9);
+  color: var(--text, #4b5563);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background: var(--border, #e2e8f0);
+  color: var(--text-h, #111827);
+  transform: rotate(90deg);
+}
+
+.modal-section {
+  margin-bottom: 24px;
+}
+
+.modal-section:last-child {
+  margin-bottom: 0;
+}
+
+.modal-section__title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h, #1f2937);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-section__text {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text, #4b5563);
+}
+
+/* Сетка загрязнителей */
+.pollutants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pollutant-card {
+  background: var(--surface-secondary, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pollutant-card__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary, #2563eb);
+}
+
+.pollutant-card__desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
+}
+
+/* Шкала EAQI */
+.aqi-modal-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aqi-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface-secondary, #f8fafc);
+  border-radius: 8px;
+  font-size: 13px;
+  border-left: 4px solid transparent;
+}
+
+.aqi-modal-item__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.aqi-modal-item__badge {
+  display: inline-block;
+  min-width: 50px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.aqi-modal-item__label {
+  font-weight: 600;
+  color: var(--text-h, #1f2937);
+}
+
+.aqi-modal-item__advice {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  text-align: right;
+  max-width: 320px;
+}
+
+/* Источники данных */
+.sources-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-secondary, #f1f5f9);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h, #0f172a);
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    padding: 20px;
+  }
+  .aqi-modal-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .aqi-modal-item__advice {
+    text-align: left;
+    max-width: 100%;
+  }
+}

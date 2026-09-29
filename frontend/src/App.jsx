@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
+import AboutModal from './components/AboutModal';
 import { findDefaultTimeIndex } from './utils/timeUtils';
 
 // Координаты по умолчанию: Новокузнецк
@@ -17,6 +18,7 @@ function App() {
     const [coords, setCoords] = useState(DEFAULT_COORDS);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
 
     // Загрузка данных качества воздуха при монтировании и смене координат
     useEffect(() => {
@@ -83,6 +85,7 @@ function App() {
                 onLocationSelect={handleLocationSelect}
                 viewMode={viewMode}
                 onViewModeChange={handleViewModeChange}
+                onOpenAbout={() => setIsAboutOpen(true)}
                 isLoading={isLoading}
                 loadError={loadError}
             />
@@ -97,6 +100,10 @@ function App() {
                     onLocationSelect={handleLocationSelect}
                 />
             </div>
+            <AboutModal
+                isOpen={isAboutOpen}
+                onClose={() => setIsAboutOpen(false)}
+            />
         </div>
     );
 }
