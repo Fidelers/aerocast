@@ -17,6 +17,7 @@ export default function MapComponent() {
             style: osmStyle, // Передаем вынесенный объект сюда
             center: [87.1467, 53.7596], // Новокузнецк
             zoom: 11,
+            maxZoom: 19,
         });
 
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
