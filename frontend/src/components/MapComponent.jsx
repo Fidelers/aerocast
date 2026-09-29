@@ -2,9 +2,82 @@
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import '../styles/Popup.css';
 
 import { osmStyle } from '../styles/mapStyle';
-import { getAqiInfo } from '../types';
+import { getAqiInfo, getAqiRecommendation } from '../types';
+
+const POLLUTANTS = [
+    { key: 'pm2_5', label: 'PM2.5' },
+    { key: 'pm10', label: 'PM10' },
+    { key: 'ozone', label: 'O3' },
+    { key: 'nitrogen_dioxide', label: 'NO2' },
+    { key: 'sulphur_dioxide', label: 'SO2' },
+    { key: 'carbon_monoxide', label: 'CO' },
+];
+
+//Создание попапчика
+function buildPopup(airData, selectedTimeIndex, lat, lon) {
+    const hourly = airData?.hourly;
+
+    const rows = POLLUTANTS.map(({ key, label }) => {
+        const arr = hourly?.[key];
+        const value = arr?.[selectedTimeIndex];
+        const display = value != null && !Number.isNaN(value) ? `${value} μg/m³` : '—';
+        return `<div class="map-popup__row"><span class="map-popup__label">${label}</span><span class="map-popup__value">${display}</span></div>`;
+    }).join('');
+
+    //Заполняем информацию про AQI для вывода
+    const aqiList = hourly?.european_aqi || airData?.european_aqi;; 
+    const aqiValue = aqiList?.[selectedTimeIndex];
+    let aqiNumber = '—';
+    let aqiLabel = '';
+    let aqiColor = '#9ca3af';
+    let recommendation = '';
+    if (aqiValue != null && !Number.isNaN(aqiValue)) {
+        const info = getAqiInfo(aqiValue);
+        aqiNumber = String(aqiValue);
+        aqiLabel = info.label;
+        aqiColor = info.hex;
+
+        const recommendationText = getAqiRecommendation(aqiValue);
+        if (recommendationText) {
+            recommendation = `
+                <div class="map-popup__recommendation">
+                    ${recommendationText}
+                </div>
+            `;
+        }
+    }
+
+    const source = airData?.used_source || 'open-meteo';
+
+    const displayLat = lat != null ? Number(lat).toFixed(4) : (airData?.latitude != null ? Number(airData.latitude).toFixed(4) : '—');
+    const displayLon = lon != null ? Number(lon).toFixed(4) : (airData?.longitude != null ? Number(airData.longitude).toFixed(4) : '—');
+
+    return `
+        <div class="map-popup">
+            <h3 class="map-popup__title">Качество воздуха</h3>
+            <p class="map-popup__coords">Широта: ${displayLat}, Долгота: ${displayLon}</p>
+            <p class="map-popup__source">Источник: ${source}</p>
+            <div class="map-popup__aqi-block" style="background-color: ${aqiColor};">
+                <div class="map-popup__aqi-title">
+                    <span class="map-popup__aqi-label">AQI<br>(Европа)</span>
+                </div>
+                <div class="map-popup__aqi-info">
+                    <span class="map-popup__aqi-number">${aqiNumber}</span>
+                    <span class="map-popup__aqi-text">${aqiLabel}</span>
+                </div>
+            </div>
+            <div class="map-popup__pollutants">
+                ${rows}
+            </div>
+
+            ${recommendation}
+        </div>
+    `;
+
+}
 
 export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick }) {
     const mapContainer = useRef(null);
@@ -12,6 +85,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     const isFirstMount = useRef(true);
     const isMapClick = useRef(false);
     const markerRef = useRef(null);
+    const popupRef = useRef(null);
     const markerElementRef = useRef(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onMapClickRef = useRef(onMapClick);
@@ -94,9 +168,13 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
         });
     }, [lat, lon]);
 
-    // Отрисовка маркера качества воздуха (EAQI)
+    // Отрисовка маркера качества воздуха (EAQI) + привязка попапа
     useEffect(() => {
         if (!airData || selectedTimeIndex === null || selectedTimeIndex === undefined) {
+            if (popupRef.current) {
+                popupRef.current.remove();
+                popupRef.current = null;
+            }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
@@ -109,6 +187,10 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
         const aqi = aqiList?.[selectedTimeIndex];
 
         if (aqi === null || aqi === undefined) {
+            if (popupRef.current) {
+                popupRef.current.remove();
+                popupRef.current = null;
+            }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
@@ -163,14 +245,28 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
 
         if (!markerRef.current && map.current) {
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
+                // Создаем попап
+                const popup = new maplibregl.Popup({
+                    closeButton: true,
+                    closeOnClick: false,
+                    className: 'air-quality-popup',
+                }).setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
+
+                popupRef.current = popup;
+
                 const marker = new maplibregl.Marker({ element: el })
                     .setLngLat([markerLon, markerLat])
+                    .setPopup(popup)
                     .addTo(map.current);
                 markerRef.current = marker;
             }
         } else if (markerRef.current) {
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
                 markerRef.current.setLngLat([markerLon, markerLat]);
+            }
+            // Обновление поапап без его пересоздания
+            if (popupRef.current) {
+                popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
             }
         }
     }, [airData, selectedTimeIndex, viewMode, lat, lon]);
