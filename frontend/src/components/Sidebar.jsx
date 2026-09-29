@@ -85,7 +85,8 @@ function Sidebar({
 
   // Клик по кнопке местоположения 
   const handleLocationClick = () => {
-
+    setGeoError(null);
+    
     if (!navigator.geolocation) {
       setGeoError('Геолокация не поддерживается вашим браузером');
       return;
