@@ -14,6 +14,7 @@ function App() {
     const [airData, setAirData] = useState(null);
     const [selectedTimeIndex, setSelectedTimeIndex] = useState(null);
     const [viewMode, setViewMode] = useState('combo');
+    const [coords, setCoords] = useState(DEFAULT_COORDS);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
 
@@ -61,12 +62,21 @@ function App() {
         setViewMode(mode);
     };
 
+    const handleLocationSelect = (loc, maybeLon) => {
+        if (typeof loc === 'object' && loc !== null) {
+            setCoords({ lat: Number(loc.lat), lon: Number(loc.lon) });
+        } else if (loc !== undefined && maybeLon !== undefined) {
+            setCoords({ lat: Number(loc), lon: Number(maybeLon) });
+        }
+    };
+
     return (
         <div className="layout">
             <Sidebar
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
                 onSelectTime={handleSelectTime}
+                onLocationSelect={handleLocationSelect}
                 viewMode={viewMode}
                 onViewModeChange={handleViewModeChange}
                 isLoading={isLoading}
@@ -74,6 +84,8 @@ function App() {
             />
             <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
                 <MapComponent
+                    lat={coords.lat}
+                    lon={coords.lon}
                     airData={airData}
                     selectedTimeIndex={selectedTimeIndex}
                     viewMode={viewMode}
