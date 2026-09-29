@@ -232,3 +232,34 @@ describe('Sidebar component (TDD — Геолокация пользовател
         expect(errorMessage).toBeTruthy();
     });
 });
+
+describe('Sidebar component (TDD — вызов информационного модального окна)', () => {
+    afterEach(() => {
+        cleanup();
+        vi.restoreAllMocks();
+    });
+
+    it('1. При клике на кнопку информации вызывает onOpenAbout', () => {
+        const handleOpenAbout = vi.fn();
+        render(<Sidebar onOpenAbout={handleOpenAbout} />);
+
+        const infoBtn = screen.getByLabelText(/информация о проекте/i);
+        fireEvent.click(infoBtn);
+
+        expect(handleOpenAbout).toHaveBeenCalledTimes(1);
+    });
+
+    it('2. Предотвращает стандартный переход по ссылке (preventDefault) при клике на кнопку информации', () => {
+        const handleOpenAbout = vi.fn();
+        render(<Sidebar onOpenAbout={handleOpenAbout} />);
+
+        const infoBtn = screen.getByLabelText(/информация о проекте/i);
+        const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+        const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+        infoBtn.dispatchEvent(event);
+
+        expect(preventDefaultSpy).toHaveBeenCalled();
+    });
+});
+

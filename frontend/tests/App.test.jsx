@@ -29,7 +29,11 @@ vi.mock('../src/components/MapComponent', () => {
         default: function DummyMap(props) {
             return React.createElement('div', { 'data-testid': 'map' },
                 React.createElement('span', { 'data-testid': 'map-data' }, props.airData ? 'loaded' : 'empty'),
-                React.createElement('span', { 'data-testid': 'map-time' }, String(props.selectedTimeIndex))
+                React.createElement('span', { 'data-testid': 'map-time' }, String(props.selectedTimeIndex)),
+                React.createElement('button', {
+                    'data-testid': 'map-btn-click',
+                    onClick: () => props.onMapClick && props.onMapClick(59.9343, 30.3351)
+                }, 'Click Map Point')
             );
         }
     };
@@ -150,6 +154,32 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('sidebar-error').textContent).toBe('Failed to fetch');
                 expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
             });
+        });
+    });
+
+    describe('Task: Интерактивный клик по карте (onMapClick)', () => {
+        it('7. должен обновлять координаты и запрашивать /api/air-quality при клике на карте через onMapClick', async () => {
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockAirData
+            });
+
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
+            });
+
+            globalThis.fetch.mockClear();
+
+            await act(async () => {
+                await userEvent.click(screen.getByTestId('map-btn-click'));
+            });
+
+            expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+            expect(globalThis.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/api/air-quality?lat=59.9343&lon=30.3351')
+            );
         });
     });
 });

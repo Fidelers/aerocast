@@ -17,6 +17,8 @@ const {
     mockMarkerSetLngLat,
     mockMarkerAddTo,
     mockMarkerRemove,
+    mockMapOn,
+    mockMapOff,
     getCreatedMarkers,
     clearCreatedMarkers,
     getCreatedPopups,
@@ -28,6 +30,8 @@ const {
     const mockMarkerSetLngLat = vi.fn().mockReturnThis();
     const mockMarkerAddTo = vi.fn().mockReturnThis();
     const mockMarkerRemove = vi.fn().mockReturnThis();
+    const mockMapOn = vi.fn();
+    const mockMapOff = vi.fn();
 
     let createdMarkers = [];
     let createdPopups = [];
@@ -43,8 +47,8 @@ const {
         this.addLayer = vi.fn();
         this.removeLayer = vi.fn();
         this.getLayer = vi.fn();
-        this.on = vi.fn();
-        this.off = vi.fn();
+        this.on = mockMapOn;
+        this.off = mockMapOff;
         return this;
     });
 
@@ -144,6 +148,8 @@ const {
         mockMarkerSetLngLat,
         mockMarkerAddTo,
         mockMarkerRemove,
+        mockMapOn,
+        mockMapOff,
         getCreatedMarkers: () => createdMarkers,
         clearCreatedMarkers: () => { createdMarkers = []; },
         getCreatedPopups: () => createdPopups,
@@ -697,5 +703,52 @@ describe('MapComponent (TDD — интерактивный Popup с деталь
         expect(content).toContain('85');
         expect(content).toContain('45');
         expect(content.toLowerCase()).toContain(getAqiInfo(85).label.toLowerCase());
+    });
+});
+
+describe('MapComponent (TDD — интерактивный выбор точки кликом по карте)', () => {
+    it('1. Подписывается на событие клика карты ("click") при инициализации', () => {
+        const handleMapClick = vi.fn();
+        render(<MapComponent onMapClick={handleMapClick} />);
+
+        expect(mockMapOn).toHaveBeenCalledWith('click', expect.any(Function));
+    });
+
+    it('2. При клике по карте вызывает onMapClick с числовыми координатами (lat, lon)', () => {
+        const handleMapClick = vi.fn();
+        render(<MapComponent onMapClick={handleMapClick} />);
+
+        const clickCall = mockMapOn.mock.calls.find((call) => call[0] === 'click');
+        expect(clickCall).toBeDefined();
+
+        const clickHandler = clickCall[1];
+        // MapLibre передает e.lngLat с полями lng и lat
+        clickHandler({
+            lngLat: { lng: 37.6173, lat: 55.7558 }
+        });
+
+        expect(handleMapClick).toHaveBeenCalledTimes(1);
+        expect(handleMapClick).toHaveBeenCalledWith(55.7558, 37.6173);
+    });
+
+    it('3. Безопасно отрабатывает клик, если коллбэк onMapClick не передан в пропсы', () => {
+        render(<MapComponent />);
+
+        const clickCall = mockMapOn.mock.calls.find((call) => call[0] === 'click');
+        if (clickCall) {
+            const clickHandler = clickCall[1];
+            expect(() => {
+                clickHandler({ lngLat: { lng: 37.6173, lat: 55.7558 } });
+            }).not.toThrow();
+        }
+    });
+
+    it('4. Отписывается от события "click" при размонтировании компонента', () => {
+        const handleMapClick = vi.fn();
+        const { unmount } = render(<MapComponent onMapClick={handleMapClick} />);
+
+        unmount();
+
+        expect(mockMapOff).toHaveBeenCalledWith('click', expect.any(Function));
     });
 });
