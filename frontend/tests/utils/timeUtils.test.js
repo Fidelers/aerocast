@@ -58,6 +58,7 @@ describe('timeUtils', () => {
             expect(getDayInfo('')).toEqual({ dayOfWeek: '', dayOfMonth: '' });
             expect(getDayInfo('invalid')).toEqual({ dayOfWeek: '', dayOfMonth: '' });
             expect(getDayInfo(null)).toEqual({ dayOfWeek: '', dayOfMonth: '' });
+            expect(getDayInfo('foo-bar-baz')).toEqual({ dayOfWeek: '', dayOfMonth: '' });
         });
     });
 
@@ -69,11 +70,15 @@ describe('timeUtils', () => {
 
         it('извлекает ключ из ISO-строки', () => {
             expect(formatDateKey('2026-09-28T15:00')).toBe('2026-09-28');
+            expect(formatDateKey('2026-09-28 with extra info')).toBe('2026-09-28');
+            expect(formatDateKey('not-a-date-at-all')).toBe('');
         });
 
-        it('возвращает пустую строку для null/undefined', () => {
+        it('возвращает пустую строку для null/undefined/чисел/невалидных дат', () => {
             expect(formatDateKey(null)).toBe('');
             expect(formatDateKey(undefined)).toBe('');
+            expect(formatDateKey(12345)).toBe('');
+            expect(formatDateKey(new Date('invalid'))).toBe('');
         });
     });
 
@@ -169,6 +174,17 @@ describe('timeUtils', () => {
             expect(days[0].hours).toHaveLength(1);
             expect(days[0].hours[0].index).toBe(1);
         });
+
+        it('поддерживает options как пустой объект или null', () => {
+            const days1 = groupTimesByDay(mockTimes, refDate, {});
+            expect(days1).toHaveLength(3);
+
+            const days2 = groupTimesByDay(mockTimes, refDate, null);
+            expect(days2).toHaveLength(3);
+
+            const days3 = groupTimesByDay(mockTimes);
+            expect(Array.isArray(days3)).toBe(true);
+        });
     });
 
     describe('findDefaultTimeIndex', () => {
@@ -206,5 +222,36 @@ describe('timeUtils', () => {
             const refDate = new Date('2025-01-01T12:00:00');
             expect(findDefaultTimeIndex(mockTimes, refDate)).toBe(0);
         });
+
+        it('поддерживает options как объект, null или число', () => {
+            const refDate = new Date('2026-09-28T09:00:00');
+            expect(findDefaultTimeIndex(mockTimes, refDate, { stepHours: 3 })).toBe(3);
+            expect(findDefaultTimeIndex(mockTimes, refDate, {})).toBe(3);
+            expect(findDefaultTimeIndex(mockTimes, refDate, null)).toBe(3);
+            expect(findDefaultTimeIndex(mockTimes, refDate, 0)).toBe(3);
+            expect(findDefaultTimeIndex(mockTimes, refDate, 1)).toBe(3);
+            expect(findDefaultTimeIndex(mockTimes)).not.toBeNull();
+        });
+
+        it('пропускает некорректные метки времени в массиве', () => {
+            const timesWithInvalid = ['not-a-date', '2026-09-28T09:00'];
+            const refDate = new Date('2026-09-28T09:00:00');
+            expect(findDefaultTimeIndex(timesWithInvalid, refDate)).toBe(1);
+        });
+
+        it('возвращает todayFirstIndex, если targetHour равен null (строковая дата)', () => {
+            expect(findDefaultTimeIndex(mockTimes, '2026-09-28')).toBe(1);
+        });
+
+        it('возвращает fallbackClosestIndex, если ни одна метка времени за сегодня не удовлетворяет шагу', () => {
+            const oddTimes = [
+                '2026-09-28T04:00', // diff 1 до 05:00 -> fallback closest!
+                '2026-09-28T01:00'  // diff 4 до 05:00 -> diff < fallbackMinDiff evaluates to FALSE!
+            ];
+            const refDate = new Date('2026-09-28T05:00:00');
+            // Шаг 3: ни 01, ни 04 не кратны 3 (01%3=1, 04%3=1)
+            expect(findDefaultTimeIndex(oddTimes, refDate, 3)).toBe(0);
+        });
     });
 });
+

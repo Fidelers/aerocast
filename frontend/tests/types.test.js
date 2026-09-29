@@ -1,6 +1,6 @@
 // tests/types.test.js — тесты классификации AQI (Vitest)
 import { describe, it, expect } from 'vitest';
-import { getAqiInfo } from '../src/types.js';
+import { getAqiInfo, getAqiRecommendation } from '../src/types.js';
 
 describe('types.getAqiInfo', () => {
     describe('Отсутствие данных', () => {
@@ -100,4 +100,27 @@ describe('types.getAqiInfo', () => {
             expect(Object.isFrozen(getAqiInfo(150))).toBe(true);
         });
     });
+
+    describe('types.getAqiRecommendation', () => {
+        it('возвращает рекомендации для каждого уровня качества воздуха', () => {
+            expect(getAqiRecommendation(10)).toContain('Воздух чистый');
+            expect(getAqiRecommendation(30)).toContain('приемлемое');
+            expect(getAqiRecommendation(50)).toContain('Умеренное');
+            expect(getAqiRecommendation(70)).toContain('Неблагоприятные');
+            expect(getAqiRecommendation(90)).toContain('Высокое загрязнение');
+            expect(getAqiRecommendation(120)).toContain('Опасный уровень');
+        });
+
+        it('возвращает пустую строку для null, undefined и NaN', () => {
+            expect(getAqiRecommendation(null)).toBe('');
+            expect(getAqiRecommendation(undefined)).toBe('');
+            expect(getAqiRecommendation(NaN)).toBe('');
+        });
+
+        it('поддерживает передачу объекта aqiInfo', () => {
+            expect(getAqiRecommendation({ level: 'excellent' })).toContain('Воздух чистый');
+            expect(getAqiRecommendation({ level: 'unknown' })).toBe('');
+        });
+    });
 });
+

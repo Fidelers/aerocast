@@ -4,8 +4,6 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const containerRef = useRef(null);
   const isSelectingRef = useRef(false);
@@ -35,38 +33,28 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
     if (trimmed.length < 3) {
       setResults([]);
       setIsOpen(false);
-      setHasSearched(false);
-      setIsLoading(false);
       return;
     }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
-      setIsLoading(true);
       try {
         const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
         const response = await fetch(`${apiBase}/api/search?q=${encodeURIComponent(trimmed)}`);
         if (cancelled) return;
         if (!response.ok) {
           setResults([]);
-          setHasSearched(true);
           setIsOpen(true);
           return;
         }
         const data = await response.json();
         if (cancelled) return;
         setResults(Array.isArray(data) ? data : []);
-        setHasSearched(true);
         setIsOpen(true);
-      } catch (err) {
+      } catch {
         if (cancelled) return;
         setResults([]);
-        setHasSearched(true);
         setIsOpen(true);
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
       }
     }, 500);
 
@@ -93,7 +81,6 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
     setQuery(cityName);
     setIsOpen(false);
     setResults([]);
-    setHasSearched(false);
 
     const locationPayload = {
       ...item,
@@ -145,9 +132,9 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
                 </li>
               ))}
             </ul>
-          ) : hasSearched ? (
+          ) : (
             <div className="city-search__empty">Город не найден</div>
-          ) : null}
+          )}
         </div>
       )}
     </div>

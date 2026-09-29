@@ -1,27 +1,28 @@
 // tests/components/Sidebar.test.jsx — тесты компонента Sidebar (навигация по времени и переключатели режимов)
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import Sidebar from '../../src/components/Sidebar';
 
-describe('Sidebar component', () => {
-    const mockAirData = {
-        latitude: 53.7596,
-        longitude: 87.1467,
-        hourly: {
-            time: [
-                '2026-09-27T18:00', // index 0 (вчера, кратно 3)
-                '2026-09-27T21:00', // index 1 (кратно 3)
-                '2026-09-28T00:00', // index 2 (сегодня, кратно 3)
-                '2026-09-28T01:00', // index 3 (НЕ кратно 3)
-                '2026-09-28T03:00', // index 4 (кратно 3)
-                '2026-09-28T06:00', // index 5 (кратно 3)
-                '2026-09-29T00:00', // index 6 (прогноз, кратно 3)
-                '2026-09-29T03:00'  // index 7 (кратно 3)
-            ]
-        }
-    };
+const mockAirData = {
+    latitude: 53.7596,
+    longitude: 87.1467,
+    hourly: {
+        time: [
+            '2026-09-27T18:00', // index 0 (вчера, кратно 3)
+            '2026-09-27T21:00', // index 1 (кратно 3)
+            '2026-09-28T00:00', // index 2 (кратно 3)
+            '2026-09-28T01:00', // index 3 (НЕ кратно 3)
+            '2026-09-28T03:00', // index 4 (кратно 3)
+            '2026-09-28T06:00', // index 5 (кратно 3)
+            '2026-09-29T00:00', // index 6 (сегодня, кратно 3)
+            '2026-09-29T03:00', // index 7 (кратно 3)
+            '2026-09-30T00:00'  // index 8 (прогноз, кратно 3)
+        ]
+    }
+};
 
+describe('Sidebar component', () => {
     it('рендерится без ошибок при отсутствии airData', () => {
         const html = renderToString(<Sidebar airData={null} />);
         expect(html).toContain('Нет данных о датах');
@@ -234,8 +235,13 @@ describe('Sidebar component (TDD — Геолокация пользовател
 });
 
 describe('Sidebar component (TDD — вызов информационного модального окна)', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
     afterEach(() => {
         cleanup();
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -261,5 +267,208 @@ describe('Sidebar component (TDD — вызов информационного �
 
         expect(preventDefaultSpy).toHaveBeenCalled();
     });
+
+    it('3. Открывает и закрывает внутренний AboutModal, если onOpenAbout не передан в пропсы', () => {
+        render(<Sidebar />);
+
+        const infoBtn = screen.getByLabelText(/информация о проекте/i);
+        fireEvent.click(infoBtn);
+
+        expect(screen.getByRole('dialog')).toBeTruthy();
+
+        const closeBtn = screen.getByRole('button', { name: /закрыть/i });
+        fireEvent.click(closeBtn);
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('вызывает onLocateMe при нажатии кнопки "Моё местоположение", если передан коллбэк', () => {
+        const handleLocateMe = vi.fn();
+        render(<Sidebar onLocateMe={handleLocateMe} />);
+
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(handleLocateMe).toHaveBeenCalledTimes(1);
+    });
+
+    it('отображает ошибку, если navigator.geolocation не поддерживается', () => {
+        const originalGeo = globalThis.navigator.geolocation;
+        delete globalThis.navigator.geolocation;
+
+        render(<Sidebar />);
+
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(screen.getByText(/Геолокация не поддерживается/i)).toBeTruthy();
+
+        globalThis.navigator.geolocation = originalGeo;
+    });
+
+    it('корректно отображает поле поиска города в сайдбаре', () => {
+        const handleLocationSelect1 = vi.fn();
+        const handleCitySelect = vi.fn();
+
+        render(
+            <Sidebar
+                onLocationSelect={handleLocationSelect1}
+                onCitySelect={handleCitySelect}
+            />
+        );
+
+        const input = screen.getByPlaceholderText('Город');
+        fireEvent.change(input, { target: { value: 'Казань' } });
+
+        expect(input.value).toBe('Казань');
+    });
+
+    it('выбирает сегодняшний день или первый доступный день по умолчанию, если selectedTimeIndex не задан', () => {
+        render(<Sidebar airData={mockAirData} selectedTimeIndex={null} />);
+        expect(screen.getByRole('button', { name: '00:00' })).toBeTruthy();
+    });
+
+    it('вызывает onSelectTime при клике по плитке часа', () => {
+        const handleSelectTime = vi.fn();
+        render(<Sidebar airData={mockAirData} selectedTimeIndex={2} onSelectTime={handleSelectTime} />);
+        const hourBtn = screen.getByRole('button', { name: '03:00' });
+        fireEvent.click(hourBtn);
+        expect(handleSelectTime).toHaveBeenCalledWith(4);
+    });
+
+    it('пробрасывает выбор города из CitySearch в onLocationSelect (3 аргумента) и onCitySelect', async () => {
+        const handleLocationSelect = vi.fn((...args) => args);
+        Object.defineProperty(handleLocationSelect, 'length', { value: 3 });
+        const handleCitySelect = vi.fn();
+
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => [
+                { id: 1, name: 'Москва', display_name: 'Москва, Россия', latitude: 55.7558, longitude: 37.6173 }
+            ]
+        });
+
+        render(
+            <Sidebar
+                onLocationSelect={handleLocationSelect}
+                onCitySelect={handleCitySelect}
+            />
+        );
+
+        const input = screen.getByPlaceholderText('Город');
+        fireEvent.change(input, { target: { value: 'Москва' } });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+
+        expect(handleLocationSelect).toHaveBeenCalledWith(55.7558, 37.6173, 'Москва');
+        expect(handleCitySelect).toHaveBeenCalledWith(expect.objectContaining({ lat: 55.7558, lon: 37.6173 }));
+    });
+
+    it('пробрасывает выбор города в onLocationSelect с 1 аргументом', async () => {
+        const handleLocationSelect = vi.fn((...args) => args);
+
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => [
+                { id: 1, name: 'Москва', display_name: 'Москва, Россия', latitude: 55.7558, longitude: 37.6173 }
+            ]
+        });
+
+        render(<Sidebar onLocationSelect={handleLocationSelect} />);
+
+        const input = screen.getByPlaceholderText('Город');
+        fireEvent.change(input, { target: { value: 'Москва' } });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+
+        expect(handleLocationSelect).toHaveBeenCalledWith(expect.objectContaining({ lat: 55.7558, lon: 37.6173 }));
+    });
+
+    it('обрабатывает успех геолокации без падения, если onLocationSelect не передан', () => {
+        const mockCoords = { latitude: 53.75, longitude: 87.14 };
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn((success) => {
+                success({ coords: mockCoords });
+            })
+        };
+
+        render(<Sidebar />);
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(globalThis.navigator.geolocation.getCurrentPosition).toHaveBeenCalled();
+    });
+
+    it('позволяет кликнуть по часу без падения, если onSelectTime не передан', () => {
+        render(<Sidebar airData={mockAirData} selectedTimeIndex={2} />);
+        const hourBtn = screen.getByRole('button', { name: '00:00' });
+        fireEvent.click(hourBtn);
+    });
+
+    it('выбирает days[0], если в данных нет сегодняшнего дня и активного часа', () => {
+        const pastAirData = {
+            hourly: {
+                time: ['2020-01-01T00:00', '2020-01-01T03:00'],
+                european_aqi: [20, 20]
+            }
+        };
+
+        render(<Sidebar airData={pastAirData} selectedTimeIndex={null} />);
+        expect(screen.getByRole('button', { name: '00:00' })).toBeTruthy();
+    });
+
+    it('обрабатывает случай, когда activeTimeIndex не найден ни в одном дне', () => {
+        render(<Sidebar airData={mockAirData} selectedTimeIndex={9999} />);
+        expect(screen.getByRole('button', { name: '00:00' })).toBeTruthy();
+    });
+
+    it('обрабатывает выбор города, если onLocationSelect и onCitySelect не переданы', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => [
+                { id: 1, name: 'Москва', display_name: 'Москва, Россия', latitude: 55.7558, longitude: 37.6173 }
+            ]
+        });
+
+        render(<Sidebar />);
+
+        const input = screen.getByPlaceholderText('Город');
+        fireEvent.change(input, { target: { value: 'Москва' } });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+    });
+
+    it('выбирает день по умолчанию, если ранее выбранный день отсутствует в новых данных (selectedDayStr не найден)', () => {
+        const { rerender } = render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
+
+        const day29Btn = screen.getByRole('button', { name: /29/i });
+        fireEvent.click(day29Btn);
+
+        const singleDayAirData = {
+            hourly: {
+                time: ['2026-09-28T00:00', '2026-09-28T03:00'],
+                european_aqi: [20, 20]
+            }
+        };
+
+        rerender(<Sidebar airData={singleDayAirData} selectedTimeIndex={0} />);
+        expect(screen.getByRole('button', { name: '00:00' })).toBeTruthy();
+    });
 });
+
 

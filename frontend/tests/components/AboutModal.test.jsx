@@ -1,7 +1,6 @@
 // tests/components/AboutModal.test.jsx — TDD-тесты модального окна информации о проекте и шкале EAQI
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import React from 'react';
 import AboutModal from '../../src/components/AboutModal';
 
 describe('AboutModal component (TDD — модальное окно информации и методологии)', () => {
@@ -79,5 +78,19 @@ describe('AboutModal component (TDD — модальное окно информ
         fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
 
         expect(handleClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('9. Не вызывает onClose при нажатии других клавиш (например Enter)', () => {
+        const handleClose = vi.fn();
+        render(<AboutModal isOpen={true} onClose={handleClose} />);
+
+        fireEvent.keyDown(window, { key: 'Enter', code: 'Enter' });
+        expect(handleClose).not.toHaveBeenCalled();
+    });
+
+    it('10. Не падает при нажатии Escape, если onClose не передан', () => {
+        render(<AboutModal isOpen={true} />);
+
+        fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
     });
 });

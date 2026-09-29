@@ -73,7 +73,7 @@ export function getDayInfo(dateStr) {
         return { dayOfWeek: '', dayOfMonth: '' };
     }
 
-    const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
+    const dayOfWeek = WEEKDAYS_RU[d.getDay()];
     const dayOfMonth = String(day);
 
     return { dayOfWeek, dayOfMonth };

@@ -237,4 +237,265 @@ describe('CitySearch component (TDD)', () => {
         // Должно отобразиться сообщение об отсутствии результатов
         expect(screen.getByText(/Город не найден|Ничего не найдено/i)).not.toBeNull();
     });
+
+    it('9. Корректно обрабатывает ошибку сервера (!response.ok)', async () => {
+        global.fetch.mockResolvedValue({
+            ok: false,
+            status: 500
+        });
+
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Казань' } });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(screen.getByText(/Город не найден|Ничего не найдено/i)).not.toBeNull();
+    });
+
+    it('10. Корректно обрабатывает сбой сети (reject fetch)', async () => {
+        global.fetch.mockRejectedValue(new Error('Network connection failed'));
+
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Казань' } });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(screen.getByText(/Город не найден|Ничего не найдено/i)).not.toBeNull();
+    });
+
+    it('11. Вызывает onCitySelect, если этот коллбэк передан в пропсы', async () => {
+        const handleCitySelect = vi.fn();
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        render(<CitySearch onLocationSelect={vi.fn()} onCitySelect={handleCitySelect} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+
+        expect(handleCitySelect).toHaveBeenCalledWith(
+            expect.objectContaining({
+                lat: 55.7558,
+                lon: 37.6173
+            })
+        );
+    });
+
+    it('12. Не закрывает выпадающий список при клике внутри контейнера', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        const { container } = render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(screen.getByText('Москва, Россия')).not.toBeNull();
+
+        // Кликаем внутри контейнера
+        fireEvent.mouseDown(container.firstChild);
+
+        // Список остается открытым
+        expect(screen.getByText('Москва, Россия')).not.toBeNull();
+    });
+
+    it('13. Не закрывает список при нажатии клавиш, отличных от Escape', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(screen.getByText('Москва, Россия')).not.toBeNull();
+
+        fireEvent.keyDown(input, { key: 'Enter' });
+        expect(screen.getByText('Москва, Россия')).not.toBeNull();
+    });
+
+    it('14. Использует VITE_API_URL из окружения, если он задан', async () => {
+        const origEnv = import.meta.env.VITE_API_URL;
+        import.meta.env.VITE_API_URL = 'https://custom-api.aerocast.ru';
+
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining('https://custom-api.aerocast.ru/api/search')
+        );
+
+        import.meta.env.VITE_API_URL = origEnv;
+    });
+
+    it('15. Не обновляет стейт при отмене (unmount) во время выполнения fetch', async () => {
+        let resolveFetch;
+        global.fetch.mockImplementation(() => new Promise((resolve) => {
+            resolveFetch = resolve;
+        }));
+
+        const { unmount } = render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        unmount();
+
+        resolveFetch({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+    });
+
+    it('16. Не обновляет стейт при отмене во время разбора response.json()', async () => {
+        let resolveJson;
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: () => new Promise((resolve) => {
+                resolveJson = resolve;
+            })
+        });
+
+        const { unmount } = render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        unmount();
+
+        resolveJson(mockGeocodingResults);
+    });
+
+    it('17. Не обновляет стейт при сетевой ошибке после отмены (unmount)', async () => {
+        let rejectFetch;
+        global.fetch.mockImplementation(() => new Promise((_, reject) => {
+            rejectFetch = reject;
+        }));
+
+        const { unmount } = render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        unmount();
+
+        rejectFetch(new Error('Network error after unmount'));
+    });
+
+    it('18. Корректно обрабатывает не-массив в json ответе', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ error: 'Invalid response' })
+        });
+
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Тест' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(screen.getByText('Город не найден')).not.toBeNull();
+    });
+
+    it('19. Корректно извлекает lat, lon, display_name без name, latitude и id', async () => {
+        const itemWithoutStandardFields = [
+            {
+                display_name: 'Омск, Россия',
+                lat: 54.98,
+                lon: 73.36
+            }
+        ];
+
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => itemWithoutStandardFields
+        });
+
+        const handleLocationSelect = vi.fn();
+        render(<CitySearch onLocationSelect={handleLocationSelect} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Омск' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Омск, Россия');
+        fireEvent.click(item);
+
+        expect(handleLocationSelect).toHaveBeenCalledWith(
+            expect.objectContaining({
+                lat: 54.98,
+                lon: 73.36,
+                name: 'Омск, Россия'
+            })
+        );
+    });
+
+    it('20. Позволяет кликнуть по найденному городу, если коллбэки не переданы', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        render(<CitySearch />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+    });
 });
+

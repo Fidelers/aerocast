@@ -757,4 +757,276 @@ describe('MapComponent (TDD — интерактивный выбор точки
 
         expect(mockMapOff).toHaveBeenCalledWith('click', expect.any(Function));
     });
+
+    it('5. Обновляет позицию маркера при клике по карте и вызывает onLocationSelect', () => {
+        const handleLocationSelect = vi.fn();
+        const mockData = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [25] }
+        };
+
+        render(
+            <MapComponent
+                airData={mockData}
+                selectedTimeIndex={0}
+                onLocationSelect={handleLocationSelect}
+            />
+        );
+
+        const clickCall = mockMapOn.mock.calls.find((call) => call[0] === 'click');
+        const clickHandler = clickCall[1];
+
+        // Кликаем по карте в новых координатах
+        clickHandler({
+            lngLat: { lng: 30.3351, lat: 59.9343 }
+        });
+
+        expect(handleLocationSelect).toHaveBeenCalledWith({ lat: 59.9343, lon: 30.3351 });
+        expect(mockMarkerSetLngLat).toHaveBeenCalledWith([30.3351, 59.9343]);
+    });
+
+    it('6. Подавляет flyTo сразу после клика по карте (флаг isMapClick)', () => {
+        const { rerender } = render(<MapComponent lat={53.7596} lon={87.1467} />);
+
+        const clickCall = mockMapOn.mock.calls.find((call) => call[0] === 'click');
+        const clickHandler = clickCall[1];
+
+        // Симулируем клик пользователя по карте
+        clickHandler({
+            lngLat: { lng: 37.6173, lat: 55.7558 }
+        });
+
+        // Родитель обновил lat и lon на те же координаты клика
+        rerender(<MapComponent lat={55.7558} lon={37.6173} />);
+
+        // flyTo не должен вызываться для клика пользователя
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    it('7. Удаляет маркер, если значение AQI в массиве равно null', () => {
+        const dataWithNullAqi = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [15, null] }
+        };
+
+        const { rerender } = render(
+            <MapComponent
+                airData={dataWithNullAqi}
+                selectedTimeIndex={0}
+            />
+        );
+
+        expect(mockMarkerAddTo).toHaveBeenCalledTimes(1);
+
+        // Переключаем на час, где aqi равен null
+        rerender(
+            <MapComponent
+                airData={dataWithNullAqi}
+                selectedTimeIndex={1}
+            />
+        );
+
+        expect(mockMarkerRemove).toHaveBeenCalled();
+    });
+
+    it('8. Игнорирует некорректный клик по карте (null или без lngLat)', () => {
+        render(<MapComponent />);
+
+        const clickCall = mockMapOn.mock.calls.find((call) => call[0] === 'click');
+        const clickHandler = clickCall[1];
+
+        // Клик без аргументов или без lngLat
+        clickHandler(null);
+        clickHandler({});
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    it('9. Корректно кликает по карте, если маркер еще не создан и коллбэки не переданы', () => {
+        render(<MapComponent />);
+
+        const clickCall = mockMapOn.mock.calls.find((call) => call[0] === 'click');
+        const clickHandler = clickCall[1];
+
+        clickHandler({ lngLat: { lng: 30.3351, lat: 59.9343 } });
+    });
+
+    it('10. Удаляет маркер и попап при демонтировании компонента', () => {
+        const mockData = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [25] }
+        };
+
+        const { unmount } = render(
+            <MapComponent airData={mockData} selectedTimeIndex={0} />
+        );
+
+        unmount();
+        expect(mockMarkerRemove).toHaveBeenCalled();
+        expect(mockRemove).toHaveBeenCalled();
+    });
+
+    it('11. Игнорирует перемещение камеры, если новые lat или lon равны null или undefined', () => {
+        const { rerender } = render(<MapComponent lat={53.7596} lon={87.1467} />);
+
+        mockFlyTo.mockClear();
+
+        // Смена координат, но lat равен null
+        rerender(<MapComponent lat={null} lon={87.1467} />);
+        expect(mockFlyTo).not.toHaveBeenCalled();
+
+        // lon равен null
+        rerender(<MapComponent lat={53.7596} lon={null} />);
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    it('12. Поддерживает альтернативный формат airData.european_aqi (бэкап формат)', () => {
+        const backupAirData = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            european_aqi: [35]
+        };
+
+        render(<MapComponent airData={backupAirData} selectedTimeIndex={0} />);
+        expect(mockMarkerAddTo).toHaveBeenCalled();
+    });
+
+    it('13. Удаляет маркер и попап, если airData становится null или selectedTimeIndex сбрасывается', () => {
+        const mockData = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [25] }
+        };
+
+        const { rerender } = render(
+            <MapComponent airData={mockData} selectedTimeIndex={0} />
+        );
+
+        mockMarkerRemove.mockClear();
+
+        // airData становится null
+        rerender(<MapComponent airData={null} selectedTimeIndex={0} />);
+        expect(mockMarkerRemove).toHaveBeenCalled();
+
+        // Возвращаем данные
+        rerender(<MapComponent airData={mockData} selectedTimeIndex={0} />);
+
+        // selectedTimeIndex становится undefined
+        rerender(<MapComponent airData={mockData} selectedTimeIndex={undefined} />);
+        expect(mockMarkerRemove).toHaveBeenCalled();
+    });
+
+    it('14. Стилизует маркер в режимах color, numeric и combo', () => {
+        const mockData = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [45] }
+        };
+
+        // Режим color
+        const { rerender } = render(
+            <MapComponent airData={mockData} selectedTimeIndex={0} viewMode="color" />
+        );
+        let markers = getCreatedMarkers();
+        let markerEl = markers[markers.length - 1].element;
+        expect(markerEl.className).toContain('map-marker--color');
+        expect(markerEl.textContent).toBe('');
+
+        // Режим numeric
+        rerender(<MapComponent airData={mockData} selectedTimeIndex={0} viewMode="numeric" />);
+        markerEl = markers[markers.length - 1].element;
+        expect(markerEl.className).toContain('map-marker--numeric');
+        expect(markerEl.textContent).toBe('45');
+
+        // Режим combo
+        rerender(<MapComponent airData={mockData} selectedTimeIndex={0} viewMode="combo" />);
+        markerEl = markers[markers.length - 1].element;
+        expect(markerEl.className).toContain('map-marker--combo');
+        expect(markerEl.textContent).toBe('45');
+
+        // Без указания режима (дефолт combo)
+        rerender(<MapComponent airData={mockData} selectedTimeIndex={0} />);
+        markerEl = markers[markers.length - 1].element;
+        expect(markerEl.className).toContain('map-marker--combo');
+    });
+
+    it('15. Обновляет координаты уже созданного маркера при изменении lat и lon', () => {
+        const mockData = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [25] }
+        };
+
+        const { rerender } = render(
+            <MapComponent lat={53.7596} lon={87.1467} airData={mockData} selectedTimeIndex={0} />
+        );
+
+        mockMarkerSetLngLat.mockClear();
+
+        // Обновляем координаты
+        rerender(
+            <MapComponent lat={55.7558} lon={37.6173} airData={mockData} selectedTimeIndex={0} />
+        );
+
+        expect(mockMarkerSetLngLat).toHaveBeenCalledWith([37.6173, 55.7558]);
+    });
+
+    it('16. Не создает и не обновляет маркер, если координаты равны NaN', () => {
+        const mockData = {
+            hourly: { european_aqi: [25] }
+        };
+
+        // Передаем нечисловые координаты при первом рендере
+        const { rerender } = render(
+            <MapComponent lat="invalid" lon="invalid" airData={mockData} selectedTimeIndex={0} />
+        );
+
+        clearCreatedMarkers();
+
+        // С валидными координатами маркер создается
+        rerender(
+            <MapComponent lat={55.7558} lon={37.6173} airData={mockData} selectedTimeIndex={0} />
+        );
+
+        mockMarkerSetLngLat.mockClear();
+
+        // При смене на NaN setLngLat не вызывается
+        rerender(
+            <MapComponent lat="invalid" lon="invalid" airData={mockData} selectedTimeIndex={0} />
+        );
+        expect(mockMarkerSetLngLat).not.toHaveBeenCalled();
+    });
+
+    it('17. Рендерит попап с дефолтным источником, прочерками и без блока рекомендаций для уровня none (NaN)', () => {
+        const dataMinimal = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: {
+                european_aqi: [NaN] // Уровень 'none'
+            }
+        };
+
+        render(<MapComponent airData={dataMinimal} selectedTimeIndex={0} />);
+
+        const popups = getCreatedPopups();
+        const popup = popups[popups.length - 1];
+        const html = popup._html;
+
+        expect(html).toContain('Источник: open-meteo');
+        expect(html).toContain('—'); // Прочерки вместо значений параметров
+        expect(html).not.toContain('air-popup__recommendation'); // Блок рекомендации не отображается
+    });
+
+    it('18. Не создает маркер и попап, если на первом рендере aqi равен null', () => {
+        const dataNullAqi = {
+            latitude: 53.7596,
+            longitude: 87.1467,
+            hourly: { european_aqi: [null] }
+        };
+
+        render(<MapComponent airData={dataNullAqi} selectedTimeIndex={0} />);
+        expect(mockMarkerAddTo).not.toHaveBeenCalled();
+    });
 });

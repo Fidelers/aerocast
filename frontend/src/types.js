@@ -25,9 +25,7 @@ const HAZARDOUS = Object.freeze({
     hex: '#D50000'
 });
 
-
-//Возвращает описание уровня для числового индекса качества воздуха.
-
+// Возвращает описание уровня для числового индекса качества воздуха.
 export function getAqiInfo(aqi) {
     if (aqi === null || aqi === undefined || Number.isNaN(aqi)) {
         return NO_DATA;
@@ -40,4 +38,21 @@ export function getAqiInfo(aqi) {
     }
 
     return HAZARDOUS;
+}
+
+export const AQI_RECOMMENDATIONS = Object.freeze({
+    excellent: 'Воздух чистый, идеальные условия для прогулок и спорта.',
+    good: 'Качество воздуха приемлемое. Загрязнение минимально.',
+    fair: 'Умеренное загрязнение. Чувствительным людям стоит быть осторожнее.',
+    poor: 'Неблагоприятные условия. Ограничьте физические нагрузки на улице.',
+    'very-poor': 'Высокое загрязнение. Рекомендуется оставаться в помещении.',
+    hazardous: 'Опасный уровень! Закройте окна, используйте очистители воздуха.'
+});
+
+export function getAqiRecommendation(aqi) {
+    if (aqi === null || aqi === undefined || (typeof aqi === 'number' && Number.isNaN(aqi))) {
+        return '';
+    }
+    const info = typeof aqi === 'object' && aqi !== null ? aqi : getAqiInfo(aqi);
+    return AQI_RECOMMENDATIONS[info.level] || '';
 }
