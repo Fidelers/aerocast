@@ -18,12 +18,16 @@ function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
 
-    // Загрузка данных качества воздуха при монтировании (кэшируются в памяти приложения)
+    // Загрузка данных качества воздуха при монтировании и смене координат
     useEffect(() => {
+        if (coords.lat == null || coords.lon == null) return;
+
         let isMounted = true;
+        setIsLoading(true);
+        setLoadError(null);
         const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-        fetch(`${apiBase}/api/air-quality?lat=${DEFAULT_COORDS.lat}&lon=${DEFAULT_COORDS.lon}`)
+        fetch(`${apiBase}/api/air-quality?lat=${coords.lat}&lon=${coords.lon}`)
             .then((response) => {
                 if (!response.ok) {
                     throw new Error(`Ошибка сервера: ${response.status}`);
@@ -51,7 +55,7 @@ function App() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [coords.lat, coords.lon]);
 
     // Обработчик выбора конкретного часа (переключение времени не вызывает сетевых запросов)
     const handleSelectTime = (newIndex) => {
@@ -89,6 +93,8 @@ function App() {
                     airData={airData}
                     selectedTimeIndex={selectedTimeIndex}
                     viewMode={viewMode}
+                    onMapClick={handleLocationSelect}
+                    onLocationSelect={handleLocationSelect}
                 />
             </div>
         </div>
