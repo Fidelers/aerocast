@@ -1,5 +1,5 @@
 // Sidebar.jsx - боковая панель: поиск, переключатели, навигация по времени
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import Logo from '../assets/icons/logo.svg';
 import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
@@ -26,6 +26,8 @@ function Sidebar({
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
 
+  const daysContainerRef = useRef(null);
+  const hasInitialScrolledRef = useRef(false);
 
   // Извлечение массива меток времени из airData
   const timeArray = useMemo(() => {
@@ -70,9 +72,50 @@ function Sidebar({
     return todayDay || days[0];
   }, [days, selectedDayStr, activeTimeIndex]);
 
+  // Автоматическая прокрутка к сегодняшнему (или активному) дню при начальной загрузке
+  useEffect(() => {
+    if (days.length === 0) return;
+    if (hasInitialScrolledRef.current) return;
+
+    const scrollContainer = () => {
+      const container = daysContainerRef.current;
+      if (!container) return;
+
+      const targetCard = container.querySelector('[data-is-current="true"]') ||
+                         container.querySelector('.day-card--active') ||
+                         container.querySelector('[data-is-today="true"]');
+
+      if (targetCard) {
+        if (container.clientWidth > 0) {
+          container.scrollLeft = targetCard.offsetLeft - (container.clientWidth - targetCard.offsetWidth) / 2;
+        } else if (typeof targetCard.scrollIntoView === 'function') {
+          try {
+            targetCard.scrollIntoView({ inline: 'center', block: 'nearest' });
+          } catch {
+            // ignore
+          }
+        }
+        hasInitialScrolledRef.current = true;
+      }
+    };
+
+    scrollContainer();
+    if (typeof requestAnimationFrame === 'function') {
+      const frameId = requestAnimationFrame(scrollContainer);
+      return () => cancelAnimationFrame(frameId);
+    }
+  }, [days, currentDay]);
+
   // Клик по плитке дня: обновляет доступные часы в блоке .times
-  const handleDayClick = (dateStr) => {
+  const handleDayClick = (dateStr, e) => {
     setSelectedDayStr(dateStr);
+    if (e?.currentTarget && typeof e.currentTarget.scrollIntoView === 'function') {
+      try {
+        e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      } catch {
+        // ignore
+      }
+    }
   };
 
   // Клик по плитке часа: вычисляет глобальный selectedTimeIndex и передает его наверх
@@ -205,7 +248,7 @@ function Sidebar({
 
       <section className="date-nav">
         <h2 className="date-nav__title">Навигация по времени</h2>
-        <div className="days">
+        <div className="days" ref={daysContainerRef}>
           {days.length === 0 ? (
             <span className="time-nav__empty">Нет данных о датах</span>
           ) : (
@@ -222,8 +265,10 @@ function Sidebar({
                   key={day.dateStr}
                   className={cardClasses}
                   type="button"
-                  onClick={() => handleDayClick(day.dateStr)}
+                  onClick={(e) => handleDayClick(day.dateStr, e)}
                   title={day.dateStr}
+                  data-is-current={isDayActive ? 'true' : undefined}
+                  data-is-today={day.isToday ? 'true' : undefined}
                 >
                   <span className="day-card__label">{day.dayOfWeek}</span>
                   <span className="day-card__num">{day.dayOfMonth}</span>

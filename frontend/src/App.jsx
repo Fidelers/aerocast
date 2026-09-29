@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
 import AboutModal from './components/AboutModal';
-import { findDefaultTimeIndex } from './utils/timeUtils';
+import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
 
 // Координаты по умолчанию: Новокузнецк
 const DEFAULT_COORDS = {
@@ -19,6 +19,17 @@ function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+    const selectedTimeIndexRef = useRef(selectedTimeIndex);
+    const airDataRef = useRef(airData);
+
+    useEffect(() => {
+        selectedTimeIndexRef.current = selectedTimeIndex;
+    }, [selectedTimeIndex]);
+
+    useEffect(() => {
+        airDataRef.current = airData;
+    }, [airData]);
 
     // Загрузка данных качества воздуха при монтировании и смене координат
     useEffect(() => {
@@ -41,10 +52,42 @@ function App() {
                 setAirData(data);
                 setIsLoading(false);
 
-                // Инициализация индекса времени (текущий час сегодня или ближайший)
+                // Сохранение выбранного пользователем времени или инициализация дефолтным (текущий час)
                 if (data?.hourly?.time?.length) {
-                    const defaultIndex = findDefaultTimeIndex(data.hourly.time);
-                    setSelectedTimeIndex(defaultIndex);
+                    let targetIndex = null;
+                    const prevIndex = selectedTimeIndexRef.current;
+                    const prevAirData = airDataRef.current;
+
+                    if (prevIndex !== null && prevIndex !== undefined && prevAirData?.hourly?.time?.[prevIndex]) {
+                        const prevTimestamp = prevAirData.hourly.time[prevIndex];
+                        // 1. Поиск точного совпадения метки времени (например, 2026-10-01T09:00)
+                        const matchedIndex = data.hourly.time.indexOf(prevTimestamp);
+                        if (matchedIndex !== -1) {
+                            targetIndex = matchedIndex;
+                        } else {
+                            // 2. Если точной строки нет, сопоставляем по дате и часу
+                            const prevParsed = parseIsoTimeString(prevTimestamp);
+                            if (prevParsed) {
+                                const matchByDateHour = data.hourly.time.findIndex((t) => {
+                                    const p = parseIsoTimeString(t);
+                                    return p && p.dateStr === prevParsed.dateStr && p.hour === prevParsed.hour;
+                                });
+                                if (matchByDateHour !== -1) {
+                                    targetIndex = matchByDateHour;
+                                }
+                            }
+                            // 3. Если индекс в пределах длины массива
+                            if (targetIndex === null && prevIndex < data.hourly.time.length) {
+                                targetIndex = prevIndex;
+                            }
+                        }
+                    }
+
+                    if (targetIndex === null) {
+                        targetIndex = findDefaultTimeIndex(data.hourly.time);
+                    }
+
+                    setSelectedTimeIndex(targetIndex);
                 }
             })
             .catch((error) => {

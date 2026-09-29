@@ -6,6 +6,7 @@ import '../styles/Popup.css';
 
 import { osmStyle } from '../styles/mapStyle';
 import { getAqiInfo, getAqiRecommendation } from '../types';
+import { parseIsoTimeString } from '../utils/timeUtils';
 
 const POLLUTANTS = [
     { key: 'pm2_5', label: 'PM2.5' },
@@ -28,7 +29,7 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
     }).join('');
 
     //Заполняем информацию про AQI для вывода
-    const aqiList = hourly?.european_aqi || airData?.european_aqi;; 
+    const aqiList = hourly?.european_aqi || airData?.european_aqi; 
     const aqiValue = aqiList?.[selectedTimeIndex];
     let aqiNumber = '—';
     let aqiLabel = '';
@@ -55,10 +56,20 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
     const displayLat = lat != null ? Number(lat).toFixed(4) : (airData?.latitude != null ? Number(airData.latitude).toFixed(4) : '—');
     const displayLon = lon != null ? Number(lon).toFixed(4) : (airData?.longitude != null ? Number(airData.longitude).toFixed(4) : '—');
 
+    const timeRaw = hourly?.time?.[selectedTimeIndex];
+    let timeHtml = '';
+    if (timeRaw) {
+        const parsedTime = parseIsoTimeString(timeRaw);
+        if (parsedTime) {
+            timeHtml = `<p class="map-popup__time">Время: ${parsedTime.dateStr} ${parsedTime.timeLabel}</p>`;
+        }
+    }
+
     return `
         <div class="map-popup">
             <h3 class="map-popup__title">Качество воздуха</h3>
             <p class="map-popup__coords">Широта: ${displayLat}, Долгота: ${displayLon}</p>
+            ${timeHtml}
             <p class="map-popup__source">Источник: ${source}</p>
             <div class="map-popup__aqi-block" style="background-color: ${aqiColor};">
                 <div class="map-popup__aqi-title">
@@ -115,6 +126,24 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
 
         const handleMapClick = (e) => {
             if (!e || !e.lngLat) return;
+
+            // Игнорируем клики по самому маркеру, попапу или элементам управления карты,
+            // чтобы открытие попапа с прогнозом/историей не сбрасывало координаты и время
+            const target = e.originalEvent?.target;
+            const element = target instanceof Element ? target : target?.parentElement;
+            if (
+                element &&
+                (
+                    Boolean(element.closest && element.closest('.map-marker')) ||
+                    Boolean(element.closest && element.closest('.maplibregl-marker')) ||
+                    Boolean(element.closest && element.closest('.maplibregl-popup')) ||
+                    Boolean(element.closest && element.closest('.maplibregl-ctrl')) ||
+                    markerElementRef.current?.contains(element)
+                )
+            ) {
+                return;
+            }
+
             const { lng, lat: clickLat } = e.lngLat;
             if (markerRef.current) {
                 markerRef.current.setLngLat([lng, clickLat]);
