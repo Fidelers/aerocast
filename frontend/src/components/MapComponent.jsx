@@ -86,7 +86,10 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
 
         map.current.flyTo({
             center: [lon, lat],
-            zoom: 11
+            zoom: 11,
+            essential: true,
+            speed: 1.2,
+            curve: 1.42
         });
     }, [lat, lon]);
 

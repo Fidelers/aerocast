@@ -203,10 +203,12 @@ describe('MapComponent (TDD — динамическое управление к
         rerender(<MapComponent lat={55.7558} lon={37.6173} />);
 
         expect(mockFlyTo).toHaveBeenCalledTimes(1);
-        expect(mockFlyTo).toHaveBeenCalledWith({
-            center: [37.6173, 55.7558],
-            zoom: 11
-        });
+        expect(mockFlyTo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                center: [37.6173, 55.7558],
+                zoom: 11
+            })
+        );
     });
 
     it('3. Передает координаты в center строго в порядке [долгота (lon), широта (lat)]', () => {
@@ -229,17 +231,21 @@ describe('MapComponent (TDD — динамическое управление к
 
         // Выбор первого города: Казань
         rerender(<MapComponent lat={55.7961} lon={49.1064} />);
-        expect(mockFlyTo).toHaveBeenLastCalledWith({
-            center: [49.1064, 55.7961],
-            zoom: 11
-        });
+        expect(mockFlyTo).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                center: [49.1064, 55.7961],
+                zoom: 11
+            })
+        );
 
         // Выбор второго города: Екатеринбург
         rerender(<MapComponent lat={56.8389} lon={60.6057} />);
-        expect(mockFlyTo).toHaveBeenLastCalledWith({
-            center: [60.6057, 56.8389],
-            zoom: 11
-        });
+        expect(mockFlyTo).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                center: [60.6057, 56.8389],
+                zoom: 11
+            })
+        );
 
         expect(mockFlyTo).toHaveBeenCalledTimes(2);
     });
