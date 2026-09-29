@@ -2,16 +2,24 @@
 import { useMemo, useState } from 'react';
 import Logo from '../assets/icons/logo.svg';
 import InfoIcon from '../assets/icons/info.svg';
-import { groupTimesByDay } from '../utils/timeUtils';
+import CitySearch from './CitySearch';
+import { groupTimesByDay, formatDateKey } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
 function Sidebar({
   airData,
   selectedTimeIndex = null,
   onSelectTime,
-  onTimeSelect
+  onTimeSelect,
+  viewMode = 'combo',
+  onViewModeChange,
+  onLocationSelect,
+  onCitySelect,
+  isLoading,
+  loadError
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
+  const [geoError, setGeoError] = useState(null);
 
   // Извлечение массива меток времени из airData
   const timeArray = useMemo(() => {
@@ -81,29 +89,44 @@ function Sidebar({
         </a>
       </div>
 
-      <section className="city-search">
-        <h2 className="city-search__title">Поиск города</h2>
-        <label htmlFor="city-search" className="city-search__label">
-          Поиск города
-        </label>
-        <input
-          id="city-search"
-          className="city-search__input"
-          type="search"
-          placeholder="Город"
-        />
-      </section>
+      <CitySearch
+        onLocationSelect={(loc) => {
+          if (typeof onLocationSelect === 'function') {
+            if (onLocationSelect.length > 1) {
+              onLocationSelect(loc.lat, loc.lon, loc.name);
+            } else {
+              onLocationSelect(loc);
+            }
+          }
+          if (typeof onCitySelect === 'function') {
+            onCitySelect(loc);
+          }
+        }}
+        onCitySelect={onCitySelect}
+      />
 
       <section className="display-mode">
         <h2 className="display-mode__title">Режим отображения</h2>
         <div className="segmented">
-          <button type="button" className="segmented__btn">
+          <button
+            type="button"
+            className={`segmented__btn ${viewMode === 'color' ? 'segmented__btn--active' : ''}`}
+            onClick={() => onViewModeChange?.('color')}
+          >
             Цветовой
           </button>
-          <button type="button" className="segmented__btn">
+          <button
+            type="button"
+            className={`segmented__btn ${viewMode === 'numeric' ? 'segmented__btn--active' : ''}`}
+            onClick={() => onViewModeChange?.('numeric')}
+          >
             Цифровой
           </button>
-          <button type="button" className="segmented__btn segmented__btn--active">
+          <button
+            type="button"
+            className={`segmented__btn ${(!viewMode || viewMode === 'combo') ? 'segmented__btn--active' : ''}`}
+            onClick={() => onViewModeChange?.('combo')}
+          >
             Комбо
           </button>
         </div>

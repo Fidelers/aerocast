@@ -68,6 +68,7 @@ h2 {
 }
 
 .city-search {
+  position: relative;
   padding: 14px 12px 0;
 }
 
@@ -101,6 +102,60 @@ h2 {
   background-repeat: no-repeat;
   background-position: 10px center;
   box-sizing: border-box;
+}
+
+.city-search__dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.city-search__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.city-search__item {
+  margin: 0;
+  padding: 0;
+}
+
+.city-search__item-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  color: var(--text-h);
+  font-family: var(--inter);
+  font-size: 14px;
+  transition: background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.city-search__item-btn:hover,
+.city-search__item-btn:focus-visible {
+  background-color: var(--primary-subtle);
+  outline: none;
+}
+
+.city-search__empty,
+.city-search__no-results {
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
 }
 
 .display-mode {
@@ -186,6 +241,12 @@ h2 {
 
 .geo-nav__location-btn:hover::before {
   filter: brightness(0) invert(1);
+}
+
+.geo-nav__error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #ef4444;
 }
 
 .date-nav {
@@ -426,6 +487,7 @@ h2 {
   }
 
 
+  .city-search,
   .display-mode,
   .geo-nav,
   .date-nav,
@@ -433,6 +495,11 @@ h2 {
   .aqi-scale {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .city-search__dropdown {
+    left: 16px;
+    right: 16px;
   }
 }
 
