@@ -23,6 +23,8 @@ function Sidebar({
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isGeoLoading, setIsGeoLoading] = useState(false);
+
 
   // Извлечение массива меток времени из airData
   const timeArray = useMemo(() => {
@@ -80,6 +82,43 @@ function Sidebar({
     }
   };
 
+
+  // Клик по кнопке местоположения 
+  const handleLocationClick = () => {
+
+    if (!navigator.geolocation) {
+      setGeoError('Геолокация не поддерживается вашим браузером');
+      return;
+    }
+    setIsGeoLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+         if (typeof onLocationSelect === "function") {
+          onLocationSelect(position.coords.latitude, position.coords.longitude, "");
+        }
+        setIsGeoLoading(false);
+      },
+      (err) => {
+        let message = 'Не удалось определить местоположение.';
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            message += ' Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.';
+            break;
+          case err.POSITION_UNAVAILABLE:
+            message += ' Информация о местоположении недоступна.';
+            break;
+          case err.TIMEOUT:
+            message += ' Превышено время ожидания ответа от GPS.';
+            break;
+        }
+        setGeoError(message);
+        setIsGeoLoading(false);
+      },
+      { timeout: 10000, maximumAge: 60000 }
+      
+    );
+  };
   return (
     <aside className="sidebar">
       <div className="sidebar__header">
@@ -149,9 +188,14 @@ function Sidebar({
 
       <section className="geo-nav">
         <h2 className="geo-nav__title">Навигация</h2>
-        <button type="button" className="geo-nav__location-btn">
-          Моё местоположение
+        <button type="button" className="geo-nav__location-btn" onClick={handleLocationClick} disabled={isGeoLoading}>
+          {isGeoLoading ? 'Определяем...' : 'Моё местоположение'}
         </button>
+        {geoError && (
+          <div className="geo-nav__error">
+            ⚠️ {geoError}
+          </div>
+        )}
       </section>
 
       <section className="date-nav">
