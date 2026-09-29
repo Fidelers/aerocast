@@ -5,9 +5,10 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { osmStyle } from '../styles/mapStyle';
 
-export default function MapComponent() {
+export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode }) {
     const mapContainer = useRef(null);
     const map = useRef(null);
+    const isFirstMount = useRef(true);
 
     useEffect(() => {
         if (map.current) return;
@@ -29,11 +30,23 @@ export default function MapComponent() {
         };
     }, []);
 
+    // Динамическое перемещение камеры при смене координат lat и lon
+    useEffect(() => {
+        if (isFirstMount.current) {
+            isFirstMount.current = false;
+            return;
+        }
+
+        if (!map.current) return;
+        if (lat == null || lon == null) return;
+
+        map.current.flyTo({
+            center: [lon, lat],
+            zoom: 11
+        });
+    }, [lat, lon]);
+
     return (
-        // <div
-        //     ref={mapContainer}
-        //     style={{ width: '100%', height: '100vh', minHeight: '500px' }} // Временно абсолютные размеры сделал для проверки
-        // />
-        <div ref={mapContainer} style={{ width: '100%', height: '100%' }} /> // Размеры согласно родительскому контейнеру
+        <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
     );
 }
