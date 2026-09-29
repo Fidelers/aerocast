@@ -138,7 +138,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             el.textContent = String(aqi);
             el.className = `map-marker map-marker--combo ${aqiInfo.cssClass}`;
             el.style.backgroundColor = aqiInfo.hex;
-            el.style.color = '#ffffff';
+            el.style.color = '#000000';
         }
 
         // Общие стили маркера
