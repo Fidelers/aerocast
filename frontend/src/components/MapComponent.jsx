@@ -42,13 +42,11 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
         aqiColor = info.hex;
 
         const recommendationText = getAqiRecommendation(aqiValue);
-        if (recommendationText) {
-            recommendation = `
-                <div class="map-popup__recommendation">
-                    ${recommendationText}
-                </div>
-            `;
-        }
+        recommendation = `
+            <div class="map-popup__recommendation">
+                ${recommendationText}
+            </div>
+        `;
     }
 
     const source = airData?.used_source || 'open-meteo';
@@ -111,8 +109,6 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
 
     // Инициализация карты MapLibre
     useEffect(() => {
-        if (map.current) return;
-
         map.current = new maplibregl.Map({
             container: mapContainer.current,
             style: osmStyle,
@@ -165,11 +161,9 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
                 markerRef.current = null;
                 markerElementRef.current = null;
             }
-            if (map.current) {
-                map.current.off('click', handleMapClick);
-                map.current.remove();
-                map.current = null;
-            }
+            map.current.off('click', handleMapClick);
+            map.current.remove();
+            map.current = null;
         };
     }, []);
 
@@ -185,7 +179,6 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             return;
         }
 
-        if (!map.current) return;
         if (lat == null || lon == null) return;
 
         map.current.flyTo({
@@ -272,7 +265,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
         const markerLon = lon != null ? Number(lon) : Number(airData?.longitude);
         const markerLat = lat != null ? Number(lat) : Number(airData?.latitude);
 
-        if (!markerRef.current && map.current) {
+        if (!markerRef.current) {
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
                 // Создаем попап
                 const popup = new maplibregl.Popup({
@@ -289,14 +282,12 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
                     .addTo(map.current);
                 markerRef.current = marker;
             }
-        } else if (markerRef.current) {
+        } else {
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
                 markerRef.current.setLngLat([markerLon, markerLat]);
             }
-            // Обновление поапап без его пересоздания
-            if (popupRef.current) {
-                popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
-            }
+            // Обновление попапа без его пересоздания
+            popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
         }
     }, [airData, selectedTimeIndex, viewMode, lat, lon]);
 

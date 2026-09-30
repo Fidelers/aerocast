@@ -1,4 +1,3 @@
-// tests/components/AboutModal.test.jsx — TDD-тесты модального окна информации о проекте и шкале EAQI
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import AboutModal from '../../src/components/AboutModal';

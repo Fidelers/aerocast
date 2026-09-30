@@ -1,4 +1,3 @@
-// tests/components/Sidebar.test.jsx — тесты компонента Sidebar (навигация по времени и переключатели режимов)
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
@@ -479,6 +478,220 @@ describe('Sidebar component (TDD — вызов информационного �
         rerender(<Sidebar airData={singleDayAirData} selectedTimeIndex={0} />);
         expect(screen.getByRole('button', { name: '00:00' })).toBeTruthy();
     });
+
+    it('передает координаты в onLocationSelect при успешной геолокации', () => {
+        const handleLocationSelect = vi.fn();
+        const mockCoords = { latitude: 53.75, longitude: 87.14 };
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn((success) => {
+                success({ coords: mockCoords });
+            })
+        };
+
+        render(<Sidebar onLocationSelect={handleLocationSelect} />);
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(handleLocationSelect).toHaveBeenCalledWith(53.75, 87.14, '');
+    });
+
+    it('обрабатывает ошибку геолокации PERMISSION_DENIED', () => {
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn((_, error) => {
+                error({
+                    code: 1,
+                    PERMISSION_DENIED: 1,
+                    POSITION_UNAVAILABLE: 2,
+                    TIMEOUT: 3
+                });
+            })
+        };
+
+        render(<Sidebar />);
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+    });
+
+    it('обрабатывает ошибку геолокации POSITION_UNAVAILABLE', () => {
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn((_, error) => {
+                error({
+                    code: 2,
+                    PERMISSION_DENIED: 1,
+                    POSITION_UNAVAILABLE: 2,
+                    TIMEOUT: 3
+                });
+            })
+        };
+
+        render(<Sidebar />);
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(screen.getByText(/Информация о местоположении недоступна/i)).toBeTruthy();
+    });
+
+    it('обрабатывает ошибку геолокации TIMEOUT', () => {
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn((_, error) => {
+                error({
+                    code: 3,
+                    PERMISSION_DENIED: 1,
+                    POSITION_UNAVAILABLE: 2,
+                    TIMEOUT: 3
+                });
+            })
+        };
+
+        render(<Sidebar />);
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(screen.getByText(/Превышено время ожидания ответа от GPS/i)).toBeTruthy();
+    });
+
+    it('обрабатывает неизвестную ошибку геолокации', () => {
+        globalThis.navigator.geolocation = {
+            getCurrentPosition: vi.fn((_, error) => {
+                error({
+                    code: 999,
+                    PERMISSION_DENIED: 1,
+                    POSITION_UNAVAILABLE: 2,
+                    TIMEOUT: 3
+                });
+            })
+        };
+
+        render(<Sidebar />);
+        const geoBtn = screen.getByRole('button', { name: /моё местоположение/i });
+        fireEvent.click(geoBtn);
+
+        expect(screen.getByText(/Не удалось определить местоположение/i)).toBeTruthy();
+    });
+
+    it('вызывает onViewModeChange при клике на кнопки режимов отображения', () => {
+        const handleViewModeChange = vi.fn();
+        render(<Sidebar onViewModeChange={handleViewModeChange} />);
+
+        const colorBtn = screen.getByRole('button', { name: 'Цветовой' });
+        const numericBtn = screen.getByRole('button', { name: 'Цифровой' });
+        const comboBtn = screen.getByRole('button', { name: 'Комбо' });
+
+        fireEvent.click(colorBtn);
+        expect(handleViewModeChange).toHaveBeenCalledWith('color');
+
+        fireEvent.click(numericBtn);
+        expect(handleViewModeChange).toHaveBeenCalledWith('numeric');
+
+        fireEvent.click(comboBtn);
+        expect(handleViewModeChange).toHaveBeenCalledWith('combo');
+    });
+
+    it('позволяет кликать по кнопкам режимов без падения, если onViewModeChange не задан', () => {
+        render(<Sidebar />);
+        const colorBtn = screen.getByRole('button', { name: 'Цветовой' });
+        fireEvent.click(colorBtn);
+    });
+
+    it('вызывает scrollIntoView на карточке дня при handleDayClick', () => {
+        const scrollIntoViewMock = vi.fn();
+        HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+        try {
+            render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
+            const day29Btn = screen.getByRole('button', { name: /29/i });
+            fireEvent.click(day29Btn);
+
+            expect(scrollIntoViewMock).toHaveBeenCalledWith(
+                expect.objectContaining({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+            );
+        } finally {
+            delete HTMLElement.prototype.scrollIntoView;
+        }
+    });
+
+    it('игнорирует ошибку, если scrollIntoView в handleDayClick выбрасывает исключение', () => {
+        HTMLElement.prototype.scrollIntoView = vi.fn(() => {
+            throw new Error('scroll error');
+        });
+
+        try {
+            render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
+            const day29Btn = screen.getByRole('button', { name: /29/i });
+            fireEvent.click(day29Btn);
+            // Не должно упасть
+        } finally {
+            delete HTMLElement.prototype.scrollIntoView;
+        }
+    });
+
+    it('выполняет прокрутку контейнера при clientWidth > 0', () => {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+            configurable: true,
+            value: 400
+        });
+        Object.defineProperty(HTMLElement.prototype, 'offsetLeft', {
+            configurable: true,
+            value: 150
+        });
+        Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+            configurable: true,
+            value: 60
+        });
+
+        try {
+            const { container } = render(<Sidebar airData={mockAirData} selectedTimeIndex={4} />);
+            const daysContainer = container.querySelector('.days');
+            expect(daysContainer.scrollLeft).toBe(150 - (400 - 60) / 2);
+        } finally {
+            delete HTMLElement.prototype.clientWidth;
+            delete HTMLElement.prototype.offsetLeft;
+            delete HTMLElement.prototype.offsetWidth;
+        }
+    });
+
+    it('выполняет targetCard.scrollIntoView при clientWidth === 0 и ловит ошибку если есть', () => {
+        const scrollIntoViewMock = vi.fn(() => {
+            throw new Error('scroll fail');
+        });
+        HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+        try {
+            render(<Sidebar airData={mockAirData} selectedTimeIndex={4} />);
+            expect(scrollIntoViewMock).toHaveBeenCalledWith(
+                expect.objectContaining({ inline: 'center', block: 'nearest' })
+            );
+        } finally {
+            delete HTMLElement.prototype.scrollIntoView;
+        }
+    });
+
+    it('очищает requestAnimationFrame при размонтировании', () => {
+        const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
+        const { unmount } = render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
+        unmount();
+        expect(cancelSpy).toHaveBeenCalled();
+        cancelSpy.mockRestore();
+    });
+
+    it('не падает при scrollContainer, если карточка дня не найдена через querySelector', () => {
+        const querySpy = vi.spyOn(Element.prototype, 'querySelector').mockReturnValue(null);
+        render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
+        querySpy.mockRestore();
+    });
+
+    it('рендерит часы с fallback-ключом по индексу, если timeStr пустой', () => {
+        const dataNoTimeStr = {
+            hourly: {
+                time: ['not-iso', 'not-iso-2'],
+                european_aqi: [10, 20]
+            }
+        };
+        render(<Sidebar airData={dataNoTimeStr} selectedTimeIndex={0} />);
+    });
 });
+
 
 

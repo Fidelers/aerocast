@@ -1,5 +1,3 @@
-// tests/components/CitySearch.test.jsx — TDD-тесты для компонента поиска города
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import CitySearch from '../../src/components/CitySearch';

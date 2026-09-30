@@ -1,5 +1,3 @@
-// tests/components/MapComponent.test.jsx — TDD-тесты для управления камерой и отрисовки маркеров качества воздуха
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { getAqiInfo } from '../../src/types';
@@ -1029,4 +1027,218 @@ describe('MapComponent (TDD — интерактивный выбор точки
         render(<MapComponent airData={dataNullAqi} selectedTimeIndex={0} />);
         expect(mockMarkerAddTo).not.toHaveBeenCalled();
     });
+
+    describe('19. Интерактивная обработка клика по карте (handleMapClick)', () => {
+        it('игнорирует клик, если объект события пуст или отсутствует lngLat', () => {
+            const onMapClick = vi.fn();
+            render(<MapComponent onMapClick={onMapClick} />);
+            const clickCall = mockMapOn.mock.calls.find(([event]) => event === 'click');
+            expect(clickCall).toBeDefined();
+            const clickHandler = clickCall[1];
+
+            clickHandler(null);
+            clickHandler({});
+            expect(onMapClick).not.toHaveBeenCalled();
+        });
+
+        it('игнорирует клики по маркеру, попапу или контролам карты', () => {
+            const onMapClick = vi.fn();
+            const onLocationSelect = vi.fn();
+            render(<MapComponent onMapClick={onMapClick} onLocationSelect={onLocationSelect} />);
+            const clickCall = mockMapOn.mock.calls.find(([event]) => event === 'click');
+            const clickHandler = clickCall[1];
+
+            // 1. target с классом .map-marker
+            const markerTarget = document.createElement('div');
+            markerTarget.className = 'map-marker';
+            clickHandler({
+                lngLat: { lng: 30.5, lat: 60.1 },
+                originalEvent: { target: markerTarget }
+            });
+            expect(onMapClick).not.toHaveBeenCalled();
+
+            // 2. target внутри .maplibregl-popup
+            const popupParent = document.createElement('div');
+            popupParent.className = 'maplibregl-popup';
+            const popupChild = document.createElement('span');
+            popupParent.appendChild(popupChild);
+            clickHandler({
+                lngLat: { lng: 30.5, lat: 60.1 },
+                originalEvent: { target: popupChild }
+            });
+            expect(onMapClick).not.toHaveBeenCalled();
+
+            // 3. target внутри .maplibregl-ctrl
+            const ctrlParent = document.createElement('div');
+            ctrlParent.className = 'maplibregl-ctrl';
+            const ctrlChild = document.createElement('button');
+            ctrlParent.appendChild(ctrlChild);
+            clickHandler({
+                lngLat: { lng: 30.5, lat: 60.1 },
+                originalEvent: { target: ctrlChild }
+            });
+            expect(onMapClick).not.toHaveBeenCalled();
+
+            // 4. target внутри .maplibregl-marker
+            const markerParent = document.createElement('div');
+            markerParent.className = 'maplibregl-marker';
+            const markerChild = document.createElement('div');
+            markerParent.appendChild(markerChild);
+            clickHandler({
+                lngLat: { lng: 30.5, lat: 60.1 },
+                originalEvent: { target: markerChild }
+            });
+            expect(onMapClick).not.toHaveBeenCalled();
+        });
+
+        it('игнорирует клик, если target содержится в markerElementRef', () => {
+            const onMapClick = vi.fn();
+            const mockData = {
+                latitude: 53.7596,
+                longitude: 87.1467,
+                hourly: { european_aqi: [30] }
+            };
+            render(
+                <MapComponent
+                    lat={53.7596}
+                    lon={87.1467}
+                    airData={mockData}
+                    selectedTimeIndex={0}
+                    onMapClick={onMapClick}
+                />
+            );
+            const clickCall = mockMapOn.mock.calls.find(([event]) => event === 'click');
+            const clickHandler = clickCall[1];
+
+            const markers = getCreatedMarkers();
+            const markerEl = markers[markers.length - 1].element;
+            const innerSpan = document.createElement('span');
+            markerEl.appendChild(innerSpan);
+
+            clickHandler({
+                lngLat: { lng: 30.5, lat: 60.1 },
+                originalEvent: { target: innerSpan }
+            });
+            expect(onMapClick).not.toHaveBeenCalled();
+        });
+
+        it('обновляет маркер и вызывает коллбэки при клике на свободную область карты', () => {
+            const onMapClick = vi.fn();
+            const onLocationSelect = vi.fn();
+            const mockData = {
+                latitude: 53.7596,
+                longitude: 87.1467,
+                hourly: { european_aqi: [30] }
+            };
+            const { rerender } = render(
+                <MapComponent
+                    lat={53.7596}
+                    lon={87.1467}
+                    airData={mockData}
+                    selectedTimeIndex={0}
+                    onMapClick={onMapClick}
+                    onLocationSelect={onLocationSelect}
+                />
+            );
+
+            mockFlyTo.mockClear();
+            mockMarkerSetLngLat.mockClear();
+
+            const clickCall = mockMapOn.mock.calls.find(([event]) => event === 'click');
+            const clickHandler = clickCall[1];
+
+            const canvas = document.createElement('canvas');
+            clickHandler({
+                lngLat: { lng: 37.61, lat: 55.75 },
+                originalEvent: { target: canvas }
+            });
+
+            expect(mockMarkerSetLngLat).toHaveBeenCalledWith([37.61, 55.75]);
+            expect(onMapClick).toHaveBeenCalledWith(55.75, 37.61);
+            expect(onLocationSelect).toHaveBeenCalledWith({ lat: 55.75, lon: 37.61 });
+
+            // Проверяем, что флаг isMapClick предотвращает flyTo при последующем обновлении lat/lon
+            rerender(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    airData={mockData}
+                    selectedTimeIndex={0}
+                    onMapClick={onMapClick}
+                    onLocationSelect={onLocationSelect}
+                />
+            );
+            expect(mockFlyTo).not.toHaveBeenCalled();
+        });
+
+        it('корректно очищает слушатели и маркер при размонтировании', () => {
+            const mockData = {
+                latitude: 53.7596,
+                longitude: 87.1467,
+                hourly: { european_aqi: [30] }
+            };
+            const { unmount } = render(
+                <MapComponent
+                    lat={53.7596}
+                    lon={87.1467}
+                    airData={mockData}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            unmount();
+            expect(mockMapOff).toHaveBeenCalledWith('click', expect.any(Function));
+            expect(mockRemove).toHaveBeenCalled();
+            expect(mockMarkerRemove).toHaveBeenCalled();
+        });
+
+        it('корректно обрабатывает обновление координат в null на втором рендере без вызова flyTo', () => {
+            const { rerender } = render(<MapComponent lat={55.75} lon={37.61} />);
+            mockFlyTo.mockClear();
+
+            // Смена на null
+            rerender(<MapComponent lat={null} lon={null} />);
+            expect(mockFlyTo).not.toHaveBeenCalled();
+        });
+
+        it('отображает прочерки для координат в попапе, если lat, lon и airData.latitude/longitude равны null', () => {
+            const dataNoCoords = {
+                latitude: null,
+                longitude: null,
+                hourly: {
+                    time: ['invalid-time-format'],
+                    european_aqi: [30]
+                }
+            };
+
+            render(<MapComponent lat={null} lon={null} airData={dataNoCoords} selectedTimeIndex={0} />);
+            const popups = getCreatedPopups();
+            const popup = popups[popups.length - 1];
+            expect(popup._html).toContain('Широта: —, Долгота: —');
+            expect(popup._html).not.toContain('map-popup__time');
+        });
+
+        it('обновляет существующий попап через setHTML при повторном рендере с новыми данными', () => {
+            const data1 = {
+                latitude: 55.75,
+                longitude: 37.61,
+                hourly: { european_aqi: [25] }
+            };
+            const data2 = {
+                latitude: 55.75,
+                longitude: 37.61,
+                hourly: { european_aqi: [75] }
+            };
+
+            const { rerender } = render(<MapComponent lat={55.75} lon={37.61} airData={data1} selectedTimeIndex={0} />);
+            const popups = getCreatedPopups();
+            const popup = popups[popups.length - 1];
+            const setHTMLSpy = popup.setHTML;
+            setHTMLSpy.mockClear();
+
+            rerender(<MapComponent lat={55.75} lon={37.61} airData={data2} selectedTimeIndex={0} />);
+            expect(setHTMLSpy).toHaveBeenCalled();
+        });
+    });
 });
+

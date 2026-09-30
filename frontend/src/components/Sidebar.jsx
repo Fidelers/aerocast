@@ -4,7 +4,7 @@ import Logo from '../assets/icons/logo.svg';
 import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
-import { groupTimesByDay, formatDateKey } from '../utils/timeUtils';
+import { groupTimesByDay } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
 function Sidebar({
@@ -18,9 +18,7 @@ function Sidebar({
   onLocationSelect,
   onCitySelect,
   onOpenAbout,
-  onLocateMe,
-  isLoading,
-  loadError
+  onLocateMe
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -80,11 +78,9 @@ function Sidebar({
 
     const scrollContainer = () => {
       const container = daysContainerRef.current;
-      if (!container) return;
-
-      const targetCard = container.querySelector('[data-is-current="true"]') ||
-                         container.querySelector('.day-card--active') ||
-                         container.querySelector('[data-is-today="true"]');
+      const targetCard = container?.querySelector('[data-is-current="true"]') ||
+                         container?.querySelector('.day-card--active') ||
+                         container?.querySelector('[data-is-today="true"]');
 
       if (targetCard) {
         if (container.clientWidth > 0) {
@@ -101,10 +97,8 @@ function Sidebar({
     };
 
     scrollContainer();
-    if (typeof requestAnimationFrame === 'function') {
-      const frameId = requestAnimationFrame(scrollContainer);
-      return () => cancelAnimationFrame(frameId);
-    }
+    const frameId = requestAnimationFrame(scrollContainer);
+    return () => cancelAnimationFrame(frameId);
   }, [days, currentDay]);
 
   // Клик по плитке дня: обновляет доступные часы в блоке .times
@@ -299,7 +293,7 @@ function Sidebar({
 
               return (
                 <button
-                  key={hourItem.timeStr || hourItem.index}
+                  key={hourItem.timeStr}
                   className={timeClasses}
                   type="button"
                   onClick={() => handleHourClick(hourItem.index)}
