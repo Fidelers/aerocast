@@ -23,6 +23,15 @@ const mockAirData = {
 };
 
 describe('Sidebar component', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T10:00:00'));
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.useRealTimers();
+    });
     it('рендерится без ошибок при отсутствии airData', () => {
         const html = renderToString(<Sidebar airData={null} />);
         expect(html).toContain('Нет данных о датах');
@@ -237,6 +246,7 @@ describe('Sidebar component (TDD — Геолокация пользовател
 describe('Sidebar component (TDD — вызов информационного модального окна)', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T10:00:00'));
     });
 
     afterEach(() => {

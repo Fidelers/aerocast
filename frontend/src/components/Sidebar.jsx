@@ -10,6 +10,7 @@ import '../styles/Sidebar.css';
 function Sidebar({
   airData,
   selectedTimeIndex = null,
+  referenceDate,
   onSelectTime,
   onTimeSelect,
   viewMode = 'combo',
@@ -36,8 +37,8 @@ function Sidebar({
 
   // Группировка массива time по суткам (отделение дат от часов)
   const days = useMemo(() => {
-    return groupTimesByDay(timeArray);
-  }, [timeArray]);
+    return groupTimesByDay(timeArray, referenceDate);
+  }, [timeArray, referenceDate]);
 
   // Выбранный пользователем день (для переключения списка часов)
   const [selectedDayStr, setSelectedDayStr] = useState(null);
