@@ -15,41 +15,64 @@ describe('Config: db', () => {
         process.env = originalEnv;
     });
 
-    it('должен открывать соединение и создавать таблицы api_cache и air_quality_history', async () => {
-        const db = await dbConfig.getDB();
-        expect(db).toBeDefined();
+    it('initDB открывает рабочую БД и создаёт таблицы api_cache и air_quality_history', async () => {
+        const db = await dbConfig.initDB();
+        expect(db).toBeTruthy();
 
-        // Проверяем существование таблиц через sqlite_master
         const tables = await db.all(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('api_cache', 'air_quality_history')"
+            "SELECT name FROM sqlite_master WHERE type='table'"
         );
-        const tableNames = tables.map(t => t.name);
-        expect(tableNames).toContain('api_cache');
-        expect(tableNames).toContain('air_quality_history');
+        const names = tables.map(t => t.name);
+
+        expect(names).toEqual(
+            expect.arrayContaining(['api_cache', 'air_quality_history'])
+        );
     });
 
-    it('должен возвращать один и тот же промис/экземпляр базы при повторных вызовах getDB()', async () => {
+    it('getDB() возвращает один и тот же экземпляр при повторных вызовах', async () => {
         const db1 = await dbConfig.getDB();
         const db2 = await dbConfig.getDB();
         expect(db1).toBe(db2);
     });
 
-    it('должен поддерживать initDB() как инициализатор базы', async () => {
-        const db = await dbConfig.initDB();
-        expect(db).toBeDefined();
-    });
 
-    it('должен закрывать соединение через closeDB() и сбрасывать dbPromise', async () => {
+    it('closeDB закрывает соединение и сбрасывает dbPromise', async () => {
         const db1 = await dbConfig.getDB();
-        expect(db1).toBeDefined();
+        const closeSpy = jest.spyOn(db1, 'close');
 
-        await dbConfig.closeDB();
-        // Новый вызов getDB после closeDB должен открывать новое соединение
-        const db2 = await dbConfig.getDB();
-        expect(db2).toBeDefined();
+        try {
+            await dbConfig.closeDB();
+            expect(closeSpy).toHaveBeenCalledTimes(1);
+
+            const db2 = await dbConfig.getDB();
+            expect(db2).not.toBe(db1);
+        } finally {
+            closeSpy.mockRestore();
+        }
     });
 
-    it('должен не допускать дубликатов в air_quality_history благодаря UNIQUE(latitude, longitude, timestamp)', async () => {
+    it('closeDB корректно завершается, если соединение не открывалось', async () => {
+        await expect(dbConfig.closeDB()).resolves.toBeUndefined();
+    });
+
+    it('при сбое соединения dbPromise сбрасывается и следующий вызов пробует снова', async () => {
+        jest.resetModules();
+        const sqlite = require('sqlite');
+        const openSpy = jest
+            .spyOn(sqlite, 'open')
+            .mockRejectedValue(new Error('Connection failure'));
+        const freshDbConfig = require('../../config/db');
+
+        try {
+            await expect(freshDbConfig.getDB()).rejects.toThrow('Connection failure');
+            await expect(freshDbConfig.getDB()).rejects.toThrow('Connection failure');
+            expect(openSpy).toHaveBeenCalledTimes(2);
+        } finally {
+            openSpy.mockRestore();
+        }
+    });
+
+    it('air_quality_history не допускает дубликатов по (latitude, longitude, timestamp)', async () => {
         const db = await dbConfig.getDB();
 
         await db.run(
@@ -57,7 +80,6 @@ describe('Config: db', () => {
             [55.75, 37.61, 1789862400000, '{"pm10": 10}', 'open-meteo']
         );
 
-        // Повторная вставка с теми же координатами и меткой через INSERT OR IGNORE должна игнорироваться
         await db.run(
             'INSERT OR IGNORE INTO air_quality_history (latitude, longitude, timestamp, pollutant_data, source) VALUES (?, ?, ?, ?, ?)',
             [55.75, 37.61, 1789862400000, '{"pm10": 99}', 'open-weather-map']
@@ -72,63 +94,65 @@ describe('Config: db', () => {
         expect(JSON.parse(rows[0].pollutant_data)).toEqual({ pm10: 10 });
     });
 
-    it('должен использовать дефолтный путь к cache.db при отсутствии переменной DB_PATH', async () => {
+    it('использует дефолтный путь cache.db, когда DB_PATH не задан', async () => {
         delete process.env.DB_PATH;
         jest.resetModules();
+
         const sqlite = require('sqlite');
         const mockInstance = {
             exec: jest.fn().mockResolvedValue(),
             close: jest.fn().mockResolvedValue()
         };
-        const openSpy = jest.spyOn(sqlite, 'open').mockResolvedValueOnce(mockInstance);
+        const openSpy = jest
+            .spyOn(sqlite, 'open')
+            .mockResolvedValueOnce(mockInstance);
         const freshDbConfig = require('../../config/db');
 
-        await freshDbConfig.getDB();
-        expect(openSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-                filename: expect.stringMatching(/[\\/]cache\.db$/)
-            })
-        );
-        await freshDbConfig.closeDB();
-        openSpy.mockRestore();
+        try {
+            await freshDbConfig.getDB();
+            expect(openSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filename: expect.stringMatching(/[\\/]cache\.db$/)
+                })
+            );
+        } finally {
+            await freshDbConfig.closeDB();
+            openSpy.mockRestore();
+        }
     });
 
-    it('должен корректно завершаться при closeDB, если соединение не открывалось', async () => {
-        await expect(dbConfig.closeDB()).resolves.toBeUndefined();
-    });
-
-    it('должен сбрасывать dbPromise в null и пробрасывать ошибку при сбое соединения или миграции', async () => {
+    it('создаёт директорию для базы данных, если её нет', async () => {
         jest.resetModules();
-        const sqlite = require('sqlite');
-        const openSpy = jest.spyOn(sqlite, 'open').mockRejectedValueOnce(new Error('Connection failure'));
-        const freshDbConfig = require('../../config/db');
-        await expect(freshDbConfig.getDB()).rejects.toThrow('Connection failure');
-        openSpy.mockRestore();
-    });
 
-    it('должен создавать директорию для базы данных, если она отсутствует', async () => {
-        jest.resetModules();
         const fs = require('fs');
         const sqlite = require('sqlite');
         const mockInstance = {
             exec: jest.fn().mockResolvedValue(),
             close: jest.fn().mockResolvedValue()
         };
-        const openSpy = jest.spyOn(sqlite, 'open').mockResolvedValueOnce(mockInstance);
-        const existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
-        const mkdirSpy = jest.spyOn(fs, 'mkdirSync').mockReturnValueOnce(undefined);
+
+        const openSpy = jest
+            .spyOn(sqlite, 'open')
+            .mockResolvedValueOnce(mockInstance);
+        const existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+        const mkdirSpy = jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
 
         process.env.DB_PATH = 'non_existent_dir/custom.db';
         const freshDbConfig = require('../../config/db');
 
-        await freshDbConfig.getDB();
+        try {
+            await freshDbConfig.getDB();
 
-        expect(existsSpy).toHaveBeenCalled();
-        expect(mkdirSpy).toHaveBeenCalledWith(expect.stringContaining('non_existent_dir'), { recursive: true });
-
-        await freshDbConfig.closeDB();
-        openSpy.mockRestore();
-        existsSpy.mockRestore();
-        mkdirSpy.mockRestore();
+            expect(existsSpy).toHaveBeenCalled();
+            expect(mkdirSpy).toHaveBeenCalledWith(
+                expect.stringContaining('non_existent_dir'),
+                { recursive: true }
+            );
+        } finally {
+            await freshDbConfig.closeDB();
+            openSpy.mockRestore();
+            existsSpy.mockRestore();
+            mkdirSpy.mockRestore();
+        }
     });
 });
