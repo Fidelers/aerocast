@@ -95,7 +95,7 @@ describe('Sidebar component', () => {
     });
 });
 
-describe('Sidebar component (TDD — переключатели режимов отображения)', () => {
+describe('Sidebar component (переключатели режимов отображения)', () => {
     afterEach(() => {
         cleanup();
         vi.restoreAllMocks();
@@ -184,7 +184,7 @@ describe('Sidebar component (TDD — переключатели режимов �
     });
 });
 
-describe('Sidebar component (TDD — Геолокация пользователя)', () => {
+describe('Sidebar component (Геолокация пользователя)', () => {
     let originalGeolocation;
 
     beforeEach(() => {
@@ -242,7 +242,7 @@ describe('Sidebar component (TDD — Геолокация пользовател
     });
 });
 
-describe('Sidebar component (TDD — вызов информационного модального окна)', () => {
+describe('Sidebar component (вызов информационного модального окна)', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-28T10:00:00'));
@@ -712,6 +712,11 @@ describe('Sidebar component (TDD — вызов информационного �
 
         expect(screen.queryByText(/Доступ к геолокации запрещён/i)).toBeNull();
         vi.unstubAllGlobals();
+    });
+
+    it('не содержит шкалу AQI в сайдбаре (шкала перенесена в RightAirPanel)', () => {
+        const { container } = render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
+        expect(container.querySelector('.aqi-scale')).toBeNull();
     });
 });
 

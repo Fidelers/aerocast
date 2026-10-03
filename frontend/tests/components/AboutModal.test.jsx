@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import AboutModal from '../../src/components/AboutModal';
 
-describe('AboutModal component (TDD — модальное окно информации и методологии)', () => {
+describe('AboutModal component (модальное окно информации и методологии)', () => {
     afterEach(() => {
         cleanup();
         vi.restoreAllMocks();

@@ -89,10 +89,56 @@ vi.mock('../src/components/MapComponent', () => {
             return React.createElement('div', { 'data-testid': 'map' },
                 React.createElement('span', { 'data-testid': 'map-data' }, props.airData ? 'loaded' : 'empty'),
                 React.createElement('span', { 'data-testid': 'map-time' }, String(props.selectedTimeIndex)),
+                React.createElement('span', { 'data-testid': 'map-layer' }, props.activeBaseLayer || 'osm'),
                 React.createElement('button', {
                     'data-testid': 'map-btn-click',
                     onClick: () => props.onMapClick && props.onMapClick(59.9343, 30.3351)
-                }, 'Click Map Point')
+                }, 'Click Map Point'),
+                React.createElement('button', {
+                    'data-testid': 'map-btn-marker-click',
+                    onClick: () => props.onMarkerClick && props.onMarkerClick()
+                }, 'Click Marker')
+            );
+        }
+    };
+});
+
+vi.mock('../src/components/RightAirPanel', () => {
+    return {
+        default: function DummyRightAirPanel(props) {
+            if (!props.isOpen) {
+                return React.createElement('div', { 'data-testid': 'right-panel-closed' },
+                    React.createElement('button', {
+                        'data-testid': 'fab-open-panel',
+                        onClick: () => props.onOpen && props.onOpen()
+                    }, 'Показатели')
+                );
+            }
+            return React.createElement('div', { 'data-testid': 'right-panel-open' },
+                React.createElement('span', { 'data-testid': 'right-panel-time' }, String(props.selectedTimeIndex)),
+                React.createElement('span', { 'data-testid': 'right-panel-source' }, props.airData?.used_source || 'none'),
+                React.createElement('button', {
+                    'data-testid': 'right-panel-close-btn',
+                    onClick: () => props.onClose && props.onClose()
+                }, '✕')
+            );
+        }
+    };
+});
+
+vi.mock('../src/components/LayerSwitcher', () => {
+    return {
+        default: function DummyLayerSwitcher(props) {
+            return React.createElement('div', { 'data-testid': 'layer-switcher' },
+                React.createElement('span', { 'data-testid': 'current-layer' }, props.activeLayer),
+                React.createElement('button', {
+                    'data-testid': 'btn-switch-satellite',
+                    onClick: () => props.onLayerChange && props.onLayerChange('satellite')
+                }, 'Спутник'),
+                React.createElement('button', {
+                    'data-testid': 'btn-switch-osm',
+                    onClick: () => props.onLayerChange && props.onLayerChange('osm')
+                }, 'Карта')
             );
         }
     };
@@ -695,6 +741,76 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             await waitFor(() => {
                 expect(screen.getByTestId('sidebar-time').textContent).toBe('0');
             });
+        });
+    });
+
+    describe('Интеграция RightAirPanel и LayerSwitcher в App', () => {
+        const mockAirData = {
+            latitude: 55.7558,
+            longitude: 37.6173,
+            used_source: 'open-meteo',
+            hourly: {
+                time: ['2026-09-22T10:00', '2026-09-22T11:00'],
+                european_aqi: [30, 45]
+            }
+        };
+
+        beforeEach(() => {
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                status: 200,
+                json: async () => mockAirData
+            });
+        });
+
+        it('открывает RightAirPanel при клике на маркер карты и передает airData', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('map-data').textContent).toBe('loaded');
+            });
+
+            // Находим кнопку клика по маркеру в замоканной карте и кликаем
+            const markerBtn = screen.getByTestId('map-btn-marker-click');
+            fireEvent.click(markerBtn);
+
+            // Панель должна быть открыта
+            expect(screen.getByTestId('right-panel-open')).toBeTruthy();
+        });
+
+        it('закрывает RightAirPanel по кнопке закрытия и восстанавливает видимость кнопки показателей', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('map-data').textContent).toBe('loaded');
+            });
+
+            // Открываем панель кликом по маркеру
+            const markerBtn = screen.getByTestId('map-btn-marker-click');
+            fireEvent.click(markerBtn);
+            expect(screen.getByTestId('right-panel-open')).toBeTruthy();
+
+            // Закрываем панель
+            const closeBtn = screen.getByTestId('right-panel-close-btn');
+            fireEvent.click(closeBtn);
+
+            // Теперь видна кнопка закрытого состояния
+            expect(screen.getByTestId('right-panel-closed')).toBeTruthy();
+        });
+
+        it('интегрирует LayerSwitcher и обновляет activeBaseLayer в MapComponent', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('layer-switcher')).toBeTruthy();
+            });
+
+            // Переключаем на спутник
+            const switchBtn = screen.getByTestId('btn-switch-satellite');
+            fireEvent.click(switchBtn);
+
+            // Проверяем, что в MapComponent передался активный слой 'satellite'
+            expect(screen.getByTestId('map-layer').textContent).toBe('satellite');
         });
     });
 });

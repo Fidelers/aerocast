@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import CitySearch from '../../src/components/CitySearch';
 
-describe('CitySearch component (TDD)', () => {
+describe('CitySearch component', () => {
     const mockGeocodingResults = [
         {
             id: 1,

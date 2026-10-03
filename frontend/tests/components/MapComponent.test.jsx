@@ -17,6 +17,7 @@ const {
     mockMarkerRemove,
     mockMapOn,
     mockMapOff,
+    mockSetLayoutProperty,
     getCreatedMarkers,
     clearCreatedMarkers,
     getCreatedPopups,
@@ -30,6 +31,7 @@ const {
     const mockMarkerRemove = vi.fn().mockReturnThis();
     const mockMapOn = vi.fn();
     const mockMapOff = vi.fn();
+    const mockSetLayoutProperty = vi.fn();
 
     let createdMarkers = [];
     let createdPopups = [];
@@ -44,7 +46,8 @@ const {
         this.getSource = vi.fn();
         this.addLayer = vi.fn();
         this.removeLayer = vi.fn();
-        this.getLayer = vi.fn();
+        this.getLayer = vi.fn().mockImplementation((id) => (id === 'osm-layer' || id === 'satellite-layer' ? { id } : null));
+        this.setLayoutProperty = mockSetLayoutProperty;
         this.on = mockMapOn;
         this.off = mockMapOff;
         return this;
@@ -148,6 +151,7 @@ const {
         mockMarkerRemove,
         mockMapOn,
         mockMapOff,
+        mockSetLayoutProperty,
         getCreatedMarkers: () => createdMarkers,
         clearCreatedMarkers: () => { createdMarkers = []; },
         getCreatedPopups: () => createdPopups,
@@ -174,7 +178,7 @@ vi.mock('maplibre-gl', () => {
 // Импортируем тестируемый компонент
 import MapComponent from '../../src/components/MapComponent';
 
-describe('MapComponent (TDD — динамическое управление камерой)', () => {
+describe('MapComponent (динамическое управление камерой)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         clearCreatedMarkers();
@@ -270,7 +274,7 @@ describe('MapComponent (TDD — динамическое управление к
     });
 });
 
-describe('MapComponent (TDD — отрисовка маркеров качества воздуха)', () => {
+describe('MapComponent (отрисовка маркеров качества воздуха)', () => {
     const mockAirData = {
         latitude: 53.7596,
         longitude: 87.1467,
@@ -517,200 +521,7 @@ describe('MapComponent (TDD — отрисовка маркеров качест
     });
 });
 
-describe('MapComponent (TDD — интерактивный Popup с детальной статистикой)', () => {
-    const mockFullAirData = {
-        latitude: 53.7596,
-        longitude: 87.1467,
-        used_source: 'open-meteo',
-        hourly: {
-            time: [
-                '2026-09-28T00:00',
-                '2026-09-28T03:00'
-            ],
-            european_aqi: [15, 85],
-            pm10: [12.5, 45.0],
-            pm2_5: [8.2, 32.1],
-            carbon_monoxide: [210, 500],
-            nitrogen_dioxide: [18.4, 42.1],
-            sulphur_dioxide: [5.1, 15.3],
-            ozone: [45.2, 90.0]
-        }
-    };
-
-    // Вспомогательная функция для извлечения HTML-содержимого из экземпляра попапа
-    function getPopupHtml(popup) {
-        if (!popup) return '';
-        if (popup._html) return popup._html;
-        if (popup._dom) return popup._dom.innerHTML || popup._dom.textContent || '';
-        if (popup.setHTML?.mock?.calls?.length) {
-            return popup.setHTML.mock.calls.at(-1)[0] || '';
-        }
-        if (popup.setDOMContent?.mock?.calls?.length) {
-            const arg = popup.setDOMContent.mock.calls.at(-1)[0];
-            return arg?.innerHTML || arg?.textContent || '';
-        }
-        return '';
-    }
-
-    beforeEach(() => {
-        vi.clearAllMocks();
-        clearCreatedMarkers();
-        clearCreatedPopups();
-    });
-
-    afterEach(() => {
-        cleanup();
-    });
-
-    it('1. Привязывает экземпляр maplibregl.Popup к маркеру и открывает его при клике по маркеру', () => {
-        render(React.createElement(MapComponent, {
-            airData: mockFullAirData,
-            selectedTimeIndex: 0,
-            viewMode: 'combo'
-        }));
-
-        const markerInstance = getCreatedMarkers().at(-1);
-        expect(markerInstance).toBeDefined();
-
-        // Проверяем, что попап был создан и привязан к маркеру
-        expect(MockPopup).toHaveBeenCalled();
-        expect(markerInstance.setPopup).toHaveBeenCalled();
-
-        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-        expect(popupInstance).toBeDefined();
-        expect(popupInstance.isOpen()).toBe(false);
-
-        // Имитируем клик пользователя по маркеру
-        fireEvent.click(markerInstance.getElement());
-
-        // Окно попапа должно стать открытым
-        expect(popupInstance.isOpen()).toBe(true);
-    });
-
-    it('2. Отображает в содержимом попапа фактический источник данных (из поля used_source)', () => {
-        render(React.createElement(MapComponent, {
-            airData: mockFullAirData,
-            selectedTimeIndex: 0,
-            viewMode: 'combo'
-        }));
-
-        const markerInstance = getCreatedMarkers().at(-1);
-        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-        const content = getPopupHtml(popupInstance);
-
-        expect(content).toContain('open-meteo');
-    });
-
-    it('3. Отображает словесную классификацию качества воздуха через getAqiInfo и числовой индекс EAQI', () => {
-        render(React.createElement(MapComponent, {
-            airData: mockFullAirData,
-            selectedTimeIndex: 0, // aqi = 15
-            viewMode: 'combo'
-        }));
-
-        const markerInstance = getCreatedMarkers().at(-1);
-        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-        const content = getPopupHtml(popupInstance);
-        const expectedInfo = getAqiInfo(15);
-
-        // Проверяем наличие словесной оценки («отлично») и цифры индекса (15)
-        expect(content.toLowerCase()).toContain(expectedInfo.label.toLowerCase());
-        expect(content).toContain('15');
-    });
-
-    it('4. Отображает таблицу концентраций загрязнителей (PM10, PM2.5, CO, NO2, SO2, O3) для выбранного времени', () => {
-        render(React.createElement(MapComponent, {
-            airData: mockFullAirData,
-            selectedTimeIndex: 0,
-            viewMode: 'combo'
-        }));
-
-        const markerInstance = getCreatedMarkers().at(-1);
-        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-        const content = getPopupHtml(popupInstance);
-
-        // Проверяем обозначения основных загрязнителей
-        expect(content).toMatch(/pm10/i);
-        expect(content).toMatch(/pm2[._]?5/i);
-        expect(content).toMatch(/co\b|carbon/i);
-        expect(content).toMatch(/no2/i);
-        expect(content).toMatch(/so2/i);
-        expect(content).toMatch(/o3|ozone/i);
-
-        // Проверяем численные значения концентраций для нулевого часа
-        expect(content).toContain('12.5'); // pm10
-        expect(content).toContain('8.2');  // pm2_5
-        expect(content).toContain('210');  // carbon_monoxide
-        expect(content).toContain('18.4'); // nitrogen_dioxide
-        expect(content).toContain('5.1');  // sulphur_dioxide
-        expect(content).toContain('45.2'); // ozone
-    });
-
-    it('5. Заменяет отсутствующие загрязнители (null или undefined) прочерком («—» или «-»)', () => {
-        const dataWithMissingPollutants = {
-            ...mockFullAirData,
-            hourly: {
-                time: ['2026-09-28T00:00'],
-                european_aqi: [25],
-                pm10: [null],
-                pm2_5: [10],
-                carbon_monoxide: [undefined],
-                nitrogen_dioxide: [null],
-                sulphur_dioxide: [null],
-                ozone: [null]
-            }
-        };
-
-        render(React.createElement(MapComponent, {
-            airData: dataWithMissingPollutants,
-            selectedTimeIndex: 0,
-            viewMode: 'combo'
-        }));
-
-        const markerInstance = getCreatedMarkers().at(-1);
-        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-        const content = getPopupHtml(popupInstance);
-
-        // При отсутствии значения в таблице должен выводиться прочерк
-        expect(content).toMatch(/[—–-]/);
-    });
-
-    it('6. Динамически пересчитывает концентрации и классификацию в открытом попапе при смене selectedTimeIndex', () => {
-        const { rerender } = render(React.createElement(MapComponent, {
-            airData: mockFullAirData,
-            selectedTimeIndex: 0, // aqi = 15 (отлично), pm10 = 12.5
-            viewMode: 'combo'
-        }));
-
-        const markerInstance = getCreatedMarkers().at(-1);
-        const popupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-
-        // Открываем попап
-        fireEvent.click(markerInstance.getElement());
-        expect(popupInstance.isOpen()).toBe(true);
-
-        let content = getPopupHtml(popupInstance);
-        expect(content).toContain('15');
-        expect(content).toContain('12.5');
-
-        // Пользователь переключает время в сайдбаре на index 1 (aqi = 85 (очень плохо), pm10 = 45.0)
-        rerender(React.createElement(MapComponent, {
-            airData: mockFullAirData,
-            selectedTimeIndex: 1,
-            viewMode: 'combo'
-        }));
-
-        const updatedPopupInstance = markerInstance.getPopup() || getCreatedPopups().at(-1);
-        content = getPopupHtml(updatedPopupInstance);
-
-        // Данные внутри попапа обновились налету
-        expect(content).toContain('85');
-        expect(content).toContain('45');
-        expect(content.toLowerCase()).toContain(getAqiInfo(85).label.toLowerCase());
-    });
-});
-
-describe('MapComponent (TDD — интерактивный выбор точки кликом по карте)', () => {
+describe('MapComponent (интерактивный выбор точки кликом по карте)', () => {
     it('1. Подписывается на событие клика карты ("click") при инициализации', () => {
         const handleMapClick = vi.fn();
         render(<MapComponent onMapClick={handleMapClick} />);
@@ -850,7 +661,7 @@ describe('MapComponent (TDD — интерактивный выбор точки
         clickHandler({ lngLat: { lng: 30.3351, lat: 59.9343 } });
     });
 
-    it('10. Удаляет маркер и попап при демонтировании компонента', () => {
+    it('10. Удаляет маркер при демонтировании компонента', () => {
         const mockData = {
             latitude: 53.7596,
             longitude: 87.1467,
@@ -891,7 +702,7 @@ describe('MapComponent (TDD — интерактивный выбор точки
         expect(mockMarkerAddTo).toHaveBeenCalled();
     });
 
-    it('13. Удаляет маркер и попап, если airData становится null или selectedTimeIndex сбрасывается', () => {
+    it('13. Удаляет маркер, если airData становится null или selectedTimeIndex сбрасывается', () => {
         const mockData = {
             latitude: 53.7596,
             longitude: 87.1467,
@@ -997,27 +808,7 @@ describe('MapComponent (TDD — интерактивный выбор точки
         expect(mockMarkerSetLngLat).not.toHaveBeenCalled();
     });
 
-    it('17. Рендерит попап с дефолтным источником, прочерками и без блока рекомендаций для уровня none (NaN)', () => {
-        const dataMinimal = {
-            latitude: 53.7596,
-            longitude: 87.1467,
-            hourly: {
-                european_aqi: [NaN] // Уровень 'none'
-            }
-        };
-
-        render(<MapComponent airData={dataMinimal} selectedTimeIndex={0} />);
-
-        const popups = getCreatedPopups();
-        const popup = popups[popups.length - 1];
-        const html = popup._html;
-
-        expect(html).toContain('Источник: open-meteo');
-        expect(html).toContain('—'); // Прочерки вместо значений параметров
-        expect(html).not.toContain('air-popup__recommendation'); // Блок рекомендации не отображается
-    });
-
-    it('18. Не создает маркер и попап, если на первом рендере aqi равен null', () => {
+    it('18. Не создает маркер, если на первом рендере aqi равен null', () => {
         const dataNullAqi = {
             latitude: 53.7596,
             longitude: 87.1467,
@@ -1041,7 +832,7 @@ describe('MapComponent (TDD — интерактивный выбор точки
             expect(onMapClick).not.toHaveBeenCalled();
         });
 
-        it('игнорирует клики по маркеру, попапу или контролам карты', () => {
+        it('игнорирует клики по маркеру или контролам карты', () => {
             const onMapClick = vi.fn();
             const onLocationSelect = vi.fn();
             render(<MapComponent onMapClick={onMapClick} onLocationSelect={onLocationSelect} />);
@@ -1200,45 +991,47 @@ describe('MapComponent (TDD — интерактивный выбор точки
             rerender(<MapComponent lat={null} lon={null} />);
             expect(mockFlyTo).not.toHaveBeenCalled();
         });
-
-        it('отображает прочерки для координат в попапе, если lat, lon и airData.latitude/longitude равны null', () => {
-            const dataNoCoords = {
-                latitude: null,
-                longitude: null,
-                hourly: {
-                    time: ['invalid-time-format'],
-                    european_aqi: [30]
-                }
-            };
-
-            render(<MapComponent lat={null} lon={null} airData={dataNoCoords} selectedTimeIndex={0} />);
-            const popups = getCreatedPopups();
-            const popup = popups[popups.length - 1];
-            expect(popup._html).toContain('Широта: —, Долгота: —');
-            expect(popup._html).not.toContain('map-popup__time');
-        });
-
-        it('обновляет существующий попап через setHTML при повторном рендере с новыми данными', () => {
-            const data1 = {
-                latitude: 55.75,
-                longitude: 37.61,
-                hourly: { european_aqi: [25] }
-            };
-            const data2 = {
-                latitude: 55.75,
-                longitude: 37.61,
-                hourly: { european_aqi: [75] }
-            };
-
-            const { rerender } = render(<MapComponent lat={55.75} lon={37.61} airData={data1} selectedTimeIndex={0} />);
-            const popups = getCreatedPopups();
-            const popup = popups[popups.length - 1];
-            const setHTMLSpy = popup.setHTML;
-            setHTMLSpy.mockClear();
-
-            rerender(<MapComponent lat={55.75} lon={37.61} airData={data2} selectedTimeIndex={0} />);
-            expect(setHTMLSpy).toHaveBeenCalled();
-        });
     });
 });
+
+describe('Переключение базовых растровых слоев и клик по маркеру', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearCreatedMarkers();
+    });
+
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('переключает видимость слоев при изменении activeBaseLayer="satellite"', () => {
+        const { rerender } = render(<MapComponent lat={55.75} lon={37.61} activeBaseLayer="osm" />);
+        expect(mockSetLayoutProperty).toHaveBeenCalledWith('osm-layer', 'visibility', 'visible');
+        expect(mockSetLayoutProperty).toHaveBeenCalledWith('satellite-layer', 'visibility', 'none');
+
+        mockSetLayoutProperty.mockClear();
+        rerender(<MapComponent lat={55.75} lon={37.61} activeBaseLayer="satellite" />);
+        expect(mockSetLayoutProperty).toHaveBeenCalledWith('osm-layer', 'visibility', 'none');
+        expect(mockSetLayoutProperty).toHaveBeenCalledWith('satellite-layer', 'visibility', 'visible');
+    });
+
+    it('вызывает onMarkerClick при клике на маркер качества воздуха', () => {
+        const mockOnMarkerClick = vi.fn();
+        render(
+            <MapComponent
+                lat={55.75}
+                lon={37.61}
+                airData={{ latitude: 55.75, longitude: 37.61, hourly: { european_aqi: [30] } }}
+                selectedTimeIndex={0}
+                onMarkerClick={mockOnMarkerClick}
+            />
+        );
+        const markers = getCreatedMarkers();
+        expect(markers.length).toBeGreaterThan(0);
+        const markerEl = markers[markers.length - 1].element;
+        fireEvent.click(markerEl);
+        expect(mockOnMarkerClick).toHaveBeenCalledTimes(1);
+    });
+});
+
 
