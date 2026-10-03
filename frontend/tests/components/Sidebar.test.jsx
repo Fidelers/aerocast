@@ -691,6 +691,28 @@ describe('Sidebar component (TDD — вызов информационного �
         };
         render(<Sidebar airData={dataNoTimeStr} selectedTimeIndex={0} />);
     });
+
+    it('автоматически скрывает ошибку геолокации через 5000 мс', () => {
+        const mockGeolocation = {
+            getCurrentPosition: vi.fn((success, error) => {
+                error({ code: 1, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+            })
+        };
+        vi.stubGlobal('navigator', { ...navigator, geolocation: mockGeolocation });
+
+        render(<Sidebar airData={null} />);
+        const btn = screen.getByText('Моё местоположение');
+        fireEvent.click(btn);
+
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+
+        act(() => {
+            vi.advanceTimersByTime(5000);
+        });
+
+        expect(screen.queryByText(/Доступ к геолокации запрещён/i)).toBeNull();
+        vi.unstubAllGlobals();
+    });
 });
 
 
