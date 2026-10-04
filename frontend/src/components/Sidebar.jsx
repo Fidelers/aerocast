@@ -24,9 +24,41 @@ function Sidebar({
   const [geoError, setGeoError] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
+  const [isGeoErrorVisible, setIsGeoErrorVisible] = useState(false);
 
   const daysContainerRef = useRef(null);
   const hasInitialScrolledRef = useRef(false);
+
+  const geoErrorTimerRef = useRef(null);
+
+  // Очистка таймера ошибки при размонтировании
+  useEffect(() => {
+    return () => {
+      if (geoErrorTimerRef.current) {
+        clearTimeout(geoErrorTimerRef.current);
+      }
+    };
+  }, []);
+
+
+  // Установки ошибки с таймером
+  const setGeoErrorWithTimeout = (message) => {
+    // Сброс предыдущего таймера если он был запущен
+    if (geoErrorTimerRef.current) {
+      clearTimeout(geoErrorTimerRef.current);
+    }
+    setGeoError(message);
+    setIsGeoErrorVisible(true);
+
+    geoErrorTimerRef.current = setTimeout(() => {
+      setIsGeoErrorVisible(false);
+      geoErrorTimerRef.current = null;
+      setTimeout(() => {
+        setGeoError(null);
+      }, 300);
+    }, 4700);
+  };
+
 
   // Извлечение массива меток времени из airData
   const timeArray = useMemo(() => {
@@ -124,13 +156,22 @@ function Sidebar({
 
   // Клик по кнопке местоположения 
   const handleLocationClick = () => {
+
+    // Сброс существующей ошибки и таймера
+    if (geoErrorTimerRef.current) {
+      clearTimeout(geoErrorTimerRef.current);
+      geoErrorTimerRef.current = null;
+      
+    }
+    setIsGeoErrorVisible(false);
+
+
     if (typeof onLocateMe === 'function') {
       onLocateMe();
     }
-    setGeoError(null);
     
     if (!navigator.geolocation) {
-      setGeoError('Геолокация не поддерживается вашим браузером');
+      setGeoErrorWithTimeout('Геолокация не поддерживается вашим браузером');
       return;
     }
     setIsGeoLoading(true);
@@ -155,7 +196,7 @@ function Sidebar({
             message += ' Превышено время ожидания ответа от GPS.';
             break;
         }
-        setGeoError(message);
+        setGeoErrorWithTimeout(message);
         setIsGeoLoading(false);
       },
       { timeout: 10000, maximumAge: 60000 }
@@ -235,7 +276,7 @@ function Sidebar({
           {isGeoLoading ? 'Определяем...' : 'Моё местоположение'}
         </button>
         {geoError && (
-          <div className="geo-nav__error">
+          <div className={`geo-nav__error ${isGeoErrorVisible ? 'geo-nav__error-fadein' : 'geo-nav__error-fadeout'}`}>
             ⚠️ {geoError}
           </div>
         )}
@@ -304,42 +345,6 @@ function Sidebar({
             })
           )}
         </div>
-      </section>
-
-      <section className="aqi-scale">
-        <h2 className="aqi-scale__title">Шкала AQI</h2>
-        <ul className="aqi-scale__list">
-          <li className="aqi-row">
-            <span className="aqi-row__dot aqi-excellent" style={{ backgroundColor: '#00cc00' }} />
-            <span className="aqi-row__range">0-20</span>
-            <span className="aqi-row__label">Отлично</span>
-          </li>
-          <li className="aqi-row aqi-good">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#66ff66' }} />
-            <span className="aqi-row__range">21-40</span>
-            <span className="aqi-row__label">Хорошо</span>
-          </li>
-          <li className="aqi-row aqi-fair">
-            <span className="aqi-row__dot aqi-good" style={{ backgroundColor: '#f7f21a' }} />
-            <span className="aqi-row__range">41-60</span>
-            <span className="aqi-row__label">Удовлетворительно</span>
-          </li>
-          <li className="aqi-row aqi-poor">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#ffa500' }} />
-            <span className="aqi-row__range">61-80</span>
-            <span className="aqi-row__label">Плохо</span>
-          </li>
-          <li className="aqi-row aqi-very-poor">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#ff0000' }} />
-            <span className="aqi-row__range">80-100</span>
-            <span className="aqi-row__label">Очень плохо</span>
-          </li>
-          <li className="aqi-row aqi-hazardous">
-            <span className="aqi-row__dot" style={{ backgroundColor: '#c20000' }} />
-            <span className="aqi-row__range">100+</span>
-            <span className="aqi-row__label">Опасно</span>
-          </li>
-        </ul>
       </section>
 
       {!onOpenAbout && (
