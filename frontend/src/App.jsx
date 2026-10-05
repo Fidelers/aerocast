@@ -3,6 +3,7 @@ import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
 import AboutModal from './components/AboutModal';
+import RightAirPanel from './components/RightAirPanel';
 import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
 
 // Координаты по умолчанию: Новокузнецк
@@ -19,6 +20,7 @@ function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
     const selectedTimeIndexRef = useRef(selectedTimeIndex);
     const airDataRef = useRef(airData);
@@ -157,12 +159,45 @@ function App() {
                     viewMode={viewMode}
                     onMapClick={handleLocationSelect}
                     onLocationSelect={handleLocationSelect}
+                    onMarkerClick={() => setIsRightPanelOpen(true)}
                 />
             </div>
             <AboutModal
                 isOpen={isAboutOpen}
                 onClose={() => setIsAboutOpen(false)}
             />
+            <RightAirPanel
+                airData={airData}
+                selectedTimeIndex={selectedTimeIndex}
+                isOpen={isRightPanelOpen}
+                onClose={() => setIsRightPanelOpen(false)}
+                onOpen={() => setIsRightPanelOpen(true)}
+            />
+            {!isRightPanelOpen && (
+                <button
+                    type="button"
+                    className="fab-open-panel"
+                    data-testid="fab-open-panel"
+                    onClick={() => setIsRightPanelOpen(true)}
+                    style={{
+                        position: 'fixed',
+                        top: '16px',
+                        right: '16px',
+                        zIndex: 999,
+                        padding: '9px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: '#2563eb',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        fontWeight: 600,
+                        fontSize: '13px'
+                    }}
+                >
+                    Показатели
+                </button>
+            )}
         </div>
     );
 }
