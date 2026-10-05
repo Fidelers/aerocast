@@ -812,5 +812,47 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             // Проверяем, что в MapComponent передался активный слой 'satellite'
             expect(screen.getByTestId('map-layer').textContent).toBe('satellite');
         });
+
+        it('инициализирует activeBaseLayer со значением из localStorage под ключом aerocast_map_layer', async () => {
+            localStorage.setItem('aerocast_map_layer', 'satellite');
+
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('map-layer').textContent).toBe('satellite');
+            });
+
+            localStorage.removeItem('aerocast_map_layer');
+        });
+
+        it('инициализирует activeBaseLayer значением по умолчанию "osm", если aerocast_map_layer отсутствует', async () => {
+            localStorage.removeItem('aerocast_map_layer');
+
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('map-layer').textContent).toBe('osm');
+            });
+        });
+
+        it('сохраняет выбранный слой в localStorage под ключом "aerocast_map_layer" при переключении слоя', async () => {
+            localStorage.removeItem('aerocast_map_layer');
+
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('layer-switcher')).toBeTruthy();
+            });
+
+            const switchBtn = screen.getByTestId('btn-switch-satellite');
+            fireEvent.click(switchBtn);
+
+            expect(localStorage.getItem('aerocast_map_layer')).toBe('satellite');
+
+            const switchOsmBtn = screen.getByTestId('btn-switch-osm');
+            fireEvent.click(switchOsmBtn);
+
+            expect(localStorage.getItem('aerocast_map_layer')).toBe('osm');
+        });
     });
 });
