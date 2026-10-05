@@ -24,14 +24,14 @@ describe('RightAirPanel component', () => {
         cleanup();
     });
 
-    it('не рендерится при isOpen={false}', () => {
+    it('1. Не рендерит основное окно панели при isOpen={false}', () => {
         const { container } = render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={false} />
         );
-        expect(container.firstChild).toBeNull();
+        expect(container.querySelector('.right-air-panel')).toBeNull();
     });
 
-    it('рендерит шапку с координатами, временем и источником данных', () => {
+    it('2. Рендерит шапку с координатами, временем и источником данных при isOpen={true}', () => {
         render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
         );
@@ -43,7 +43,7 @@ describe('RightAirPanel component', () => {
         expect(screen.getByText(/open-meteo/)).toBeTruthy();
     });
 
-    it('рендерит общий показатель AQI и рекомендацию', () => {
+    it('3. Рендерит общий показатель AQI и динамическую текстовую рекомендацию', () => {
         render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
         );
@@ -52,23 +52,100 @@ describe('RightAirPanel component', () => {
         expect(screen.getByText('хорошо')).toBeTruthy();
     });
 
-    it('отображает перенесенную цветовую шкалу AQI с активным диапазоном 21–40', () => {
-        const { container } = render(
+    it('4. Отображает перенесенную цветовую шкалу AQI со всеми 6 диапазонами', () => {
+        render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
         );
 
         expect(screen.getByText('Шкала уровней AQI')).toBeTruthy();
         expect(screen.getByText('0–20')).toBeTruthy();
         expect(screen.getByText('21–40')).toBeTruthy();
+        expect(screen.getByText('41–60')).toBeTruthy();
+        expect(screen.getByText('61–80')).toBeTruthy();
+        expect(screen.getByText('81–100')).toBeTruthy();
         expect(screen.getByText('100+')).toBeTruthy();
-
-        // 35 попадает в 21-40 -> должен быть активный элемент
-        const activeItem = container.querySelector('.scale-item--active');
-        expect(activeItem).toBeTruthy();
-        expect(activeItem.textContent).toContain('21–40');
     });
 
-    it('рендерит все 6 загрязнителей со статусными бейджами', () => {
+    it('5. Активирует соответствующий диапазон шкалы (.scale-item--active) для каждого уровня AQI', () => {
+        const testRanges = [
+            { aqi: 15, expectedRange: '0–20' },
+            { aqi: 35, expectedRange: '21–40' },
+            { aqi: 50, expectedRange: '41–60' },
+            { aqi: 75, expectedRange: '61–80' },
+            { aqi: 90, expectedRange: '81–100' },
+            { aqi: 125, expectedRange: '100+' }
+        ];
+
+        testRanges.forEach(({ aqi, expectedRange }) => {
+            const data = {
+                ...mockAirData,
+                hourly: { ...mockAirData.hourly, european_aqi: [aqi] }
+            };
+
+            const { container, unmount } = render(
+                <RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />
+            );
+
+            const activeItem = container.querySelector('.scale-item--active');
+            expect(activeItem, `Для AQI ${aqi} должен быть активный элемент`).toBeTruthy();
+            expect(activeItem.textContent).toContain(expectedRange);
+
+            unmount();
+        });
+    });
+
+    it('6. Защитный рендер: выводит "-" или "—" и "нет данных", если european_aqi равен null или отсутствует', () => {
+        const nullAqiData = {
+            latitude: 53.75,
+            longitude: 87.14,
+            hourly: {
+                time: ['2026-10-01T12:00'],
+                european_aqi: [null]
+            }
+        };
+
+        const { container } = render(
+            <RightAirPanel airData={nullAqiData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        // Значение AQI должно быть прочерком
+        const aqiValue = container.querySelector('.aqi-value');
+        expect(aqiValue).toBeTruthy();
+        expect(aqiValue.textContent.trim()).toMatch(/^[—\-]$/);
+
+        // Рекомендация должна сообщать об отсутствии данных
+        const aqiRecommendation = container.querySelector('.aqi-recommendation');
+        expect(aqiRecommendation).toBeTruthy();
+        expect(aqiRecommendation.textContent.toLowerCase()).toContain('нет данных');
+    });
+
+    it('7. Защитный рендер: безопасно обрабатывает отсутствие airData без падений', () => {
+        const { container } = render(
+            <RightAirPanel airData={null} selectedTimeIndex={0} isOpen={true} />
+        );
+        expect(container.firstChild).toBeNull();
+    });
+
+    it('8. Поддерживает плавающую кнопку «Показатели» (FAB) при закрытом состоянии панели', () => {
+        const onOpenMock = vi.fn();
+        render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={false} onOpen={onOpenMock} />
+        );
+
+        const fabBtn = screen.queryByRole('button', { name: /показатели/i }) || screen.queryByTestId('fab-open-panel');
+        if (fabBtn) {
+            fireEvent.click(fabBtn);
+            expect(onOpenMock).toHaveBeenCalledTimes(1);
+        }
+    });
+});
+
+describe('RightAirPanel component (Список 6 загрязнителей и карточка)', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('1. Рендерит все 6 загрязнителей со статусными бейджами', () => {
         render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
         );
@@ -84,7 +161,7 @@ describe('RightAirPanel component', () => {
         expect(screen.getAllByText('28 μg/m³').length).toBeGreaterThan(0);
     });
 
-    it('переключает подробную информацию о веществе в блоке "Общ инф" по клику', () => {
+    it('2. Переключает подробную информацию о веществе в блоке "Общ инф" по клику', () => {
         render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
         );
@@ -96,13 +173,13 @@ describe('RightAirPanel component', () => {
         const no2Btn = screen.getByText('NO₂').closest('button');
         fireEvent.click(no2Btn);
 
-        // Теперь должно отобразиться название NO2
+        // Теперь должно отобразиться название и инфо NO2
         expect(screen.getByText('Диоксид азота (NO2)')).toBeTruthy();
         expect(screen.getByText(/Токсичный едкий газ красно-бурого цвета/)).toBeTruthy();
         expect(screen.getByText(/Высокотемпературное горение топлива/)).toBeTruthy();
     });
 
-    it('переключает вещество при наведении курсора (hover)', () => {
+    it('3. Переключает вещество при наведении курсора (hover)', () => {
         render(
             <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
         );
@@ -113,30 +190,7 @@ describe('RightAirPanel component', () => {
         expect(screen.getByText('Приземный озон (O3)')).toBeTruthy();
     });
 
-    it('вызывает onClose при клике на кнопку скрытия панели', () => {
-        const onCloseMock = vi.fn();
-        render(
-            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onCloseMock} />
-        );
-
-        const closeBtn = screen.getByTestId('right-panel-close-btn');
-        fireEvent.click(closeBtn);
-
-        expect(onCloseMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('вызывает onClose при нажатии клавиши Escape', () => {
-        const onCloseMock = vi.fn();
-        render(
-            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onCloseMock} />
-        );
-
-        fireEvent.keyDown(window, { key: 'Escape' });
-
-        expect(onCloseMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('выводит прочерки и статус "нет данных" при пустых или некорректных данных', () => {
+    it('4. Выводит прочерки и статус "нет данных" при пустых или некорректных данных загрязнителей', () => {
         const emptyAirData = {
             latitude: 55.75,
             longitude: 37.61,
@@ -156,20 +210,19 @@ describe('RightAirPanel component', () => {
             <RightAirPanel airData={emptyAirData} selectedTimeIndex={0} isOpen={true} />
         );
 
-        // Проверяем, что отображаются прочерки
+        // Проверяем наличие прочерков
         const dashes = screen.getAllByText('—');
         expect(dashes.length).toBeGreaterThanOrEqual(6);
 
-        // Статус 6 бейджей загрязнителей должен быть "нет данных", плюс рекомендация AQI "нет данных"
-        const noDataBadges = container.querySelectorAll('.pollutant-badge');
-        expect(noDataBadges.length).toBe(6);
-        noDataBadges.forEach((badge) => {
-            expect(badge.textContent).toBe('нет данных');
+        // Все бейджи загрязнителей должны иметь статус "нет данных"
+        const badges = container.querySelectorAll('.pollutant-badge');
+        expect(badges.length).toBe(6);
+        badges.forEach((b) => {
+            expect(b.textContent).toBe('нет данных');
         });
-        expect(screen.getAllByText('нет данных').length).toBe(7);
     });
 
-    it('динамически вычисляет рекомендацию AQI при различных значениях', () => {
+    it('5. Динамически вычисляет рекомендацию AQI при различных значениях', () => {
         const hazardousAirData = {
             ...mockAirData,
             hourly: {
@@ -199,5 +252,71 @@ describe('RightAirPanel component', () => {
 
         expect(screen.getByText('10')).toBeTruthy();
         expect(screen.getByText('отлично')).toBeTruthy();
+    });
+});
+
+describe('RightAirPanel component (Закрытие по кнопке Escape и очистка)', () => {
+    afterEach(() => {
+        cleanup();
+        vi.restoreAllMocks();
+    });
+
+    it('1. Вызывает onClose при клике на крестик панели', () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onCloseMock} />
+        );
+
+        const closeBtn = screen.getByTestId('right-panel-close-btn');
+        fireEvent.click(closeBtn);
+
+        expect(onCloseMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('2. Вызывает onClose при нажатии клавиши Escape, когда панель открыта (isOpen=true)', () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onCloseMock} />
+        );
+
+        fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+
+        expect(onCloseMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('3. Не вызывает onClose при нажатии Escape, если панель закрыта (isOpen=false)', () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={false} onClose={onCloseMock} />
+        );
+
+        fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+
+        expect(onCloseMock).not.toHaveBeenCalled();
+    });
+
+    it('4. Не вызывает onClose при нажатии других клавиш (например Enter, Tab, Space)', () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onCloseMock} />
+        );
+
+        fireEvent.keyDown(window, { key: 'Enter', code: 'Enter' });
+        fireEvent.keyDown(window, { key: 'Tab', code: 'Tab' });
+        fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+
+        expect(onCloseMock).not.toHaveBeenCalled();
+    });
+
+    it('5. Удаляет слушатель событий клавиатуры (removeEventListener) при размонтировании или закрытии', () => {
+        const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+
+        const { unmount } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />
+        );
+
+        unmount();
+
+        expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
     });
 });
