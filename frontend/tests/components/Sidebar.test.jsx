@@ -718,6 +718,104 @@ describe('Sidebar component (вызов информационного мода�
         const { container } = render(<Sidebar airData={mockAirData} selectedTimeIndex={0} />);
         expect(container.querySelector('.aqi-scale')).toBeNull();
     });
+
+    it('сбрасывает ошибку при повторном клике на "Моё местоположение", если геолокация успешна', () => {
+        let shouldFail = true;
+        const mockGeolocation = {
+            getCurrentPosition: vi.fn((success, error) => {
+                if (shouldFail) {
+                    error({ code: 1, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+                } else {
+                    success({ coords: { latitude: 55.75, longitude: 37.61 } });
+                }
+            })
+        };
+        vi.stubGlobal('navigator', { ...navigator, geolocation: mockGeolocation });
+
+        render(<Sidebar airData={null} />);
+        const btn = screen.getByText('Моё местоположение');
+        fireEvent.click(btn);
+
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+
+        // Повторный клик до истечения 5 секунд при успехе
+        shouldFail = false;
+        fireEvent.click(btn);
+
+        expect(screen.queryByText(/Доступ к геолокации запрещён/i)).toBeNull();
+        vi.unstubAllGlobals();
+    });
+
+    it('перезапускает таймер автоскрытия при повторном клике на "Моё местоположение" с ошибкой', () => {
+        const mockGeolocation = {
+            getCurrentPosition: vi.fn((success, error) => {
+                error({ code: 1, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+            })
+        };
+        vi.stubGlobal('navigator', { ...navigator, geolocation: mockGeolocation });
+
+        render(<Sidebar airData={null} />);
+        const btn = screen.getByText('Моё местоположение');
+        fireEvent.click(btn);
+
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+
+        // Прошло 3000 мс - ошибка все еще на экране
+        act(() => {
+            vi.advanceTimersByTime(3000);
+        });
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+
+        // Повторный клик с ошибкой перезапускает таймер на 5000 мс
+        fireEvent.click(btn);
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+
+        // Прошло еще 3000 мс (всего 6000 мс от первого клика, но 3000 мс от второго)
+        act(() => {
+            vi.advanceTimersByTime(3000);
+        });
+        expect(screen.getByText(/Доступ к геолокации запрещён/i)).toBeTruthy();
+
+        // Прошло еще 2000 мс (всего 5000 мс от второго клика)
+        act(() => {
+            vi.advanceTimersByTime(2000);
+        });
+        expect(screen.queryByText(/Доступ к геолокации запрещён/i)).toBeNull();
+
+        vi.unstubAllGlobals();
+    });
+
+    it('очищает все таймеры при размонтировании во время ошибки или fade-out', () => {
+        const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+        const mockGeolocation = {
+            getCurrentPosition: vi.fn((success, error) => {
+                error({ code: 1, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+            })
+        };
+        vi.stubGlobal('navigator', { ...navigator, geolocation: mockGeolocation });
+
+        const { unmount } = render(<Sidebar airData={null} />);
+        const btn = screen.getByText('Моё местоположение');
+        fireEvent.click(btn);
+
+        // Переводим время на фазу анимации fade-out (между 4700 и 5000 мс)
+        act(() => {
+            vi.advanceTimersByTime(4800);
+        });
+
+        // Размонтируем компонент
+        unmount();
+
+        expect(clearTimeoutSpy).toHaveBeenCalled();
+
+        // Дальнейший ход таймеров не должен вызывать ошибок
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+
+        clearTimeoutSpy.mockRestore();
+        vi.unstubAllGlobals();
+    });
 });
 
 

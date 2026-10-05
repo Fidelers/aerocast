@@ -301,7 +301,7 @@ h2 {
 .days {
   display: flex;
   gap: 5px;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
 }

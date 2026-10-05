@@ -30,32 +30,40 @@ function Sidebar({
   const hasInitialScrolledRef = useRef(false);
 
   const geoErrorTimerRef = useRef(null);
+  const geoFadeTimerRef = useRef(null);
 
-  // Очистка таймера ошибки при размонтировании
+  // Очистка всех таймеров ошибки геолокации
+  const clearGeoTimers = () => {
+    if (geoErrorTimerRef.current) {
+      clearTimeout(geoErrorTimerRef.current);
+      geoErrorTimerRef.current = null;
+    }
+    if (geoFadeTimerRef.current) {
+      clearTimeout(geoFadeTimerRef.current);
+      geoFadeTimerRef.current = null;
+    }
+  };
+
+  // Очистка таймеров ошибки при размонтировании
   useEffect(() => {
     return () => {
-      if (geoErrorTimerRef.current) {
-        clearTimeout(geoErrorTimerRef.current);
-      }
+      clearGeoTimers();
     };
   }, []);
 
-
-  // Установки ошибки с таймером
+  // Установка ошибки с таймером
   const setGeoErrorWithTimeout = (message) => {
-    // Сброс предыдущего таймера если он был запущен
-    if (geoErrorTimerRef.current) {
-      clearTimeout(geoErrorTimerRef.current);
-    }
+    clearGeoTimers();
     setGeoError(message);
     setIsGeoErrorVisible(true);
 
     geoErrorTimerRef.current = setTimeout(() => {
       setIsGeoErrorVisible(false);
-      geoErrorTimerRef.current = null;
-      setTimeout(() => {
+      geoFadeTimerRef.current = setTimeout(() => {
         setGeoError(null);
+        geoFadeTimerRef.current = null;
       }, 300);
+      geoErrorTimerRef.current = null;
     }, 4700);
   };
 
@@ -156,15 +164,10 @@ function Sidebar({
 
   // Клик по кнопке местоположения 
   const handleLocationClick = () => {
-
-    // Сброс существующей ошибки и таймера
-    if (geoErrorTimerRef.current) {
-      clearTimeout(geoErrorTimerRef.current);
-      geoErrorTimerRef.current = null;
-      
-    }
+    // Сброс существующей ошибки и таймеров
+    clearGeoTimers();
+    setGeoError(null);
     setIsGeoErrorVisible(false);
-
 
     if (typeof onLocateMe === 'function') {
       onLocateMe();
@@ -178,7 +181,10 @@ function Sidebar({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-         if (typeof onLocationSelect === "function") {
+        clearGeoTimers();
+        setGeoError(null);
+        setIsGeoErrorVisible(false);
+        if (typeof onLocationSelect === "function") {
           onLocationSelect(position.coords.latitude, position.coords.longitude, "");
         }
         setIsGeoLoading(false);
