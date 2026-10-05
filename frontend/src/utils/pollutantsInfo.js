@@ -1,7 +1,7 @@
 // метаданные для 6 основных загрязнителей воздуха
 export const POLLUTANTS_METADATA = {
   pm2_5: {
-    name: 'Мелкодисперсные частицы PM2.5',
+    name: 'Мелкодисперсные частицы (PM2.5)',
     formula: 'PM2.5',
     description: 'Взвешенные микрочастицы пыли, сажи и капель жидкости диаметром до 2.5 мкм. Проникают глубоко в лёгкие.',
     sources: 'Автотранспорт, промышленность, лесные пожары, сжигание топлива.',
@@ -9,7 +9,7 @@ export const POLLUTANTS_METADATA = {
     thresholds: [10, 20, 25, 50, 75]
   },
   pm10: {
-    name: 'Крупные твердые частицы PM10',
+    name: 'Крупные твердые частицы (PM10)',
     formula: 'PM10',
     description: 'Пыль, пыльца растений, частицы почвы диаметром до 10 мкм. Задерживаются в верхних дыхательных путях.',
     sources: 'Дорожная и песчаная пыль, строительные работы, промышленное производство.',
@@ -17,15 +17,15 @@ export const POLLUTANTS_METADATA = {
     thresholds: [20, 40, 50, 100, 150]
   },
   nitrogen_dioxide: {
-    name: 'Диоксид азота',
+    name: 'Диоксид азота (NO2)',
     formula: 'NO2',
-    description: 'Ядовитый газ красно-бурого цвета с резким неприятным запахом.',
-    sources: 'Выхлопы автомобилей, теплоэлектростанции, продукты сгорания газа.',
+    description: 'Токсичный едкий газ красно-бурого цвета с резким неприятным запахом.',
+    sources: 'Высокотемпературное горение топлива, выхлопы автомобилей, теплоэлектростанции, продукты сгорания газа.',
     healthImpact: 'Снижает защитные функции лёгких, усиливает риск инфекционных заболеваний.',
     thresholds: [40, 90, 120, 230, 340]
   },
   sulphur_dioxide: {
-    name: 'Диоксид серы',
+    name: 'Диоксид серы (SO2)',
     formula: 'SO2',
     description: 'Бесцветный газ с едким запахом загорающейся спички.',
     sources: 'Угольные котельные, металлургические заводы, тепловые электростанции.',
@@ -33,7 +33,7 @@ export const POLLUTANTS_METADATA = {
     thresholds: [100, 200, 350, 500, 750]
   },
   ozone: {
-    name: 'Озон',
+    name: 'Приземный озон (O3)',
     formula: 'O3',
     description: 'Газ с резким запахом, формирующийся при солнечном свете из выхлопов и летучих соединений.',
     sources: 'Фотохимический смог в жаркие солнечные дни в крупных городах.',
@@ -41,7 +41,7 @@ export const POLLUTANTS_METADATA = {
     thresholds: [50, 100, 130, 240, 380]
   },
   carbon_monoxide: {
-    name: 'Угарный газ',
+    name: 'Угарный газ (CO)',
     formula: 'CO',
     description: 'Газ без цвета, вкуса и запаха. Накапливается при неполном сгорании топлива.',
     sources: 'Выхлопные газы автомобилей, печное отопление, табачный дым.',
@@ -57,7 +57,9 @@ const KEY_ALIASES = {
   o3: 'ozone',
   co: 'carbon_monoxide',
   pm25: 'pm2_5',
+  'pm2.5': 'pm2_5',
   pm2_5: 'pm2_5',
+  pm_2_5: 'pm2_5',
   pm10: 'pm10',
   nitrogen_dioxide: 'nitrogen_dioxide',
   sulphur_dioxide: 'sulphur_dioxide',
@@ -65,32 +67,26 @@ const KEY_ALIASES = {
   carbon_monoxide: 'carbon_monoxide'
 };
 
-
- // нормализация синонимов ключей загрязнителей
-
+// нормализация синонимов ключей загрязнителей
 export function normalizePollutantKey(key) {
   if (!key || typeof key !== 'string') return null;
   const lower = key.trim().toLowerCase();
   return KEY_ALIASES[lower] || null;
 }
 
-
- // получение метаданных по ключу или синониму
-
+// получение метаданных по ключу или синониму
 export function getPollutantMetadata(key) {
   const normalized = normalizePollutantKey(key);
   if (!normalized) return null;
   return POLLUTANTS_METADATA[normalized] || null;
 }
 
-
- // оценка статуса вещества по европейским порогам
-
+// оценка статуса вещества по европейским порогам
 export function getPollutantAssessment(key, value) {
   const num = Number(value);
 
-  // обработка null, undefined и NaN
-  if (value === null || value === undefined || isNaN(num)) {
+  // обработка null, undefined, пустой строки, отрицательных чисел и NaN
+  if (value === null || value === undefined || value === '' || isNaN(num) || num < 0) {
     return {
       label: 'нет данных',
       color: '#9E9E9E',
@@ -125,4 +121,16 @@ export function getPollutantAssessment(key, value) {
     return { label: 'Плохо', level: 'veryPoor', color: '#F44336' };
   }
   return { label: 'Опасно', level: 'haz', color: '#9C27B0' };
+}
+
+// текстовая рекомендация по уровню общего AQI
+export function getAqiRecommendation(aqi) {
+  const num = Number(aqi);
+  if (aqi === null || aqi === undefined || isNaN(num) || num < 0) return 'нет данных';
+  if (num <= 20) return 'отлично';
+  if (num <= 40) return 'хорошо';
+  if (num <= 60) return 'удовлетворительно';
+  if (num <= 80) return 'плохо';
+  if (num <= 100) return 'очень плохо';
+  return 'опасно';
 }

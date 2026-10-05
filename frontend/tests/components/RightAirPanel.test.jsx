@@ -135,4 +135,69 @@ describe('RightAirPanel component', () => {
 
         expect(onCloseMock).toHaveBeenCalledTimes(1);
     });
+
+    it('выводит прочерки и статус "нет данных" при пустых или некорректных данных', () => {
+        const emptyAirData = {
+            latitude: 55.75,
+            longitude: 37.61,
+            hourly: {
+                time: ['2026-10-01T12:00'],
+                european_aqi: [null],
+                pm2_5: [null],
+                pm10: [undefined],
+                nitrogen_dioxide: [NaN],
+                sulphur_dioxide: [''],
+                ozone: [null],
+                carbon_monoxide: [null]
+            }
+        };
+
+        const { container } = render(
+            <RightAirPanel airData={emptyAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        // Проверяем, что отображаются прочерки
+        const dashes = screen.getAllByText('—');
+        expect(dashes.length).toBeGreaterThanOrEqual(6);
+
+        // Статус 6 бейджей загрязнителей должен быть "нет данных", плюс рекомендация AQI "нет данных"
+        const noDataBadges = container.querySelectorAll('.pollutant-badge');
+        expect(noDataBadges.length).toBe(6);
+        noDataBadges.forEach((badge) => {
+            expect(badge.textContent).toBe('нет данных');
+        });
+        expect(screen.getAllByText('нет данных').length).toBe(7);
+    });
+
+    it('динамически вычисляет рекомендацию AQI при различных значениях', () => {
+        const hazardousAirData = {
+            ...mockAirData,
+            hourly: {
+                ...mockAirData.hourly,
+                european_aqi: [120]
+            }
+        };
+
+        const { rerender } = render(
+            <RightAirPanel airData={hazardousAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        expect(screen.getByText('120')).toBeTruthy();
+        expect(screen.getByText('опасно')).toBeTruthy();
+
+        const excellentAirData = {
+            ...mockAirData,
+            hourly: {
+                ...mockAirData.hourly,
+                european_aqi: [10]
+            }
+        };
+
+        rerender(
+            <RightAirPanel airData={excellentAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        expect(screen.getByText('10')).toBeTruthy();
+        expect(screen.getByText('отлично')).toBeTruthy();
+    });
 });
