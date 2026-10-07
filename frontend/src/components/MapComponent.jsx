@@ -88,7 +88,7 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
 
 }
 
-export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick }) {
+export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick, onMarkerClick, activeBaseLayer = 'osm' }) {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const isFirstMount = useRef(true);
@@ -98,7 +98,11 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     const markerElementRef = useRef(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onMapClickRef = useRef(onMapClick);
+    const onMarkerClickRef = useRef(onMarkerClick);
 
+    useEffect(() => {
+        onMarkerClickRef.current = onMarkerClick;
+    }, [onMarkerClick]);
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
     }, [onLocationSelect]);
@@ -189,7 +193,15 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             curve: 1.42
         });
     }, [lat, lon]);
-
+// переключение видимости слоев подложки (схема / спутник)
+  useEffect(() => {
+    if (!map.current) return;
+    const isSatellite = activeBaseLayer === 'satellite';
+    if (typeof map.current.setLayoutProperty === 'function') {
+      map.current.setLayoutProperty('osm-layer', 'visibility', isSatellite ? 'none' : 'visible');
+      map.current.setLayoutProperty('satellite-layer', 'visibility', isSatellite ? 'visible' : 'none');
+    }
+  }, [activeBaseLayer]);
     // Отрисовка маркера качества воздуха (EAQI) + привязка попапа
     useEffect(() => {
         if (!airData || selectedTimeIndex === null || selectedTimeIndex === undefined) {
@@ -229,7 +241,11 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             el = document.createElement('div');
             markerElementRef.current = el;
         }
-
+            el.onclick = (e) => {
+                if (onMarkerClickRef.current) {
+                    onMarkerClickRef.current(e);
+                }
+            };
         const mode = viewMode || 'combo';
         if (mode === 'color') {
             el.textContent = '';
