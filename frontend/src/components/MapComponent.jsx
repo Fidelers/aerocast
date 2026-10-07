@@ -193,15 +193,49 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             curve: 1.42
         });
     }, [lat, lon]);
-// переключение видимости слоев подложки (схема / спутник)
-  useEffect(() => {
-    if (!map.current) return;
-    const isSatellite = activeBaseLayer === 'satellite';
-    if (typeof map.current.setLayoutProperty === 'function') {
-      map.current.setLayoutProperty('osm-layer', 'visibility', isSatellite ? 'none' : 'visible');
-      map.current.setLayoutProperty('satellite-layer', 'visibility', isSatellite ? 'visible' : 'none');
-    }
-  }, [activeBaseLayer]);
+    // переключение видимости слоев подложки (схема / спутник)
+    useEffect(() => {
+        if (!map.current) return;
+        const isSatellite = activeBaseLayer === 'satellite';
+        let isCancelled = false;
+
+        const updateLayers = () => {
+            if (isCancelled || !map.current || typeof map.current.setLayoutProperty !== 'function') return;
+
+            // Если стиль MapLibre еще не загрузился, ожидаем события загрузки стиля
+            if (typeof map.current.isStyleLoaded === 'function' && !map.current.isStyleLoaded()) {
+                const onLoaded = () => {
+                    if (!isCancelled && map.current) {
+                        updateLayers();
+                    }
+                };
+                if (typeof map.current.once === 'function') {
+                    map.current.once('load', onLoaded);
+                    map.current.once('styledata', onLoaded);
+                } else if (typeof map.current.on === 'function') {
+                    map.current.on('load', onLoaded);
+                }
+                return;
+            }
+
+            try {
+                if (!map.current.getLayer || map.current.getLayer('osm-layer')) {
+                    map.current.setLayoutProperty('osm-layer', 'visibility', isSatellite ? 'none' : 'visible');
+                }
+                if (!map.current.getLayer || map.current.getLayer('satellite-layer')) {
+                    map.current.setLayoutProperty('satellite-layer', 'visibility', isSatellite ? 'visible' : 'none');
+                }
+            } catch (err) {
+                console.warn('Map style is not ready yet:', err);
+            }
+        };
+
+        updateLayers();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [activeBaseLayer]);
     // Отрисовка маркера качества воздуха (EAQI) + привязка попапа
     useEffect(() => {
         if (!airData || selectedTimeIndex === null || selectedTimeIndex === undefined) {
