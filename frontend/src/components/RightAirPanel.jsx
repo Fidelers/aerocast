@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { POLLUTANTS_METADATA, getPollutantAssessment, getAqiRecommendation } from '../utils/pollutantsInfo';
 import { parseIsoTimeString } from '../utils/timeUtils';
-
-
 import '../styles/RightAirPanel.css';
 
 // 6 основных загрязнителей
@@ -33,6 +31,8 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && typeof onClose === 'function') {
+        const isModalOpen = document.querySelector('[role="dialog"]') || document.querySelector('.modal-overlay');
+        if (isModalOpen) return;
         onClose();
       }
     };
@@ -53,7 +53,6 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const aqi = aqiRaw !== undefined && aqiRaw !== null && !isNaN(Number(aqiRaw)) ? Number(aqiRaw) : null;
 
   const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
-
 
   return (
     <aside className="right-air-panel" aria-label="Детальная информация о качестве воздуха">
