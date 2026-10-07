@@ -88,7 +88,7 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
 
 }
 
-export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick }) {
+export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick, onMarkerClick, activeBaseLayer = 'osm' }) {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const isFirstMount = useRef(true);
@@ -98,7 +98,11 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     const markerElementRef = useRef(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onMapClickRef = useRef(onMapClick);
+    const onMarkerClickRef = useRef(onMarkerClick);
 
+    useEffect(() => {
+        onMarkerClickRef.current = onMarkerClick;
+    }, [onMarkerClick]);
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
     }, [onLocationSelect]);
@@ -189,7 +193,49 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             curve: 1.42
         });
     }, [lat, lon]);
+    // переключение видимости слоев подложки (схема / спутник)
+    useEffect(() => {
+        if (!map.current) return;
+        const isSatellite = activeBaseLayer === 'satellite';
+        let isCancelled = false;
 
+        const updateLayers = () => {
+            if (isCancelled || !map.current || typeof map.current.setLayoutProperty !== 'function') return;
+
+            // Если стиль MapLibre еще не загрузился, ожидаем события загрузки стиля
+            if (typeof map.current.isStyleLoaded === 'function' && !map.current.isStyleLoaded()) {
+                const onLoaded = () => {
+                    if (!isCancelled && map.current) {
+                        updateLayers();
+                    }
+                };
+                if (typeof map.current.once === 'function') {
+                    map.current.once('load', onLoaded);
+                    map.current.once('styledata', onLoaded);
+                } else if (typeof map.current.on === 'function') {
+                    map.current.on('load', onLoaded);
+                }
+                return;
+            }
+
+            try {
+                if (!map.current.getLayer || map.current.getLayer('osm-layer')) {
+                    map.current.setLayoutProperty('osm-layer', 'visibility', isSatellite ? 'none' : 'visible');
+                }
+                if (!map.current.getLayer || map.current.getLayer('satellite-layer')) {
+                    map.current.setLayoutProperty('satellite-layer', 'visibility', isSatellite ? 'visible' : 'none');
+                }
+            } catch (err) {
+                console.warn('Map style is not ready yet:', err);
+            }
+        };
+
+        updateLayers();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [activeBaseLayer]);
     // Отрисовка маркера качества воздуха (EAQI) + привязка попапа
     useEffect(() => {
         if (!airData || selectedTimeIndex === null || selectedTimeIndex === undefined) {
@@ -229,7 +275,11 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             el = document.createElement('div');
             markerElementRef.current = el;
         }
-
+            el.onclick = (e) => {
+                if (onMarkerClickRef.current) {
+                    onMarkerClickRef.current(e);
+                }
+            };
         const mode = viewMode || 'combo';
         if (mode === 'color') {
             el.textContent = '';

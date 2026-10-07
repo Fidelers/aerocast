@@ -33,6 +33,9 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && typeof onClose === 'function') {
+        if (document.querySelector('.modal-overlay, [role="dialog"]')) {
+          return;
+        }
         onClose();
       }
     };

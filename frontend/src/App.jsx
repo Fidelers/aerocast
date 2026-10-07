@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
 import AboutModal from './components/AboutModal';
 import RightAirPanel from './components/RightAirPanel';
+import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
 
 // Координаты по умолчанию: Новокузнецк
@@ -21,6 +22,16 @@ function App() {
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+
+    // Сохранение выбранного слоя в localStorage под ключом aerocast_map_layer
+    const [activeBaseLayer, setActiveBaseLayer] = useState(() => {
+        return localStorage.getItem('aerocast_map_layer') || 'osm';
+    });
+
+    const handleBaseLayerChange = (layer) => {
+        setActiveBaseLayer(layer);
+        localStorage.setItem('aerocast_map_layer', layer);
+    };
 
     const selectedTimeIndexRef = useRef(selectedTimeIndex);
     const airDataRef = useRef(airData);
@@ -160,6 +171,11 @@ function App() {
                     onMapClick={handleLocationSelect}
                     onLocationSelect={handleLocationSelect}
                     onMarkerClick={() => setIsRightPanelOpen(true)}
+                    activeBaseLayer={activeBaseLayer}
+                />
+                <LayerSwitcher
+                    activeLayer={activeBaseLayer}
+                    onLayerChange={handleBaseLayerChange}
                 />
             </div>
             <AboutModal
