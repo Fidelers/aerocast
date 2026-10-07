@@ -181,7 +181,7 @@ function App() {
                     onClick={() => setIsRightPanelOpen(true)}
                     style={{
                         position: 'fixed',
-                        top: '16px',
+                        bottom: '16px',
                         right: '16px',
                         zIndex: 999,
                         padding: '9px 14px',

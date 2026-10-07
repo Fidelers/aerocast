@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { POLLUTANTS_METADATA, getPollutantAssessment, getAqiRecommendation } from '../utils/pollutantsInfo';
+import { parseIsoTimeString } from '../utils/timeUtils';
+
+
 import '../styles/RightAirPanel.css';
 
 // 6 основных загрязнителей
@@ -44,12 +47,13 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const lonNum = Number(airData.longitude);
   const lat = !isNaN(latNum) ? latNum.toFixed(4) : '—';
   const lon = !isNaN(lonNum) ? lonNum.toFixed(4) : '—';
-  const time = airData.hourly?.time?.[selectedTimeIndex] || '—';
+  const time = airData.hourly?.time?.[selectedTimeIndex];
   const source = airData.used_source || 'open-meteo';
   const aqiRaw = airData.hourly?.european_aqi?.[selectedTimeIndex];
   const aqi = aqiRaw !== undefined && aqiRaw !== null && !isNaN(Number(aqiRaw)) ? Number(aqiRaw) : null;
 
   const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
+
 
   return (
     <aside className="right-air-panel" aria-label="Детальная информация о качестве воздуха">
@@ -70,7 +74,12 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
       {/* Мета-информация: координаты, время, источник */}
       <div className="panel-meta">
         <div className="panel-meta__item"><strong>Координаты:</strong> {lat}, {lon}</div>
-        <div className="panel-meta__item"><strong>Время:</strong> {time}</div>
+        <div className="panel-meta__item"><strong>Время:</strong>{' '}
+        {(() => {
+          const parsed = parseIsoTimeString(time);
+          return parsed ? `${parsed.dateStr} ${parsed.timeLabel}` : '—';
+        })()}
+        </div>
         <div className="panel-meta__item"><strong>Источник:</strong> {source}</div>
       </div>
 
@@ -128,7 +137,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
 
       {/* Карточка "Общ инф" выбранного вещества */}
       <div className="general-info-card fade-in" key={selectedKey}>
-        <h4 className="general-info-card__heading">Общ инф</h4>
+        <h4 className="general-info-card__heading">Общая информация</h4>
         <div className="info-title">{currentMeta.name}</div>
         <p className="info-description">{currentMeta.description}</p>
         <div className="info-sources">
