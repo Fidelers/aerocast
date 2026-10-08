@@ -1,1 +1,75 @@
-/* реализовать стили
+.layer-switcher {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  z-index: 1000;
+  font-family: inherit;
+}
+
+.layer-switcher__toggle {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.layer-switcher__toggle:hover {
+  background-color: #f9fafb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.layer-switcher__menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  min-width: 220px;
+}
+
+.layer-switcher__menu--visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.layer-switcher__item {
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.layer-switcher__item:hover {
+  background-color: #f3f4f6;
+}
+
+.layer-switcher__item--active {
+  background-color: #e5e7eb;
+  font-weight: 600;
+  color: #111827;
+}
+
+.layer-switcher__item:not(:last-child) {
+  border-bottom: 1px solid #f3f4f6;
+}

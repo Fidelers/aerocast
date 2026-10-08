@@ -161,7 +161,7 @@ function App() {
                 isLoading={isLoading}
                 loadError={loadError}
             />
-            <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
+            <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, position: 'relative', overflow: 'hidden' }}>
                 <MapComponent
                     lat={coords.lat}
                     lon={coords.lon}
