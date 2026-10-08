@@ -273,10 +273,157 @@
   font-weight: 600;
 }
 
+.fab-open-panel {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 999;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  font-weight: 600;
+  font-size: 13px;
+  font-family: var(--inter);
+  transition: background-color 0.2s, transform 0.2s;
+}
+
 .fab-open-panel:hover {
   background-color: var(--primary-hover);
   transform: translateY(-2px);
 }
+
+/* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
+@media (min-width: 1921px) {
+  .right-air-panel {
+    width: 360px;
+    border-radius: 16px 0 0 0;
+  }
+
+  .panel-header {
+    padding: 12px 18px;
+  }
+
+  .panel-header__title {
+    font-size: 18px;
+  }
+
+  .panel-header__close-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 24px;
+  }
+
+  .panel-meta {
+    padding: 8px 18px;
+    font-size: 13px;
+    gap: 3px;
+  }
+
+  .aqi-summary {
+    padding: 14px 18px;
+  }
+
+  .aqi-indicator {
+    padding: 10px 18px;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .aqi-indicator__number {
+    font-size: 34px;
+  }
+
+  .aqi-indicator__label {
+    font-size: 15px;
+  }
+
+  .aqi-recommendation {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .scale-section {
+    padding: 10px 18px;
+  }
+
+  .scale-section__title {
+    font-size: 11px;
+    margin-bottom: 7px;
+  }
+
+  .scale-bar {
+    gap: 3px;
+  }
+
+  .scale-item {
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .pollutants-list {
+    padding: 6px 0;
+  }
+
+  .pollutant-row {
+    padding: 7px 18px;
+  }
+
+  .pollutant-formula {
+    font-size: 15px;
+    width: 48px;
+  }
+
+  .pollutant-value {
+    font-size: 14px;
+    margin-right: 10px;
+  }
+
+  .pollutant-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    min-width: 58px;
+  }
+
+  .general-info-card {
+    margin: 8px 16px 14px;
+    padding: 12px 14px;
+    height: 280px;
+  }
+
+  .general-info-card__heading {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .info-title {
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  .info-description {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .info-sources,
+  .info-impact {
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  .fab-open-panel {
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+}
+
 
 
 @keyframes slideInRight {

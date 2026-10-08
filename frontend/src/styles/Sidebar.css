@@ -511,3 +511,115 @@ h2 {
     font-size: 12px;
   }
 }
+
+/* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
+@media (min-width: 1921px) {
+  .sidebar {
+    width: 350px;
+    flex: 0 0 350px;
+  }
+
+  .sidebar__header {
+    padding: 24px;
+  }
+
+  .sidebar__brand {
+    gap: 12px;
+  }
+
+  .sidebar__logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .sidebar__title {
+    font-size: 22px;
+  }
+
+  .sidebar__info-btn {
+    width: 42px;
+    height: 42px;
+  }
+
+  .sidebar__info-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .city-search,
+  .display-mode,
+  .geo-nav,
+  .date-nav,
+  .time-nav {
+    padding: 18px 16px 0;
+  }
+
+  .city-search__title,
+  .display-mode__title,
+  .geo-nav__title,
+  .date-nav__title,
+  .time-nav__title {
+    font-size: 18px;
+    margin-bottom: 9px;
+  }
+
+  .city-search__input {
+    height: 42px;
+    font-size: 15px;
+    padding-left: 34px;
+    background-position: 12px center;
+  }
+
+  .city-search__item-btn {
+    font-size: 15px;
+    padding: 10px 14px;
+  }
+
+  .segmented {
+    height: 42px;
+    padding: 0 3px;
+    gap: 4px;
+  }
+
+  .segmented__btn {
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .geo-nav__location-btn {
+    height: 42px;
+    font-size: 15px;
+  }
+
+  .days {
+    gap: 6px;
+  }
+
+  .day-card {
+    width: 38px;
+    height: 60px;
+  }
+
+  .day-card__label {
+    font-size: 13px;
+  }
+
+  .day-card__num {
+    font-size: 16px;
+  }
+
+  .day-card__extra {
+    font-size: 11px;
+  }
+
+  .times {
+    gap: 6px;
+  }
+
+  .time {
+    width: 74px;
+    height: 36px;
+    font-size: 14px;
+  }
+}
+

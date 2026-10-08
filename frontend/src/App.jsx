@@ -195,21 +195,6 @@ function App() {
                     className="fab-open-panel"
                     data-testid="fab-open-panel"
                     onClick={() => setIsRightPanelOpen(true)}
-                    style={{
-                        position: 'fixed',
-                        bottom: '16px',
-                        right: '16px',
-                        zIndex: 999,
-                        padding: '9px 14px',
-                        borderRadius: '8px',
-                        backgroundColor: '#2563eb',
-                        color: '#ffffff',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                        fontWeight: 600,
-                        fontSize: '13px'
-                    }}
                 >
                     Показатели
                 </button>

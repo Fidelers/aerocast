@@ -73,3 +73,28 @@
 .layer-switcher__item:not(:last-child) {
   border-bottom: 1px solid #f3f4f6;
 }
+
+/* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
+@media (min-width: 1921px) {
+  .layer-switcher {
+    bottom: 32px;
+    left: 32px;
+  }
+
+  .layer-switcher__toggle {
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 10px;
+  }
+
+  .layer-switcher__menu {
+    min-width: 260px;
+    border-radius: 10px;
+    bottom: calc(100% + 12px);
+  }
+
+  .layer-switcher__item {
+    padding: 14px 20px;
+    font-size: 16px;
+  }
+}
