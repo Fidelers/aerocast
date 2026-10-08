@@ -109,14 +109,14 @@ describe('RightAirPanel component', () => {
         );
 
         // Значение AQI должно быть прочерком
-        const aqiValue = container.querySelector('.aqi-value');
+        const aqiValue = container.querySelector('.aqi-indicator__number');
         expect(aqiValue).toBeTruthy();
         expect(aqiValue.textContent.trim()).toMatch(/^[—\-]$/);
 
-        // Рекомендация должна сообщать об отсутствии данных
-        const aqiRecommendation = container.querySelector('.aqi-recommendation');
-        expect(aqiRecommendation).toBeTruthy();
-        expect(aqiRecommendation.textContent.toLowerCase()).toContain('нет данных');
+        // Текстовая оценка должна быть 'нет данных'
+        const aqiLabel = container.querySelector('.aqi-indicator__label');
+        expect(aqiLabel).toBeTruthy();
+        expect(aqiLabel.textContent.toLowerCase()).toContain('нет данных');
     });
 
     it('7. Защитный рендер: безопасно обрабатывает отсутствие airData без падений', () => {

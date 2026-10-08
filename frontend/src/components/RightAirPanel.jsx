@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { POLLUTANTS_METADATA, getPollutantAssessment, getAqiRecommendation } from '../utils/pollutantsInfo';
+import { POLLUTANTS_METADATA, getPollutantAssessment } from '../utils/pollutantsInfo';
+import { getAqiInfo, getAqiRecommendation } from '../types';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/RightAirPanel.css';
 
@@ -51,6 +52,8 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const source = airData.used_source || 'open-meteo';
   const aqiRaw = airData.hourly?.european_aqi?.[selectedTimeIndex];
   const aqi = aqiRaw !== undefined && aqiRaw !== null && !isNaN(Number(aqiRaw)) ? Number(aqiRaw) : null;
+  const aqiInfo = getAqiInfo(aqi);
+  const aqiRecommendationText = getAqiRecommendation(aqi);
 
   const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
 
@@ -82,10 +85,15 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
         <div className="panel-meta__item"><strong>Источник:</strong> {source}</div>
       </div>
 
-      {/* Показатель AQI и рекомендация */}
+      {/* Показатель AQI: цветовой индикатор, оценка и рекомендация */}
       <div className="aqi-summary">
-        <div className="aqi-value">{aqi !== null ? aqi : '—'}</div>
-        <div className="aqi-recommendation">{getAqiRecommendation(aqi)}</div>
+        <div className="aqi-indicator" style={{ backgroundColor: aqiInfo.hex }}>
+          <span className="aqi-indicator__number">{aqi !== null ? aqi : '—'}</span>
+          <span className="aqi-indicator__label">{aqiInfo.label}</span>
+        </div>
+        {aqiRecommendationText && (
+          <div className="aqi-recommendation">{aqiRecommendationText}</div>
+        )}
       </div>
 
       {/* Шкала уровней AQI */}
