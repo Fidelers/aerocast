@@ -1,3 +1,6 @@
+export const SATELLITE_MAX_ZOOM = 17;
+export const OSM_MAX_ZOOM = 19;
+
 export const osmStyle = {
   version: 8,
   sources: {
@@ -11,9 +14,9 @@ export const osmStyle = {
       ],
       tileSize: 256,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxzoom: 19,
+      maxzoom: OSM_MAX_ZOOM,
     },
-    // растровый источник для спутниковых снимков ESRI
+    // растровый источник для спутниковых снимков ESRI (ограничен maxzoom: 17)
     'esri-satellite': {
       type: 'raster',
       tiles: [
@@ -21,7 +24,7 @@ export const osmStyle = {
       ],
       tileSize: 256,
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-      maxzoom: 19,
+      maxzoom: SATELLITE_MAX_ZOOM,
     },
   },
   layers: [

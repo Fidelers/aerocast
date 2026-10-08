@@ -50,4 +50,12 @@ describe('mapStyle configuration (Интеграция спутника в ка�
         expect(osmLayer, 'Слой "osm-layer" должен присутствовать в style.layers').toBeDefined();
         expect(osmLayer.source).toBe('osm');
     });
+
+    it('5. Ограничивает maxzoom для источника "esri-satellite" значением 17, сохраняя maxzoom 19 для "osm"', () => {
+        expect(style.sources['esri-satellite'].maxzoom).toBe(17);
+        expect(style.sources['osm'].maxzoom).toBe(19);
+        expect(mapStyleModule.SATELLITE_MAX_ZOOM).toBe(17);
+        expect(mapStyleModule.OSM_MAX_ZOOM).toBe(19);
+    });
 });
+

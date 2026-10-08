@@ -18,6 +18,7 @@ const {
     mockMapOn,
     mockMapOff,
     mockSetLayoutProperty,
+    mockSetMaxZoom,
     getCreatedMarkers,
     clearCreatedMarkers,
     getCreatedPopups,
@@ -32,6 +33,7 @@ const {
     const mockMapOn = vi.fn();
     const mockMapOff = vi.fn();
     const mockSetLayoutProperty = vi.fn();
+    const mockSetMaxZoom = vi.fn();
 
     let createdMarkers = [];
     let createdPopups = [];
@@ -48,6 +50,9 @@ const {
         this.removeLayer = vi.fn();
         this.getLayer = vi.fn().mockImplementation((id) => (id === 'osm-layer' || id === 'satellite-layer' ? { id } : null));
         this.setLayoutProperty = mockSetLayoutProperty;
+        this.setMaxZoom = mockSetMaxZoom;
+        this.getZoom = vi.fn().mockReturnValue(11);
+        this.setZoom = vi.fn();
         this.on = mockMapOn;
         this.off = mockMapOff;
         return this;
@@ -152,6 +157,7 @@ const {
         mockMapOn,
         mockMapOff,
         mockSetLayoutProperty,
+        mockSetMaxZoom,
         getCreatedMarkers: () => createdMarkers,
         clearCreatedMarkers: () => { createdMarkers = []; },
         getCreatedPopups: () => createdPopups,
@@ -1013,6 +1019,19 @@ describe('Переключение базовых растровых слоев 
         rerender(<MapComponent lat={55.75} lon={37.61} activeBaseLayer="satellite" />);
         expect(mockSetLayoutProperty).toHaveBeenCalledWith('osm-layer', 'visibility', 'none');
         expect(mockSetLayoutProperty).toHaveBeenCalledWith('satellite-layer', 'visibility', 'visible');
+    });
+
+    it('ограничивает максимальный зум только для спутника ESRI (maxZoom=17), сохраняя maxZoom=19 для OSM', () => {
+        const { rerender } = render(<MapComponent lat={55.75} lon={37.61} activeBaseLayer="osm" />);
+        expect(mockSetMaxZoom).toHaveBeenCalledWith(19);
+
+        mockSetMaxZoom.mockClear();
+        rerender(<MapComponent lat={55.75} lon={37.61} activeBaseLayer="satellite" />);
+        expect(mockSetMaxZoom).toHaveBeenCalledWith(17);
+
+        mockSetMaxZoom.mockClear();
+        rerender(<MapComponent lat={55.75} lon={37.61} activeBaseLayer="osm" />);
+        expect(mockSetMaxZoom).toHaveBeenCalledWith(19);
     });
 
     it('вызывает onMarkerClick при клике на маркер качества воздуха', () => {

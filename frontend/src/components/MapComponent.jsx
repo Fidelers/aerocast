@@ -4,7 +4,7 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // import '../styles/Popup.css'; // POPUP DISABLED — используется RightAirPanel
 
-import { osmStyle } from '../styles/mapStyle';
+import { osmStyle, SATELLITE_MAX_ZOOM, OSM_MAX_ZOOM } from '../styles/mapStyle';
 import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
 // import { parseIsoTimeString } from '../utils/timeUtils'; // POPUP DISABLED
 
@@ -120,7 +120,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             style: osmStyle,
             center: [87.1467, 53.7596], // Новокузнецк
             zoom: 11,
-            maxZoom: 19,
+            maxZoom: activeBaseLayer === 'satellite' ? SATELLITE_MAX_ZOOM : OSM_MAX_ZOOM,
             attributionControl: false,
         });
 
@@ -195,11 +195,28 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             curve: 1.42
         });
     }, [lat, lon]);
-    // переключение видимости слоев подложки (схема / спутник)
+    // переключение видимости слоев подложки (схема / спутник) и ограничение maxZoom для спутника
     useEffect(() => {
         if (!map.current) return;
         const isSatellite = activeBaseLayer === 'satellite';
+        const targetMaxZoom = isSatellite ? SATELLITE_MAX_ZOOM : OSM_MAX_ZOOM;
         let isCancelled = false;
+
+        // Ограничение максимального приближения только для спутника ESRI (maxZoom=17), сохраняя 19 для OSM
+        if (typeof map.current.setMaxZoom === 'function') {
+            map.current.setMaxZoom(targetMaxZoom);
+        }
+
+        // Если текущий зум превышает допустимый максимум для спутника, понижаем зум до targetMaxZoom
+        if (isSatellite && typeof map.current.getZoom === 'function' && typeof map.current.setZoom === 'function') {
+            try {
+                if (map.current.getZoom() > targetMaxZoom) {
+                    map.current.setZoom(targetMaxZoom);
+                }
+            } catch {
+                // защитная обработка
+            }
+        }
 
         const updateLayers = () => {
             if (isCancelled || !map.current || typeof map.current.setLayoutProperty !== 'function') return;
