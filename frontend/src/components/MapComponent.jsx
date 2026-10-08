@@ -2,12 +2,13 @@
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import '../styles/Popup.css';
+// import '../styles/Popup.css'; // POPUP DISABLED — используется RightAirPanel
 
 import { osmStyle } from '../styles/mapStyle';
-import { getAqiInfo, getAqiRecommendation } from '../types';
-import { parseIsoTimeString } from '../utils/timeUtils';
+import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
+// import { parseIsoTimeString } from '../utils/timeUtils'; // POPUP DISABLED
 
+/* POPUP DISABLED — используется RightAirPanel
 const POLLUTANTS = [
     { key: 'pm2_5', label: 'PM2.5' },
     { key: 'pm10', label: 'PM10' },
@@ -87,6 +88,7 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
     `;
 
 }
+*/
 
 export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick, onMarkerClick, activeBaseLayer = 'osm' }) {
     const mapContainer = useRef(null);
@@ -94,7 +96,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     const isFirstMount = useRef(true);
     const isMapClick = useRef(false);
     const markerRef = useRef(null);
-    const popupRef = useRef(null);
+    // const popupRef = useRef(null); // POPUP DISABLED — используется RightAirPanel
     const markerElementRef = useRef(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onMapClickRef = useRef(onMapClick);
@@ -239,10 +241,11 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     // Отрисовка маркера качества воздуха (EAQI) + привязка попапа
     useEffect(() => {
         if (!airData || selectedTimeIndex === null || selectedTimeIndex === undefined) {
-            if (popupRef.current) {
-                popupRef.current.remove();
-                popupRef.current = null;
-            }
+            // POPUP DISABLED
+            // if (popupRef.current) {
+            //     popupRef.current.remove();
+            //     popupRef.current = null;
+            // }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
@@ -255,10 +258,11 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
         const aqi = aqiList?.[selectedTimeIndex];
 
         if (aqi === null || aqi === undefined) {
-            if (popupRef.current) {
-                popupRef.current.remove();
-                popupRef.current = null;
-            }
+            // POPUP DISABLED
+            // if (popupRef.current) {
+            //     popupRef.current.remove();
+            //     popupRef.current = null;
+            // }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
@@ -317,18 +321,18 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
 
         if (!markerRef.current) {
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
-                // Создаем попап
-                const popup = new maplibregl.Popup({
-                    closeButton: true,
-                    closeOnClick: false,
-                    className: 'air-quality-popup',
-                }).setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
-
-                popupRef.current = popup;
+                // POPUP DISABLED — используется RightAirPanel
+                // const popup = new maplibregl.Popup({
+                //     closeButton: true,
+                //     closeOnClick: false,
+                //     className: 'air-quality-popup',
+                // }).setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
+                //
+                // popupRef.current = popup;
 
                 const marker = new maplibregl.Marker({ element: el })
                     .setLngLat([markerLon, markerLat])
-                    .setPopup(popup)
+                    // .setPopup(popup) // POPUP DISABLED
                     .addTo(map.current);
                 markerRef.current = marker;
             }
@@ -336,8 +340,10 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
                 markerRef.current.setLngLat([markerLon, markerLat]);
             }
-            // Обновление попапа без его пересоздания
-            popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
+            // POPUP DISABLED — обновление попапа без его пересоздания
+            // if (popupRef.current) {
+            //     popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
+            // }
         }
     }, [airData, selectedTimeIndex, viewMode, lat, lon]);
 
