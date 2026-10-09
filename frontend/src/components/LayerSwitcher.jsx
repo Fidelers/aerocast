@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import MapIcon from '../assets/icons/map.svg';
+import SatelliteIcon from '../assets/icons/satellite.svg';
 import '../styles/LayerSwitcher.css';
 
 export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
@@ -41,21 +43,31 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
     setIsOpen(false);
   };
 
+  const isSatellite = activeLayer === 'satellite';
   // текст на кнопке в зависимости от текущего слоя
-  const currentLabel = activeLayer === 'satellite' ? 'Спутник' : 'Карта';
+  const currentLabel = isSatellite ? 'Спутник' : 'Карта';
 
   return (
     <div className="layer-switcher" ref={containerRef}>
-      {/* Кнопка переключения меню */}
+      {/* Кнопка переключения меню с минималистичным значком */}
       <button
         type="button"
         className="layer-switcher__toggle"
         onClick={() => setIsOpen((prev) => !prev)}
+        title={`Слой: ${currentLabel}`}
+        aria-label={currentLabel}
+        aria-expanded={isOpen}
       >
-        {currentLabel}
+        <img
+          src={isSatellite ? SatelliteIcon : MapIcon}
+          className="layer-switcher__icon"
+          alt=""
+          aria-hidden="true"
+        />
+        <span className="layer-switcher__label">{currentLabel}</span>
       </button>
 
-      {/* Выпадающее меню с двумя вариантами */}
+      {/* Выпадающее меню с вариантами слоев */}
       <div
         className={`layer-switcher__menu ${
           isOpen ? 'layer-switcher__menu--visible' : ''
@@ -68,7 +80,13 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
           }`}
           onClick={() => handleSelectLayer('osm')}
         >
-          Схема OpenStreetMap
+          <img
+            src={MapIcon}
+            className="layer-switcher__icon"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>Схема OpenStreetMap</span>
         </button>
 
         <button
@@ -78,7 +96,13 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
           }`}
           onClick={() => handleSelectLayer('satellite')}
         >
-          Снимки ESRI World Imagery
+          <img
+            src={SatelliteIcon}
+            className="layer-switcher__icon"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>Снимки ESRI World Imagery</span>
         </button>
       </div>
     </div>
