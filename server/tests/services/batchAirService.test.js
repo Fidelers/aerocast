@@ -18,9 +18,9 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
 
         it('все точки имеют валидные числовые координаты в границах РФ и смежных зон', () => {
             const points = batchAirService.generateMacroGridCoordinates();
-            points.forEach((p, idx) => {
-                expect(typeof p.lat, `Точка ${idx} должна иметь числовую широту`).toBe('number');
-                expect(typeof p.lon, `Точка ${idx} должна иметь числовую долготу`).toBe('number');
+            points.forEach((p) => {
+                expect(typeof p.lat).toBe('number');
+                expect(typeof p.lon).toBe('number');
                 expect(p.lat).toBeGreaterThanOrEqual(41);
                 expect(p.lat).toBeLessThanOrEqual(75);
                 expect(p.lon).toBeGreaterThanOrEqual(19);
@@ -36,9 +36,9 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             const hasCenter = points.some(p => p.lon >= 60 && p.lon <= 100);
             const hasEast = points.some(p => p.lon >= 130);
 
-            expect(hasWest, 'Сетка должна содержать западные узлы').toBe(true);
-            expect(hasCenter, 'Сетка должна содержать центральные/сибирские узлы').toBe(true);
-            expect(hasEast, 'Сетка должна содержать дальневосточные узлы').toBe(true);
+            expect(hasWest).toBe(true);
+            expect(hasCenter).toBe(true);
+            expect(hasEast).toBe(true);
         });
     });
 
