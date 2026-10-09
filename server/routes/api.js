@@ -35,4 +35,26 @@ if (typeof airController.getAirData === 'function') {
     router.get('/air', asyncHandler(airController.getAirQuality));
 }
 
+// 4. Пространственная сетка качества воздуха (макро, микро, универсальный и сброс кэша)
+try {
+    const gridAirController = require('../controllers/gridAirController');
+    if (gridAirController) {
+        if (typeof gridAirController.getMacroGrid === 'function') {
+            router.get('/air-quality/grid/macro', asyncHandler(gridAirController.getMacroGrid));
+        }
+        if (typeof gridAirController.getMicroGrid === 'function') {
+            router.get('/air-quality/grid/micro', asyncHandler(gridAirController.getMicroGrid));
+        }
+        if (typeof gridAirController.getGridAirQuality === 'function') {
+            router.get('/air-quality/grid', asyncHandler(gridAirController.getGridAirQuality));
+        }
+        if (typeof gridAirController.clearGridCache === 'function') {
+            router.delete('/cache/grid', asyncHandler(gridAirController.clearGridCache));
+        }
+    }
+} catch (err) {
+    console.warn('gridAirController is not yet available:', err.message);
+}
+
+
 module.exports = router;
