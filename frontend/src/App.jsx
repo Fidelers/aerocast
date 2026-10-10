@@ -18,6 +18,7 @@ function App() {
     const [selectedTimeIndex, setSelectedTimeIndex] = useState(null);
     const [viewMode, setViewMode] = useState('combo');
     const [coords, setCoords] = useState(DEFAULT_COORDS);
+    const [recenterTrigger, setRecenterTrigger] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -134,6 +135,7 @@ function App() {
             const lon = Number(loc.lon);
             if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
                 setCoords({ lat, lon });
+                setRecenterTrigger((prev) => prev + 1);
             }
         } else if (loc !== undefined && maybeLon !== undefined) {
             if (loc == null || maybeLon == null) {
@@ -144,6 +146,7 @@ function App() {
             const lon = Number(maybeLon);
             if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
                 setCoords({ lat, lon });
+                setRecenterTrigger((prev) => prev + 1);
             }
         }
     };
@@ -172,6 +175,7 @@ function App() {
                     onLocationSelect={handleLocationSelect}
                     onMarkerClick={() => setIsRightPanelOpen(true)}
                     activeBaseLayer={activeBaseLayer}
+                    recenterTrigger={recenterTrigger}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}

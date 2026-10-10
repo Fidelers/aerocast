@@ -495,5 +495,105 @@ describe('CitySearch component', () => {
         const item = screen.getByText('Москва, Россия');
         fireEvent.click(item);
     });
+
+    it('21. При нажатии Enter повторно вызывает onLocationSelect для уже выбранного города', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        const handleLocationSelect = vi.fn();
+        render(<CitySearch onLocationSelect={handleLocationSelect} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        // 1. Выбираем город из списка
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+        expect(handleLocationSelect).toHaveBeenCalledTimes(1);
+
+        // 2. Нажимаем клавишу Enter в поле поиска
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+        // Должен повторно вызвать коллбэк с сохраненным объектом города
+        expect(handleLocationSelect).toHaveBeenCalledTimes(2);
+        expect(handleLocationSelect).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                lat: 55.7558,
+                lon: 37.6173,
+                name: expect.stringMatching(/Москва/)
+            })
+        );
+
+        // 3. Повторное нажатие Enter снова вызывает центрирование
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+        expect(handleLocationSelect).toHaveBeenCalledTimes(3);
+    });
+
+    it('22. Сбрасывает выбранный город при изменении текста поля ввода, и Enter больше не вызывает коллбэк', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        const handleLocationSelect = vi.fn();
+        render(<CitySearch onLocationSelect={handleLocationSelect} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        // Выбираем город
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+        expect(handleLocationSelect).toHaveBeenCalledTimes(1);
+
+        // Пользователь меняет текст в инпуте (дописывает символ)
+        fireEvent.change(input, { target: { value: 'Москва ' } });
+
+        // Нажатие Enter не должно вызывать onLocationSelect
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+        expect(handleLocationSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it('23. При нажатии Enter без предварительного выбора города из списка не вызывает onLocationSelect', () => {
+        const handleLocationSelect = vi.fn();
+        render(<CitySearch onLocationSelect={handleLocationSelect} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Ново' } });
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+        expect(handleLocationSelect).not.toHaveBeenCalled();
+    });
+
+    it('24. По нажатию Enter вызывает onCitySelect с сохраненным городом', async () => {
+        global.fetch.mockResolvedValue({
+            ok: true,
+            json: async () => mockGeocodingResults
+        });
+
+        const handleCitySelect = vi.fn();
+        render(<CitySearch onCitySelect={handleCitySelect} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Москва' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        const item = screen.getByText('Москва, Россия');
+        fireEvent.click(item);
+        expect(handleCitySelect).toHaveBeenCalledTimes(1);
+
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+        expect(handleCitySelect).toHaveBeenCalledTimes(2);
+    });
 });
 

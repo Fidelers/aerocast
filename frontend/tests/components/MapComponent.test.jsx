@@ -1053,4 +1053,76 @@ describe('Переключение базовых растровых слоев 
     });
 });
 
+describe('Повторное центрирование карты и маркера по recenterTrigger', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearCreatedMarkers();
+    });
+
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('выполняет flyTo и обновляет маркер при изменении recenterTrigger даже с неизменными lat/lon', () => {
+        const mockData = {
+            latitude: 55.75,
+            longitude: 37.61,
+            hourly: { european_aqi: [30] }
+        };
+
+        const { rerender } = render(
+            <MapComponent
+                lat={55.75}
+                lon={37.61}
+                airData={mockData}
+                selectedTimeIndex={0}
+                recenterTrigger={0}
+            />
+        );
+
+        mockFlyTo.mockClear();
+        mockMarkerSetLngLat.mockClear();
+
+        // Пользователь нажал Enter в поиске для того же города, recenterTrigger инкрементировался
+        rerender(
+            <MapComponent
+                lat={55.75}
+                lon={37.61}
+                airData={mockData}
+                selectedTimeIndex={0}
+                recenterTrigger={1}
+            />
+        );
+
+        expect(mockFlyTo).toHaveBeenCalledTimes(1);
+        expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [37.61, 55.75],
+            zoom: 11
+        }));
+        expect(mockMarkerSetLngLat).toHaveBeenCalledWith([37.61, 55.75]);
+    });
+
+    it('не вызывает flyTo при recenterTrigger, если координаты невалидны (NaN или null)', () => {
+        const { rerender } = render(
+            <MapComponent
+                lat="invalid"
+                lon="invalid"
+                recenterTrigger={0}
+            />
+        );
+
+        mockFlyTo.mockClear();
+        rerender(
+            <MapComponent
+                lat="invalid"
+                lon="invalid"
+                recenterTrigger={1}
+            />
+        );
+
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+});
+
+
 

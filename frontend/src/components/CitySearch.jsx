@@ -4,6 +4,7 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(null);
 
   const containerRef = useRef(null);
   const isSelectingRef = useRef(false);
@@ -67,11 +68,23 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
   const handleInputChange = (e) => {
     isSelectingRef.current = false;
     setQuery(e.target.value);
+    setSelectedCity(null);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       setIsOpen(false);
+    } else if (e.key === 'Enter') {
+      if (selectedCity) {
+        e.preventDefault();
+        setIsOpen(false);
+        if (typeof onLocationSelect === 'function') {
+          onLocationSelect(selectedCity);
+        }
+        if (typeof onCitySelect === 'function') {
+          onCitySelect(selectedCity);
+        }
+      }
     }
   };
 
@@ -88,6 +101,8 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
       lon: item.longitude !== undefined ? item.longitude : item.lon,
       name: item.name || item.display_name
     };
+
+    setSelectedCity(locationPayload);
 
     if (typeof onLocationSelect === 'function') {
       onLocationSelect(locationPayload);

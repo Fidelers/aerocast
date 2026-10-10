@@ -90,7 +90,7 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
 }
 */
 
-export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick, onMarkerClick, activeBaseLayer = 'osm' }) {
+export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick, onMarkerClick, activeBaseLayer = 'osm', recenterTrigger }) {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const isFirstMount = useRef(true);
@@ -173,7 +173,7 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
         };
     }, []);
 
-    // Динамическое перемещение камеры при смене координат lat и lon
+    // Динамическое перемещение камеры при смене координат lat и lon или принудительном recenterTrigger
     useEffect(() => {
         if (isFirstMount.current) {
             isFirstMount.current = false;
@@ -185,16 +185,22 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             return;
         }
 
-        if (lat == null || lon == null) return;
+        const numLat = Number(lat);
+        const numLon = Number(lon);
+        if (lat == null || lon == null || Number.isNaN(numLat) || Number.isNaN(numLon) || !map.current) return;
 
         map.current.flyTo({
-            center: [lon, lat],
+            center: [numLon, numLat],
             zoom: 11,
             essential: true,
             speed: 1.2,
             curve: 1.42
         });
-    }, [lat, lon]);
+
+        if (markerRef.current) {
+            markerRef.current.setLngLat([numLon, numLat]);
+        }
+    }, [lat, lon, recenterTrigger]);
     // переключение видимости слоев подложки (схема / спутник) и ограничение maxZoom для спутника
     useEffect(() => {
         if (!map.current) return;
