@@ -27,6 +27,7 @@ describe('Hook: useAirGrid (Управление жизненным циклом
 
     beforeEach(() => {
         vi.clearAllMocks();
+        globalThis.fetch.mockReset();
         vi.spyOn(console, 'error').mockImplementation(() => { });
         vi.spyOn(console, 'warn').mockImplementation(() => { });
     });
@@ -134,15 +135,10 @@ describe('Hook: useAirGrid (Управление жизненным циклом
         });
 
         it('сохраняет загруженную микро-сетку в lruGridCache по квантованному ключу', async () => {
-            globalThis.fetch
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => mockMacroData
-                })
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => mockMicroData
-                });
+            globalThis.fetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockMicroData
+            });
 
             const { result } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
 
