@@ -134,6 +134,10 @@ vi.mock('maplibre-gl', () => {
 // Мокирование canvasFieldRenderer для быстрого тестирования без физического Canvas
 vi.mock('../../src/utils/canvasFieldRenderer.js', () => {
     return {
+        createFieldCanvas: vi.fn().mockImplementation((width = 150, height = 150) => ({
+            width,
+            height
+        })),
         renderFieldToCanvas: vi.fn().mockImplementation(() => {
             return {
                 toDataUrl: () => 'data:image/png;base64,MOCK_CANVAS_DATA_URL',
