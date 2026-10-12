@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { osmStyle, SATELLITE_MAX_ZOOM, OSM_MAX_ZOOM } from '../styles/mapStyle';
 import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
+import { createFieldCanvas, renderFieldToCanvas } from '../utils/canvasFieldRenderer';
 // import { parseIsoTimeString } from '../utils/timeUtils'; // POPUP DISABLED
 
 /* POPUP DISABLED — используется RightAirPanel
@@ -90,7 +91,51 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
 }
 */
 
-export default function MapComponent({ lat, lon, airData, selectedTimeIndex, viewMode, onLocationSelect, onMapClick, onMarkerClick, activeBaseLayer = 'osm', recenterTrigger }) {
+const MACRO_SOURCE_ID = 'air-grid-macro-source';
+const MACRO_LAYER_ID = 'air-grid-macro-layer';
+const MICRO_SOURCE_ID = 'air-grid-micro-source';
+const MICRO_LAYER_ID = 'air-grid-micro-layer';
+
+// Преобразование bbox [minLon, minLat, maxLon, maxLat] в 4 координаты углов MapLibre image source
+function bboxToImageCoordinates(bbox) {
+    if (!bbox || bbox.length !== 4) return null;
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    return [
+        [minLon, maxLat], // Top-Left
+        [maxLon, maxLat], // Top-Right
+        [maxLon, minLat], // Bottom-Right
+        [minLon, minLat]  // Bottom-Left
+    ];
+}
+
+// Расчет приближенного расстояния в километрах между двумя географическими координатами
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Радиус Земли в км
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+export default function MapComponent({
+    lat,
+    lon,
+    airData,
+    selectedTimeIndex,
+    viewMode,
+    onLocationSelect,
+    onMapClick,
+    onMarkerClick,
+    activeBaseLayer = 'osm',
+    recenterTrigger,
+    macroGrid = null,
+    microGrid = null,
+    onViewportMove = null
+}) {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const isFirstMount = useRef(true);
@@ -101,6 +146,15 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     const onLocationSelectRef = useRef(onLocationSelect);
     const onMapClickRef = useRef(onMapClick);
     const onMarkerClickRef = useRef(onMarkerClick);
+    const onViewportMoveRef = useRef(onViewportMove);
+
+    const macroCanvasRef = useRef(null);
+    const microCanvasRef = useRef(null);
+    const moveDebounceTimerRef = useRef(null);
+    const activeMicroCenterRef = useRef(null);
+    const macroGridRef = useRef(macroGrid);
+    const microGridRef = useRef(microGrid);
+    const selectedTimeIndexRef = useRef(selectedTimeIndex);
 
     useEffect(() => {
         onMarkerClickRef.current = onMarkerClick;
@@ -108,10 +162,30 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
     }, [onLocationSelect]);
-
     useEffect(() => {
         onMapClickRef.current = onMapClick;
     }, [onMapClick]);
+    useEffect(() => {
+        onViewportMoveRef.current = onViewportMove;
+    }, [onViewportMove]);
+
+    useEffect(() => {
+        macroGridRef.current = macroGrid;
+    }, [macroGrid]);
+    useEffect(() => {
+        microGridRef.current = microGrid;
+        if (microGrid?.center) {
+            activeMicroCenterRef.current = microGrid.center;
+        } else if (microGrid?.bbox) {
+            activeMicroCenterRef.current = {
+                lat: (microGrid.bbox[1] + microGrid.bbox[3]) / 2,
+                lon: (microGrid.bbox[0] + microGrid.bbox[2]) / 2
+            };
+        }
+    }, [microGrid]);
+    useEffect(() => {
+        selectedTimeIndexRef.current = selectedTimeIndex;
+    }, [selectedTimeIndex]);
 
     // Инициализация карты MapLibre
     useEffect(() => {
@@ -159,15 +233,109 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             }
         };
 
+        // Функция расчета и применения прозрачности слоев (LOD crossfade)
+        const updateLodOpacity = () => {
+            if (!map.current || typeof map.current.getZoom !== 'function') return;
+            const currentZoom = map.current.getZoom();
+
+            let macroOpacity;
+            let microOpacity;
+
+            if (currentZoom <= 8.5) {
+                macroOpacity = 0.70;
+                microOpacity = 0.0;
+            } else if (currentZoom >= 9.0) {
+                macroOpacity = 0.0;
+                microOpacity = 0.70;
+            } else {
+                // Плавный линейный кроссфейд на интервале [8.5 .. 9.0]
+                const t = (currentZoom - 8.5) / (9.0 - 8.5);
+                macroOpacity = 0.70 * (1 - t);
+                microOpacity = 0.70 * t;
+            }
+
+            if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
+                map.current.setPaintProperty(MACRO_LAYER_ID, 'raster-opacity', macroOpacity);
+            }
+            if (map.current.getLayer && map.current.getLayer(MICRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
+                map.current.setPaintProperty(MICRO_LAYER_ID, 'raster-opacity', microOpacity);
+            }
+        };
+
+        const handleMoveStart = () => {
+            // Очищаем активный дебаунс-таймер перемещения
+            if (moveDebounceTimerRef.current) {
+                clearTimeout(moveDebounceTimerRef.current);
+                moveDebounceTimerRef.current = null;
+            }
+
+            if (!map.current) return;
+            const currentZoom = typeof map.current.getZoom === 'function' ? map.current.getZoom() : 11;
+
+            // При zoom > 9 фоном отображается макро-слой
+            if (currentZoom > 9 && map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
+                map.current.setPaintProperty(MACRO_LAYER_ID, 'raster-opacity', 0.50);
+            }
+        };
+
+        const handleMoveEnd = () => {
+            if (moveDebounceTimerRef.current) {
+                clearTimeout(moveDebounceTimerRef.current);
+            }
+
+            // Возвращаем штатные значения LOD opacity после перемещения
+            updateLodOpacity();
+
+            // Дебаунс 500 мс перед расчетом смещения и возможным сетевым запросом
+            moveDebounceTimerRef.current = setTimeout(() => {
+                if (!map.current || typeof map.current.getCenter !== 'function') return;
+
+                const center = map.current.getCenter();
+                if (!center) return;
+
+                const centerLng = center.lng != null ? center.lng : center[0];
+                const centerLat = center.lat != null ? center.lat : center[1];
+
+                const activeCenter = activeMicroCenterRef.current;
+                if (!activeCenter) {
+                    if (onViewportMoveRef.current) {
+                        onViewportMoveRef.current({ lat: centerLat, lon: centerLng });
+                    }
+                    return;
+                }
+
+                // Расчет смещения от центра активной микро-сетки (~40 км диаметр / ~20 км радиус)
+                // Смещение более 50% радиуса сетки (> 10-20 км)
+                const distanceKm = calculateDistanceKm(activeCenter.lat, activeCenter.lon, centerLat, centerLng);
+                const RADIUS_THRESHOLD_KM = 20;
+
+                if (distanceKm > RADIUS_THRESHOLD_KM) {
+                    if (onViewportMoveRef.current) {
+                        onViewportMoveRef.current({ lat: centerLat, lon: centerLng });
+                    }
+                }
+            }, 500);
+        };
+
         map.current.on('click', handleMapClick);
+        map.current.on('zoom', updateLodOpacity);
+        map.current.on('movestart', handleMoveStart);
+        map.current.on('moveend', handleMoveEnd);
 
         return () => {
+            if (moveDebounceTimerRef.current) {
+                clearTimeout(moveDebounceTimerRef.current);
+                moveDebounceTimerRef.current = null;
+            }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
                 markerElementRef.current = null;
             }
             map.current.off('click', handleMapClick);
+            map.current.off('zoom', updateLodOpacity);
+            map.current.off('movestart', handleMoveStart);
+            map.current.off('moveend', handleMoveEnd);
             map.current.remove();
             map.current = null;
         };
@@ -369,6 +537,178 @@ export default function MapComponent({ lat, lon, airData, selectedTimeIndex, vie
             // }
         }
     }, [airData, selectedTimeIndex, viewMode, lat, lon]);
+
+    // Эффект отрисовки и обновления макро-слоя (macroGrid)
+    useEffect(() => {
+        if (!map.current || !macroGrid || !macroGrid.bbox || !macroGrid.points) {
+            return;
+        }
+
+        const mapInstance = map.current;
+        const coords = bboxToImageCoordinates(macroGrid.bbox);
+        if (!coords) return;
+
+        // Инициализация рабочего Canvas буфера для макро-сетки
+        if (!macroCanvasRef.current) {
+            macroCanvasRef.current = createFieldCanvas(150, 150);
+        }
+
+        const canvas = macroCanvasRef.current;
+        const result = renderFieldToCanvas(canvas, macroGrid.points, macroGrid.bbox, {
+            timeIndex: selectedTimeIndex ?? 0
+        });
+        const dataUrl = result.toDataUrl();
+
+        const applyMacroLayer = () => {
+            if (!mapInstance || !mapInstance.getSource) return;
+
+            const existingSource = mapInstance.getSource(MACRO_SOURCE_ID);
+            if (existingSource) {
+                if (typeof existingSource.updateImage === 'function') {
+                    existingSource.updateImage({
+                        url: dataUrl,
+                        coordinates: coords
+                    });
+                } else if (mapInstance.removeLayer && mapInstance.removeSource) {
+                    if (mapInstance.getLayer && mapInstance.getLayer(MACRO_LAYER_ID)) {
+                        mapInstance.removeLayer(MACRO_LAYER_ID);
+                    }
+                    mapInstance.removeSource(MACRO_SOURCE_ID);
+                    mapInstance.addSource(MACRO_SOURCE_ID, {
+                        type: 'image',
+                        url: dataUrl,
+                        coordinates: coords
+                    });
+                    mapInstance.addLayer({
+                        id: MACRO_LAYER_ID,
+                        type: 'raster',
+                        source: MACRO_SOURCE_ID,
+                        paint: {
+                            'raster-opacity': 0.70,
+                            'raster-fade-duration': 300
+                        }
+                    }, 'map-marker');
+                }
+            } else {
+                mapInstance.addSource(MACRO_SOURCE_ID, {
+                    type: 'image',
+                    url: dataUrl,
+                    coordinates: coords
+                });
+
+                const currentZoom = typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 11;
+                let initialOpacity = 0.70;
+                if (currentZoom > 9.0) {
+                    initialOpacity = 0.0;
+                } else if (currentZoom > 8.5) {
+                    const t = (currentZoom - 8.5) / 0.5;
+                    initialOpacity = 0.70 * (1 - t);
+                }
+
+                mapInstance.addLayer({
+                    id: MACRO_LAYER_ID,
+                    type: 'raster',
+                    source: MACRO_SOURCE_ID,
+                    paint: {
+                        'raster-opacity': initialOpacity,
+                        'raster-fade-duration': 300
+                    }
+                }, 'map-marker');
+            }
+        };
+
+        if (typeof mapInstance.isStyleLoaded === 'function' && !mapInstance.isStyleLoaded()) {
+            mapInstance.once('load', applyMacroLayer);
+        } else {
+            applyMacroLayer();
+        }
+    }, [macroGrid, selectedTimeIndex]);
+
+    // Эффект отрисовки и обновления микро-слоя (microGrid)
+    useEffect(() => {
+        if (!map.current || !microGrid || !microGrid.bbox || !microGrid.points) {
+            return;
+        }
+
+        const mapInstance = map.current;
+        const coords = bboxToImageCoordinates(microGrid.bbox);
+        if (!coords) return;
+
+        // Инициализация рабочего Canvas буфера для микро-сетки
+        if (!microCanvasRef.current) {
+            microCanvasRef.current = createFieldCanvas(150, 150);
+        }
+
+        const canvas = microCanvasRef.current;
+        const result = renderFieldToCanvas(canvas, microGrid.points, microGrid.bbox, {
+            timeIndex: selectedTimeIndex ?? 0
+        });
+        const dataUrl = result.toDataUrl();
+
+        const applyMicroLayer = () => {
+            if (!mapInstance || !mapInstance.getSource) return;
+
+            const existingSource = mapInstance.getSource(MICRO_SOURCE_ID);
+            if (existingSource) {
+                if (typeof existingSource.updateImage === 'function') {
+                    existingSource.updateImage({
+                        url: dataUrl,
+                        coordinates: coords
+                    });
+                } else if (mapInstance.removeLayer && mapInstance.removeSource) {
+                    if (mapInstance.getLayer && mapInstance.getLayer(MICRO_LAYER_ID)) {
+                        mapInstance.removeLayer(MICRO_LAYER_ID);
+                    }
+                    mapInstance.removeSource(MICRO_SOURCE_ID);
+                    mapInstance.addSource(MICRO_SOURCE_ID, {
+                        type: 'image',
+                        url: dataUrl,
+                        coordinates: coords
+                    });
+                    mapInstance.addLayer({
+                        id: MICRO_LAYER_ID,
+                        type: 'raster',
+                        source: MICRO_SOURCE_ID,
+                        paint: {
+                            'raster-opacity': 0.70,
+                            'raster-fade-duration': 300
+                        }
+                    }, 'map-marker');
+                }
+            } else {
+                mapInstance.addSource(MICRO_SOURCE_ID, {
+                    type: 'image',
+                    url: dataUrl,
+                    coordinates: coords
+                });
+
+                const currentZoom = typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 11;
+                let initialOpacity = 0.0;
+                if (currentZoom >= 9.0) {
+                    initialOpacity = 0.70;
+                } else if (currentZoom > 8.5) {
+                    const t = (currentZoom - 8.5) / 0.5;
+                    initialOpacity = 0.70 * t;
+                }
+
+                mapInstance.addLayer({
+                    id: MICRO_LAYER_ID,
+                    type: 'raster',
+                    source: MICRO_SOURCE_ID,
+                    paint: {
+                        'raster-opacity': initialOpacity,
+                        'raster-fade-duration': 300
+                    }
+                }, 'map-marker');
+            }
+        };
+
+        if (typeof mapInstance.isStyleLoaded === 'function' && !mapInstance.isStyleLoaded()) {
+            mapInstance.once('load', applyMicroLayer);
+        } else {
+            applyMicroLayer();
+        }
+    }, [microGrid, selectedTimeIndex]);
 
     return (
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
