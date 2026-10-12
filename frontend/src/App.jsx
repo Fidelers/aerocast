@@ -6,6 +6,7 @@ import AboutModal from './components/AboutModal';
 import RightAirPanel from './components/RightAirPanel';
 import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
+import useAirGrid from './hooks/useAirGrid';
 
 // Координаты по умолчанию: Новокузнецк
 const DEFAULT_COORDS = {
@@ -23,6 +24,21 @@ function App() {
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+    // подключаем сетку качества воздуха
+    const { macroGrid, microGrid, loadMicroGrid } = useAirGrid();
+
+    // загружаем микро-сетку при смене города
+    useEffect(() => {
+        if (coords.lat != null && coords.lon != null) {
+            loadMicroGrid(coords.lat, coords.lon);
+        }
+    }, [coords.lat, coords.lon, loadMicroGrid]);
+
+    // точная ISO-метка времени для синхронизации
+    const selectedIsoTime =
+        selectedTimeIndex !== null && selectedTimeIndex !== undefined && airData?.hourly?.time?.[selectedTimeIndex]
+            ? airData.hourly.time[selectedTimeIndex]
+            : undefined;
 
     // Сохранение выбранного слоя в localStorage под ключом aerocast_map_layer
     const [activeBaseLayer, setActiveBaseLayer] = useState(() => {
@@ -170,6 +186,9 @@ function App() {
                     lon={coords.lon}
                     airData={airData}
                     selectedTimeIndex={selectedTimeIndex}
+                    selectedIsoTime={selectedIsoTime}
+                    macroGrid={macroGrid}
+                    microGrid={microGrid}
                     viewMode={viewMode}
                     onMapClick={handleLocationSelect}
                     onLocationSelect={handleLocationSelect}
