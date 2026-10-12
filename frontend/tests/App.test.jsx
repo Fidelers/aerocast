@@ -4,7 +4,20 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 import App from '../src/App';
 import { findDefaultTimeIndex } from '../src/utils/timeUtils';
 
-// 1. Мокаем дочерние компоненты
+// 1. Мокаем дочерние компоненты и хуки
+vi.mock('../src/hooks/useAirGrid', () => {
+    return {
+        default: vi.fn(() => ({
+            macroGrid: null,
+            microGrid: null,
+            loadMicroGrid: vi.fn(),
+            loadMacroGrid: vi.fn(),
+            isLoadingGrid: false,
+            gridError: null
+        }))
+    };
+});
+
 vi.mock('../src/components/Sidebar', () => {
     return {
         default: function DummySidebar(props) {

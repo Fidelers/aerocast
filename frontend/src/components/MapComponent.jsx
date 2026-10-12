@@ -7,7 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { osmStyle, SATELLITE_MAX_ZOOM, OSM_MAX_ZOOM } from '../styles/mapStyle';
 import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
 import { createFieldCanvas, renderFieldToCanvas } from '../utils/canvasFieldRenderer';
-// import { parseIsoTimeString } from '../utils/timeUtils'; // POPUP DISABLED
+import { parseIsoTimeString } from '../utils/timeUtils';
 
 /* POPUP DISABLED — используется RightAirPanel
 const POLLUTANTS = [
@@ -121,11 +121,30 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Сопоставление временного среза сетки с выбранной меткой времени
+export function resolveGridTimeIndex(grid, selectedIsoTime, fallbackIndex) {
+    if (grid && Array.isArray(grid.time) && selectedIsoTime) {
+        const exactIndex = grid.time.indexOf(selectedIsoTime);
+        if (exactIndex !== -1) return exactIndex;
+
+        const targetParsed = parseIsoTimeString(selectedIsoTime);
+        if (targetParsed) {
+            const dateHourIndex = grid.time.findIndex((t) => {
+                const p = parseIsoTimeString(t);
+                return p && p.dateStr === targetParsed.dateStr && p.hour === targetParsed.hour;
+            });
+            if (dateHourIndex !== -1) return dateHourIndex;
+        }
+    }
+    return fallbackIndex ?? 0;
+}
+
 export default function MapComponent({
     lat,
     lon,
     airData,
     selectedTimeIndex,
+    selectedIsoTime,
     viewMode,
     onLocationSelect,
     onMapClick,
@@ -540,12 +559,22 @@ export default function MapComponent({
 
     // Эффект отрисовки и обновления макро-слоя (macroGrid)
     useEffect(() => {
-        if (!map.current || !macroGrid || !macroGrid.bbox || !macroGrid.points) {
+        if (!map.current || !macroGrid || !macroGrid.points) {
             return;
         }
 
         const mapInstance = map.current;
-        const coords = bboxToImageCoordinates(macroGrid.bbox);
+        const gridBbox = macroGrid.bbox || (
+            macroGrid.points.length ? [
+                Math.min(...macroGrid.points.map(p => p.lon)),
+                Math.min(...macroGrid.points.map(p => p.lat)),
+                Math.max(...macroGrid.points.map(p => p.lon)),
+                Math.max(...macroGrid.points.map(p => p.lat))
+            ] : null
+        );
+        if (!gridBbox) return;
+
+        const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
         // Инициализация рабочего Canvas буфера для макро-сетки
@@ -554,8 +583,9 @@ export default function MapComponent({
         }
 
         const canvas = macroCanvasRef.current;
-        const result = renderFieldToCanvas(canvas, macroGrid.points, macroGrid.bbox, {
-            timeIndex: selectedTimeIndex ?? 0
+        const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
+        const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
+            timeIndex
         });
         const dataUrl = result.toDataUrl();
 
@@ -622,16 +652,26 @@ export default function MapComponent({
         } else {
             applyMacroLayer();
         }
-    }, [macroGrid, selectedTimeIndex]);
+    }, [macroGrid, selectedTimeIndex, selectedIsoTime]);
 
     // Эффект отрисовки и обновления микро-слоя (microGrid)
     useEffect(() => {
-        if (!map.current || !microGrid || !microGrid.bbox || !microGrid.points) {
+        if (!map.current || !microGrid || !microGrid.points) {
             return;
         }
 
         const mapInstance = map.current;
-        const coords = bboxToImageCoordinates(microGrid.bbox);
+        const gridBbox = microGrid.bbox || (
+            microGrid.points.length ? [
+                Math.min(...microGrid.points.map(p => p.lon)),
+                Math.min(...microGrid.points.map(p => p.lat)),
+                Math.max(...microGrid.points.map(p => p.lon)),
+                Math.max(...microGrid.points.map(p => p.lat))
+            ] : null
+        );
+        if (!gridBbox) return;
+
+        const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
         // Инициализация рабочего Canvas буфера для микро-сетки
@@ -640,8 +680,9 @@ export default function MapComponent({
         }
 
         const canvas = microCanvasRef.current;
-        const result = renderFieldToCanvas(canvas, microGrid.points, microGrid.bbox, {
-            timeIndex: selectedTimeIndex ?? 0
+        const timeIndex = resolveGridTimeIndex(microGrid, selectedIsoTime, selectedTimeIndex);
+        const result = renderFieldToCanvas(canvas, microGrid.points, gridBbox, {
+            timeIndex
         });
         const dataUrl = result.toDataUrl();
 
@@ -708,7 +749,7 @@ export default function MapComponent({
         } else {
             applyMicroLayer();
         }
-    }, [microGrid, selectedTimeIndex]);
+    }, [microGrid, selectedTimeIndex, selectedIsoTime]);
 
     return (
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />

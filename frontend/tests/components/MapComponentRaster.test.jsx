@@ -466,4 +466,74 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             expect(onViewportMove).not.toHaveBeenCalled();
         });
     });
+
+    describe('4. Синхронизация времени и защита от рассинхронизации по ISO-метке (#80)', () => {
+        const timeSteps = [
+            '2026-10-01T00:00',
+            '2026-10-01T01:00',
+            '2026-10-01T02:00',
+            '2026-10-01T03:00'
+        ];
+
+        const timedMacroGrid = {
+            bbox: [60.0, 45.0, 110.0, 65.0],
+            time: timeSteps,
+            points: [{ lat: 53.75, lon: 87.14, european_aqi: [10, 20, 30, 40] }]
+        };
+
+        it('4.1. Передает точный индекс времени из сетки при совпадении selectedIsoTime', async () => {
+            const { renderFieldToCanvas } = await import('../../src/utils/canvasFieldRenderer.js');
+            render(
+                <MapComponent
+                    macroGrid={timedMacroGrid}
+                    selectedTimeIndex={0}
+                    selectedIsoTime="2026-10-01T02:00"
+                />
+            );
+
+            expect(renderFieldToCanvas).toHaveBeenCalledWith(
+                expect.anything(),
+                timedMacroGrid.points,
+                timedMacroGrid.bbox,
+                expect.objectContaining({ timeIndex: 2 })
+            );
+        });
+
+        it('4.2. Сопоставляет по dateStr и hour, если точная строка timestamp не совпадает', async () => {
+            const { renderFieldToCanvas } = await import('../../src/utils/canvasFieldRenderer.js');
+            render(
+                <MapComponent
+                    macroGrid={timedMacroGrid}
+                    selectedTimeIndex={0}
+                    selectedIsoTime="2026-10-01T03:00:00.000Z"
+                />
+            );
+
+            expect(renderFieldToCanvas).toHaveBeenCalledWith(
+                expect.anything(),
+                timedMacroGrid.points,
+                timedMacroGrid.bbox,
+                expect.objectContaining({ timeIndex: 3 })
+            );
+        });
+
+        it('4.3. При отсутствии совпадения использует fallback selectedTimeIndex', async () => {
+            const { renderFieldToCanvas } = await import('../../src/utils/canvasFieldRenderer.js');
+            render(
+                <MapComponent
+                    macroGrid={timedMacroGrid}
+                    selectedTimeIndex={1}
+                    selectedIsoTime="2026-10-05T12:00"
+                />
+            );
+
+            expect(renderFieldToCanvas).toHaveBeenCalledWith(
+                expect.anything(),
+                timedMacroGrid.points,
+                timedMacroGrid.bbox,
+                expect.objectContaining({ timeIndex: 1 })
+            );
+        });
+    });
 });
+
