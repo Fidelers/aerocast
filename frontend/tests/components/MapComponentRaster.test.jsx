@@ -163,6 +163,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
     // Тестовые данные для микро-сетки (Новокузнецк ~40x40 км)
     const mockMicroGrid = {
         bbox: [86.85, 53.55, 87.45, 53.95], // [minLon, minLat, maxLon, maxLat]
+        expandBbox: false,
         center: { lat: 53.75, lon: 87.15 },
         points: [
             { lat: 53.75, lon: 87.14, eaqi: 55 },
@@ -265,6 +266,37 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
                     source: 'air-grid-micro-source'
                 }),
                 expect.any(String)
+            );
+        });
+
+        it('1.3b. По умолчанию расширяет границы микро-сетки (expandBbox !== false), покрывая весь экран', () => {
+            const defaultMicroGrid = {
+                bbox: [86.85, 53.55, 87.45, 53.95],
+                center: { lat: 53.75, lon: 87.15 },
+                points: [
+                    { lat: 53.75, lon: 87.14, eaqi: 55 }
+                ]
+            };
+
+            render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={defaultMicroGrid}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            expect(mockAddSource).toHaveBeenCalledWith(
+                'air-grid-micro-source',
+                expect.objectContaining({
+                    type: 'image',
+                    coordinates: [
+                        [83.15, 56.25],
+                        [91.15, 56.25],
+                        [91.15, 51.25],
+                        [83.15, 51.25]
+                    ]
+                })
             );
         });
 

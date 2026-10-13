@@ -101,6 +101,62 @@ export function createFieldCanvas(width = DEFAULT_CANVAS_WIDTH, height = DEFAULT
 }
 
 /**
+ * Клиппирует контекст Canvas по набору полигонов (например, государственным границам РФ),
+ * делая все пиксели за пределами полигонов абсолютно прозрачными (alpha = 0).
+ *
+ * @param {CanvasRenderingContext2D} ctx - 2D контекст холста
+ * @param {Array<Array<[number, number]>>} polygons - массив колец полигонов [[lon, lat], ...]
+ * @param {[number, number, number, number]} bbox - [minLon, minLat, maxLon, maxLat]
+ * @param {number} width - ширина холста
+ * @param {number} height - высота холста
+ */
+export function clipCanvasToPolygons(ctx, polygons, bbox, width, height) {
+    if (
+        !ctx ||
+        !polygons ||
+        !Array.isArray(polygons) ||
+        polygons.length === 0 ||
+        !bbox ||
+        bbox.length !== 4 ||
+        typeof ctx.save !== 'function' ||
+        typeof ctx.beginPath !== 'function' ||
+        typeof ctx.fill !== 'function' ||
+        typeof ctx.restore !== 'function'
+    ) {
+        return;
+    }
+
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    const lonSpan = maxLon - minLon;
+    const latSpan = maxLat - minLat;
+    if (lonSpan <= 0 || latSpan <= 0) return;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath();
+
+    for (let p = 0; p < polygons.length; p++) {
+        const ring = polygons[p];
+        if (!ring || ring.length < 3) continue;
+
+        const startX = ((ring[0][0] - minLon) / lonSpan) * width;
+        const startY = ((maxLat - ring[0][1]) / latSpan) * height;
+        ctx.moveTo(startX, startY);
+
+        for (let i = 1; i < ring.length; i++) {
+            const x = ((ring[i][0] - minLon) / lonSpan) * width;
+            const y = ((maxLat - ring[i][1]) / latSpan) * height;
+            ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+    }
+
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    ctx.restore();
+}
+
+/**
  * Рендерит цветовое поле в буфер переданного Canvas.
  * Принимает как готовый массив сетки (Float32Array), так и массив опорных точек + BBox.
  *
@@ -140,6 +196,10 @@ export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, op
         const imgData = ctx.createImageData(width, height);
         renderFieldToBuffer(grid, imgData, width, height, opts);
         ctx.putImageData(imgData, 0, 0);
+
+        if (opts.maskPolygons) {
+            clipCanvasToPolygons(ctx, opts.maskPolygons, bbox || [0, 0, 1, 1], width, height);
+        }
     }
 
     return {

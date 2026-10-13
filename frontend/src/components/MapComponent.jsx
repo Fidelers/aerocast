@@ -8,6 +8,7 @@ import { osmStyle, SATELLITE_MAX_ZOOM, OSM_MAX_ZOOM } from '../styles/mapStyle';
 import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
 import { createFieldCanvas, renderFieldToCanvas } from '../utils/canvasFieldRenderer';
 import { parseIsoTimeString } from '../utils/timeUtils';
+import russiaBoundaries from '../utils/russiaBoundary2026.js';
 
 /* POPUP DISABLED — используется RightAirPanel
 const POLLUTANTS = [
@@ -238,6 +239,10 @@ export default function MapComponent({
             maxZoom: activeBaseLayer === 'satellite' ? SATELLITE_MAX_ZOOM : OSM_MAX_ZOOM,
             attributionControl: false,
         });
+
+        if (typeof window !== 'undefined') {
+            window.__aerocastMap = map.current;
+        }
 
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
@@ -610,7 +615,8 @@ export default function MapComponent({
         const canvas = macroCanvasRef.current;
         const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
         const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
-            timeIndex
+            timeIndex,
+            maskPolygons: russiaBoundaries
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
@@ -619,6 +625,10 @@ export default function MapComponent({
             if (!mapInstance || !mapInstance.getSource) return;
 
             const existingSource = mapInstance.getSource(MACRO_SOURCE_ID);
+            const beforeLayerId = (mapInstance.getLayer && mapInstance.getLayer(MICRO_LAYER_ID))
+                ? MICRO_LAYER_ID
+                : 'map-marker';
+
             if (existingSource) {
                 if (typeof existingSource.updateImage === 'function') {
                     existingSource.updateImage({
@@ -643,7 +653,7 @@ export default function MapComponent({
                             'raster-opacity': 0.70,
                             'raster-fade-duration': 300
                         }
-                    }, 'map-marker');
+                    }, beforeLayerId);
                 }
             } else {
                 mapInstance.addSource(MACRO_SOURCE_ID, {
@@ -670,7 +680,7 @@ export default function MapComponent({
                         'raster-opacity': initialOpacity,
                         'raster-fade-duration': 300
                     }
-                }, 'map-marker');
+                }, beforeLayerId);
             }
         };
 
@@ -687,7 +697,7 @@ export default function MapComponent({
         }
 
         const mapInstance = map.current;
-        const gridBbox = microGrid.bbox || (
+        const baseBbox = microGrid.bbox || (
             microGrid.points.length ? [
                 Math.min(...microGrid.points.map(p => p.lon)),
                 Math.min(...microGrid.points.map(p => p.lat)),
@@ -695,7 +705,23 @@ export default function MapComponent({
                 Math.max(...microGrid.points.map(p => p.lat))
             ] : null
         );
-        if (!gridBbox) return;
+        if (!baseBbox) return;
+
+        let gridBbox = baseBbox;
+        // Расширяем границы микро-слоя (если явно не выключено expandBbox: false),
+        // чтобы до перехода зума на макро (зум 8.5–9.0) микро-градиент заполнял весь экран
+        if (microGrid.expandBbox !== false) {
+            const centerLon = microGrid.center?.lon ?? ((baseBbox[0] + baseBbox[2]) / 2);
+            const centerLat = microGrid.center?.lat ?? ((baseBbox[1] + baseBbox[3]) / 2);
+            const EXPAND_HALF_LON = 4.0;
+            const EXPAND_HALF_LAT = 2.5;
+            gridBbox = [
+                Math.max(-180, Number((centerLon - EXPAND_HALF_LON).toFixed(4))),
+                Math.max(-85, Number((centerLat - EXPAND_HALF_LAT).toFixed(4))),
+                Math.min(180, Number((centerLon + EXPAND_HALF_LON).toFixed(4))),
+                Math.min(85, Number((centerLat + EXPAND_HALF_LAT).toFixed(4)))
+            ];
+        }
 
         const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
@@ -768,6 +794,15 @@ export default function MapComponent({
                         'raster-fade-duration': 300
                     }
                 }, 'map-marker');
+            }
+
+            // Гарантируем, что макро-слой всегда располагается СТРОГО ПОД микро-слоем
+            if (mapInstance.getLayer && mapInstance.getLayer(MACRO_LAYER_ID) && mapInstance.getLayer(MICRO_LAYER_ID) && typeof mapInstance.moveLayer === 'function') {
+                try {
+                    mapInstance.moveLayer(MACRO_LAYER_ID, MICRO_LAYER_ID);
+                } catch {
+                    // защитная обработка
+                }
             }
         };
 
