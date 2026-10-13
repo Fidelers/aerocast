@@ -616,7 +616,8 @@ export default function MapComponent({
         const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
         const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
             timeIndex,
-            maskPolygons: russiaBoundaries
+            maskPolygons: russiaBoundaries,
+            useMercator: true
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
@@ -734,7 +735,8 @@ export default function MapComponent({
         const canvas = microCanvasRef.current;
         const timeIndex = resolveGridTimeIndex(microGrid, selectedIsoTime, selectedTimeIndex);
         const result = renderFieldToCanvas(canvas, microGrid.points, gridBbox, {
-            timeIndex
+            timeIndex,
+            useMercator: true
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;

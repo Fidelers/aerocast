@@ -5,10 +5,12 @@ import {
     renderFieldToBuffer,
     renderFieldToCanvas,
     createFieldCanvas,
+    clipCanvasToPolygons,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_ALPHA
 } from '../../src/utils/canvasFieldRenderer.js';
+import { latToMercator } from '../../src/utils/idwInterpolator.js';
 
 describe('canvasFieldRenderer (Попиксельный рендерер цветового поля)', () => {
     describe('1. Линейная RGB-интерполяция цвета по шкале EAQI', () => {
@@ -132,7 +134,77 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('4. Фабрика createFieldCanvas', () => {
+    describe('4. Клиппирование холста по полигонам границ (clipCanvasToPolygons)', () => {
+        function createMockClipContext() {
+            return {
+                save: vi.fn(),
+                restore: vi.fn(),
+                beginPath: vi.fn(),
+                closePath: vi.fn(),
+                moveTo: vi.fn(),
+                lineTo: vi.fn(),
+                fill: vi.fn(),
+                globalCompositeOperation: '',
+                fillStyle: ''
+            };
+        }
+
+        it('по умолчанию проецирует широты в Web Mercator для точного совпадения с картой', () => {
+            const ctx = createMockClipContext();
+            const bbox = [30.0, 50.0, 40.0, 60.0]; // minLon, minLat, maxLon, maxLat
+            const width = 100;
+            const height = 100;
+            // Полигон с точкой посередине долготы и широты
+            const midLat = 55.0;
+            const polygons = [
+                [[30.0, 60.0], [35.0, midLat], [40.0, 50.0], [30.0, 50.0], [30.0, 60.0]]
+            ];
+
+            clipCanvasToPolygons(ctx, polygons, bbox, width, height);
+
+            expect(ctx.save).toHaveBeenCalled();
+            expect(ctx.beginPath).toHaveBeenCalled();
+            expect(ctx.globalCompositeOperation).toBe('destination-in');
+
+            // В Web Mercator Y для 55° между 50° и 60°:
+            const minMercY = latToMercator(50.0);
+            const maxMercY = latToMercator(60.0);
+            const expectedMercY = ((maxMercY - latToMercator(midLat)) / (maxMercY - minMercY)) * height;
+
+            // startX = (30 - 30)/10 * 100 = 0, startY = (maxMercY - maxMercY) = 0
+            expect(ctx.moveTo).toHaveBeenCalledWith(0, 0);
+
+            // Точка [35.0, 55.0]: X = 50, Y = expectedMercY
+            expect(ctx.lineTo).toHaveBeenCalledWith(50, expectedMercY);
+            // При линейном расчёте Y было бы ровно 50. В Меркаторе высокие широты растянуты,
+            // поэтому 55° находится дальше от верхнего края (60°): Y > 50 (≈ 53.13)
+            expect(expectedMercY).toBeGreaterThan(50);
+            expect(expectedMercY).toBeCloseTo(53.13, 1);
+        });
+
+        it('при useMercator: false рассчитывает координаты линейно', () => {
+            const ctx = createMockClipContext();
+            const bbox = [30.0, 50.0, 40.0, 60.0];
+            const width = 100;
+            const height = 100;
+            const polygons = [
+                [[30.0, 60.0], [35.0, 55.0], [40.0, 50.0]]
+            ];
+
+            clipCanvasToPolygons(ctx, polygons, bbox, width, height, { useMercator: false });
+
+            // Линейно: Y для 55° ровно посередине = 50
+            expect(ctx.lineTo).toHaveBeenCalledWith(50, 50);
+        });
+
+        it('безопасно завершается при невалидном контексте или пустых полигонах', () => {
+            expect(() => clipCanvasToPolygons(null, [], [0, 0, 1, 1], 100, 100)).not.toThrow();
+            expect(() => clipCanvasToPolygons({}, null, [0, 0, 1, 1], 100, 100)).not.toThrow();
+            expect(() => clipCanvasToPolygons({}, [[]], [0, 0, 1, 1], 100, 100)).not.toThrow();
+        });
+    });
+
+    describe('5. Фабрика createFieldCanvas', () => {
         it('создаёт холст с дефолтными размерами 150x150', () => {
             const canvas = createFieldCanvas();
             expect(canvas.width).toBe(DEFAULT_CANVAS_WIDTH);
@@ -140,7 +212,7 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('5. Производительность', () => {
+    describe('6. Производительность', () => {
         it('заполняет буфер 150x150 (22 500 пикселей) менее чем за 15 мс', () => {
             const size = 150 * 150;
             const grid = new Float32Array(size);
@@ -157,3 +229,4 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 });
+

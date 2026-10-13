@@ -4,7 +4,7 @@
  * на основе интерполированной сетки EAQI и непрерывной RGB-шкалы проекта types.js.
  */
 
-import { interpolateGrid } from './idwInterpolator.js';
+import { interpolateGrid, latToMercator } from './idwInterpolator.js';
 
 export const DEFAULT_CANVAS_WIDTH = 150;
 export const DEFAULT_CANVAS_HEIGHT = 150;
@@ -109,8 +109,9 @@ export function createFieldCanvas(width = DEFAULT_CANVAS_WIDTH, height = DEFAULT
  * @param {[number, number, number, number]} bbox - [minLon, minLat, maxLon, maxLat]
  * @param {number} width - ширина холста
  * @param {number} height - высота холста
+ * @param {Object} [options={}] - параметры (useMercator)
  */
-export function clipCanvasToPolygons(ctx, polygons, bbox, width, height) {
+export function clipCanvasToPolygons(ctx, polygons, bbox, width, height, options = {}) {
     if (
         !ctx ||
         !polygons ||
@@ -131,6 +132,12 @@ export function clipCanvasToPolygons(ctx, polygons, bbox, width, height) {
     const latSpan = maxLat - minLat;
     if (lonSpan <= 0 || latSpan <= 0) return;
 
+    const useMercator = options?.useMercator !== false;
+    const minMercY = useMercator ? latToMercator(minLat) : null;
+    const maxMercY = useMercator ? latToMercator(maxLat) : null;
+    const mercDiff = useMercator ? maxMercY - minMercY : null;
+    const hasValidMerc = useMercator && mercDiff !== null && mercDiff > 0;
+
     ctx.save();
     ctx.globalCompositeOperation = 'destination-in';
     ctx.beginPath();
@@ -140,12 +147,16 @@ export function clipCanvasToPolygons(ctx, polygons, bbox, width, height) {
         if (!ring || ring.length < 3) continue;
 
         const startX = ((ring[0][0] - minLon) / lonSpan) * width;
-        const startY = ((maxLat - ring[0][1]) / latSpan) * height;
+        const startY = hasValidMerc
+            ? ((maxMercY - latToMercator(ring[0][1])) / mercDiff) * height
+            : ((maxLat - ring[0][1]) / latSpan) * height;
         ctx.moveTo(startX, startY);
 
         for (let i = 1; i < ring.length; i++) {
             const x = ((ring[i][0] - minLon) / lonSpan) * width;
-            const y = ((maxLat - ring[i][1]) / latSpan) * height;
+            const y = hasValidMerc
+                ? ((maxMercY - latToMercator(ring[i][1])) / mercDiff) * height
+                : ((maxLat - ring[i][1]) / latSpan) * height;
             ctx.lineTo(x, y);
         }
         ctx.closePath();
@@ -179,6 +190,9 @@ export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, op
     const width = opts.width || canvas.width || DEFAULT_CANVAS_WIDTH;
     const height = opts.height || canvas.height || DEFAULT_CANVAS_HEIGHT;
 
+    const useMercator = opts.useMercator !== false;
+    opts = { ...opts, useMercator };
+
     let grid;
     if (gridOrPoints instanceof Float32Array || (Array.isArray(gridOrPoints) && typeof gridOrPoints[0] === 'number')) {
         grid = gridOrPoints;
@@ -198,7 +212,7 @@ export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, op
         ctx.putImageData(imgData, 0, 0);
 
         if (opts.maskPolygons) {
-            clipCanvasToPolygons(ctx, opts.maskPolygons, bbox || [0, 0, 1, 1], width, height);
+            clipCanvasToPolygons(ctx, opts.maskPolygons, bbox || [0, 0, 1, 1], width, height, opts);
         }
     }
 

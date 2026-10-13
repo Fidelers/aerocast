@@ -202,7 +202,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
-        useMercator = false
+        useMercator = true
     } = options;
 
     const totalPixels = width * height;
