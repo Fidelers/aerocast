@@ -109,6 +109,25 @@ function bboxToImageCoordinates(bbox) {
     ];
 }
 
+// Фиксированный bbox макро-слоя: покрывает ВСЮ территорию РФ
+const RUSSIA_MACRO_BBOX = [19.5, 41.0, 190.5, 82.0];
+
+// Нормализация долгот маски государственной границы: Чукотка к востоку
+function normalizeBoundaryLongitudes(polygons) {
+    if (!Array.isArray(polygons)) return polygons;
+    return polygons.map((ring) => {
+        if (!Array.isArray(ring)) return ring;
+        return ring.map((pt) => (
+            Array.isArray(pt) && typeof pt[0] === 'number' && pt[0] < 0
+                ? [pt[0] + 360, pt[1]]
+                : pt
+        ));
+    });
+}
+
+// Маска границы РФ с нормализованными долготами (вычисляется один раз на модуль)
+const RUSSIA_BOUNDARIES_NORMALIZED = normalizeBoundaryLongitudes(russiaBoundaries);
+
 // Расчет приближенного расстояния в километрах между двумя географическими координатами
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     const R = 6371; // Радиус Земли в км
@@ -594,15 +613,8 @@ export default function MapComponent({
         }
 
         const mapInstance = map.current;
-        const gridBbox = macroGrid.bbox || (
-            macroGrid.points.length ? [
-                Math.min(...macroGrid.points.map(p => p.lon)),
-                Math.min(...macroGrid.points.map(p => p.lat)),
-                Math.max(...macroGrid.points.map(p => p.lon)),
-                Math.max(...macroGrid.points.map(p => p.lat))
-            ] : null
-        );
-        if (!gridBbox) return;
+        // Макро-слой всегда рисуется в фиксированном bbox всей России,
+        const gridBbox = RUSSIA_MACRO_BBOX;
 
         const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
@@ -616,7 +628,7 @@ export default function MapComponent({
         const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
         const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
             timeIndex,
-            maskPolygons: russiaBoundaries,
+            maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
             useMercator: true
         });
         const dataUrl = result.toDataUrl();

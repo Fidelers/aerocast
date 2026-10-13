@@ -207,13 +207,54 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
                     type: 'image',
                     url: expect.stringContaining('data:image/png;base64,'),
                     coordinates: [
-                        [60.0, 65.0],  // Top-Left: [minLon, maxLat]
-                        [110.0, 65.0], // Top-Right: [maxLon, maxLat]
-                        [110.0, 45.0], // Bottom-Right: [maxLon, minLat]
-                        [60.0, 45.0]   // Bottom-Left: [minLon, minLat]
+                        [19.5, 82.0],   // Top-Left: [minLon, maxLat]
+                        [190.5, 82.0],  // Top-Right: [maxLon, maxLat]
+                        [190.5, 41.0],  // Bottom-Right: [maxLon, minLat]
+                        [19.5, 41.0]    // Bottom-Left: [minLon, minLat]
                     ]
                 })
             );
+        });
+
+        it('1.1b. Макро-слой покрывает всю Россию: север > 81°N и восток > 190°E (Чукотка за антмеридианом)', () => {
+            // Регресс-тест обрезки севера и востока: bbox макро-слоя не должен
+            // вычисляться из опорных точек сетки (они доходят только до 71.6°N / 177.5°E)
+            render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            const sourceCall = mockAddSource.mock.calls.find(c => c[0] === 'air-grid-macro-source');
+            const coords = sourceCall[1].coordinates;
+            const lons = coords.map(c => c[0]);
+            const lats = coords.map(c => c[1]);
+
+            expect(Math.max(...lats)).toBeGreaterThanOrEqual(81.85);  // maxLat: Земля Франца-Иосифа
+            expect(Math.max(...lons)).toBeGreaterThanOrEqual(190.27); // maxLon: восточная Чукотка
+            expect(Math.min(...lons)).toBeLessThanOrEqual(19.61);     // minLon: Калининград
+            expect(Math.min(...lats)).toBeLessThanOrEqual(41.22);     // minLat: юг Дагестана
+        });
+
+        it('1.1c. Маска границы передается в рендерер без отрицательных долгот (Чукотка сдвинута в 180..191)', async () => {
+            const { renderFieldToCanvas } = await import('../../src/utils/canvasFieldRenderer.js');
+            render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            const renderCall = renderFieldToCanvas.mock.calls.find(c => c[3]?.maskPolygons);
+            expect(renderCall).toBeTruthy();
+
+            const rings = renderCall[3].maskPolygons;
+            const allLons = rings.flat().map(pt => pt[0]);
+
+            // Отрицательные долготы (Чукотка за антмеридианом) должны быть сдвинуты: -180..-169 -> 180..191
+            expect(allLons.every(lon => lon >= 0)).toBe(true);
+            expect(Math.max(...allLons)).toBeGreaterThan(180);
         });
 
         it('1.2. Создает слой air-grid-macro-layer типа raster с raster-fade-duration 300 строго под DOM-маркерами', () => {
@@ -526,7 +567,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             expect(renderFieldToCanvas).toHaveBeenCalledWith(
                 expect.anything(),
                 timedMacroGrid.points,
-                timedMacroGrid.bbox,
+                [19.5, 41.0, 190.5, 82.0],
                 expect.objectContaining({ timeIndex: 2 })
             );
         });
@@ -544,7 +585,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             expect(renderFieldToCanvas).toHaveBeenCalledWith(
                 expect.anything(),
                 timedMacroGrid.points,
-                timedMacroGrid.bbox,
+                [19.5, 41.0, 190.5, 82.0],
                 expect.objectContaining({ timeIndex: 3 })
             );
         });
@@ -562,7 +603,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             expect(renderFieldToCanvas).toHaveBeenCalledWith(
                 expect.anything(),
                 timedMacroGrid.points,
-                timedMacroGrid.bbox,
+                [19.5, 41.0, 190.5, 82.0],
                 expect.objectContaining({ timeIndex: 1 })
             );
         });
