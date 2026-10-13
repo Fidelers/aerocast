@@ -139,6 +139,27 @@ export function resolveGridTimeIndex(grid, selectedIsoTime, fallbackIndex) {
     return fallbackIndex ?? 0;
 }
 
+// Надежное ожидание готовности стиля MapLibre с поддержкой styledata
+function runWhenStyleReady(mapInstance, callback) {
+    if (!mapInstance) return;
+    if ((mapInstance.style && typeof mapInstance.getStyle === 'function' && mapInstance.getStyle()) ||
+        (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded())) {
+        callback();
+    } else if (typeof mapInstance.once === 'function') {
+        const onReady = () => {
+            if (mapInstance.style || (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded())) {
+                callback();
+            } else {
+                mapInstance.once('styledata', onReady);
+            }
+        };
+        mapInstance.once('load', onReady);
+        mapInstance.once('styledata', onReady);
+    } else {
+        callback();
+    }
+}
+
 export default function MapComponent({
     lat,
     lon,
@@ -174,6 +195,7 @@ export default function MapComponent({
     const macroGridRef = useRef(macroGrid);
     const microGridRef = useRef(microGrid);
     const selectedTimeIndexRef = useRef(selectedTimeIndex);
+    const updateLodOpacityRef = useRef(null);
 
     useEffect(() => {
         onMarkerClickRef.current = onMarkerClick;
@@ -264,12 +286,13 @@ export default function MapComponent({
                 macroOpacity = 0.70;
                 microOpacity = 0.0;
             } else if (currentZoom >= 9.0) {
-                macroOpacity = 0.0;
+                macroOpacity = microGridRef.current ? 0.0 : 0.50;
                 microOpacity = 0.70;
             } else {
                 // Плавный линейный кроссфейд на интервале [8.5 .. 9.0]
                 const t = (currentZoom - 8.5) / (9.0 - 8.5);
-                macroOpacity = 0.70 * (1 - t);
+                const targetMacro = microGridRef.current ? 0.0 : 0.50;
+                macroOpacity = 0.70 * (1 - t) + targetMacro * t;
                 microOpacity = 0.70 * t;
             }
 
@@ -280,6 +303,8 @@ export default function MapComponent({
                 map.current.setPaintProperty(MICRO_LAYER_ID, 'raster-opacity', microOpacity);
             }
         };
+
+        updateLodOpacityRef.current = updateLodOpacity;
 
         const handleMoveStart = () => {
             // Очищаем активный дебаунс-таймер перемещения
@@ -588,6 +613,7 @@ export default function MapComponent({
             timeIndex
         });
         const dataUrl = result.toDataUrl();
+        if (!dataUrl) return;
 
         const applyMacroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
@@ -629,10 +655,11 @@ export default function MapComponent({
                 const currentZoom = typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 11;
                 let initialOpacity = 0.70;
                 if (currentZoom > 9.0) {
-                    initialOpacity = 0.0;
+                    initialOpacity = microGridRef.current ? 0.0 : 0.50;
                 } else if (currentZoom > 8.5) {
                     const t = (currentZoom - 8.5) / 0.5;
-                    initialOpacity = 0.70 * (1 - t);
+                    const targetMacro = microGridRef.current ? 0.0 : 0.50;
+                    initialOpacity = 0.70 * (1 - t) + targetMacro * t;
                 }
 
                 mapInstance.addLayer({
@@ -647,11 +674,10 @@ export default function MapComponent({
             }
         };
 
-        if (typeof mapInstance.isStyleLoaded === 'function' && !mapInstance.isStyleLoaded()) {
-            mapInstance.once('load', applyMacroLayer);
-        } else {
+        runWhenStyleReady(mapInstance, () => {
             applyMacroLayer();
-        }
+            if (updateLodOpacityRef.current) updateLodOpacityRef.current();
+        });
     }, [macroGrid, selectedTimeIndex, selectedIsoTime]);
 
     // Эффект отрисовки и обновления микро-слоя (microGrid)
@@ -685,6 +711,7 @@ export default function MapComponent({
             timeIndex
         });
         const dataUrl = result.toDataUrl();
+        if (!dataUrl) return;
 
         const applyMicroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
@@ -744,11 +771,10 @@ export default function MapComponent({
             }
         };
 
-        if (typeof mapInstance.isStyleLoaded === 'function' && !mapInstance.isStyleLoaded()) {
-            mapInstance.once('load', applyMicroLayer);
-        } else {
+        runWhenStyleReady(mapInstance, () => {
             applyMicroLayer();
-        }
+            if (updateLodOpacityRef.current) updateLodOpacityRef.current();
+        });
     }, [microGrid, selectedTimeIndex, selectedIsoTime]);
 
     return (

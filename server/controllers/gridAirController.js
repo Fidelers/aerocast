@@ -127,15 +127,24 @@ async function getGridAirQuality(req, res) {
 
 //макро
 async function getMacroGrid(req, res) {
-    req.query = { ...req.query, type: 'macro'};
+    Object.defineProperty(req, 'query', {
+        value: { ...(req.query || {}), type: 'macro' },
+        writable: true,
+        enumerable: true,
+        configurable: true
+    });
     return getGridAirQuality(req, res);
 }
 
 //микро
 async function getMicroGrid(req, res) {
-    req.query = { ...req.query, type: 'micro'};
+    Object.defineProperty(req, 'query', {
+        value: { ...(req.query || {}), type: 'micro' },
+        writable: true,
+        enumerable: true,
+        configurable: true
+    });
     return getGridAirQuality(req, res);
-    
 }
 
 //очистка пространственного кэша

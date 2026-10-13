@@ -88,14 +88,14 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
  * @returns {OffscreenCanvas|HTMLCanvasElement|{width: number, height: number}}
  */
 export function createFieldCanvas(width = DEFAULT_CANVAS_WIDTH, height = DEFAULT_CANVAS_HEIGHT) {
-    if (typeof OffscreenCanvas !== 'undefined') {
-        return new OffscreenCanvas(width, height);
-    }
     if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         return canvas;
+    }
+    if (typeof OffscreenCanvas !== 'undefined') {
+        return new OffscreenCanvas(width, height);
     }
     return { width, height };
 }
