@@ -4,7 +4,7 @@
  * на основе интерполированной сетки EAQI и непрерывной RGB-шкалы проекта types.js.
  */
 
-import { interpolateGrid } from './idwInterpolator.js';
+import { interpolateGrid, latToMercator } from './idwInterpolator.js';
 
 export const DEFAULT_CANVAS_WIDTH = 150;
 export const DEFAULT_CANVAS_HEIGHT = 150;
@@ -88,16 +88,83 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
  * @returns {OffscreenCanvas|HTMLCanvasElement|{width: number, height: number}}
  */
 export function createFieldCanvas(width = DEFAULT_CANVAS_WIDTH, height = DEFAULT_CANVAS_HEIGHT) {
-    if (typeof OffscreenCanvas !== 'undefined') {
-        return new OffscreenCanvas(width, height);
-    }
     if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         return canvas;
     }
+    if (typeof OffscreenCanvas !== 'undefined') {
+        return new OffscreenCanvas(width, height);
+    }
     return { width, height };
+}
+
+/**
+ * Клиппирует контекст Canvas по набору полигонов (например, государственным границам РФ),
+ * делая все пиксели за пределами полигонов абсолютно прозрачными (alpha = 0).
+ *
+ * @param {CanvasRenderingContext2D} ctx - 2D контекст холста
+ * @param {Array<Array<[number, number]>>} polygons - массив колец полигонов [[lon, lat], ...]
+ * @param {[number, number, number, number]} bbox - [minLon, minLat, maxLon, maxLat]
+ * @param {number} width - ширина холста
+ * @param {number} height - высота холста
+ * @param {Object} [options={}] - параметры (useMercator)
+ */
+export function clipCanvasToPolygons(ctx, polygons, bbox, width, height, options = {}) {
+    if (
+        !ctx ||
+        !polygons ||
+        !Array.isArray(polygons) ||
+        polygons.length === 0 ||
+        !bbox ||
+        bbox.length !== 4 ||
+        typeof ctx.save !== 'function' ||
+        typeof ctx.beginPath !== 'function' ||
+        typeof ctx.fill !== 'function' ||
+        typeof ctx.restore !== 'function'
+    ) {
+        return;
+    }
+
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    const lonSpan = maxLon - minLon;
+    const latSpan = maxLat - minLat;
+    if (lonSpan <= 0 || latSpan <= 0) return;
+
+    const useMercator = options?.useMercator !== false;
+    const minMercY = useMercator ? latToMercator(minLat) : null;
+    const maxMercY = useMercator ? latToMercator(maxLat) : null;
+    const mercDiff = useMercator ? maxMercY - minMercY : null;
+    const hasValidMerc = useMercator && mercDiff !== null && mercDiff > 0;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath();
+
+    for (let p = 0; p < polygons.length; p++) {
+        const ring = polygons[p];
+        if (!ring || ring.length < 3) continue;
+
+        const startX = ((ring[0][0] - minLon) / lonSpan) * width;
+        const startY = hasValidMerc
+            ? ((maxMercY - latToMercator(ring[0][1])) / mercDiff) * height
+            : ((maxLat - ring[0][1]) / latSpan) * height;
+        ctx.moveTo(startX, startY);
+
+        for (let i = 1; i < ring.length; i++) {
+            const x = ((ring[i][0] - minLon) / lonSpan) * width;
+            const y = hasValidMerc
+                ? ((maxMercY - latToMercator(ring[i][1])) / mercDiff) * height
+                : ((maxLat - ring[i][1]) / latSpan) * height;
+            ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+    }
+
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    ctx.restore();
 }
 
 /**
@@ -123,6 +190,9 @@ export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, op
     const width = opts.width || canvas.width || DEFAULT_CANVAS_WIDTH;
     const height = opts.height || canvas.height || DEFAULT_CANVAS_HEIGHT;
 
+    const useMercator = opts.useMercator !== false;
+    opts = { ...opts, useMercator };
+
     let grid;
     if (gridOrPoints instanceof Float32Array || (Array.isArray(gridOrPoints) && typeof gridOrPoints[0] === 'number')) {
         grid = gridOrPoints;
@@ -140,6 +210,10 @@ export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, op
         const imgData = ctx.createImageData(width, height);
         renderFieldToBuffer(grid, imgData, width, height, opts);
         ctx.putImageData(imgData, 0, 0);
+
+        if (opts.maskPolygons) {
+            clipCanvasToPolygons(ctx, opts.maskPolygons, bbox || [0, 0, 1, 1], width, height, opts);
+        }
     }
 
     return {

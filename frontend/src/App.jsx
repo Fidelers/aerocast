@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
@@ -6,12 +6,14 @@ import AboutModal from './components/AboutModal';
 import RightAirPanel from './components/RightAirPanel';
 import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
+import useAirGrid from './hooks/useAirGrid';
 
-// Координаты по умолчанию: Новокузнецк
 const DEFAULT_COORDS = {
     lat: 53.7596,
     lon: 87.1467
 };
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function App() {
     const [airData, setAirData] = useState(null);
@@ -23,6 +25,32 @@ function App() {
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+    // подключаем сетку качества воздуха
+    const { macroGrid, microGrid, loadMicroGrid } = useAirGrid({ baseUrl: API_BASE });
+
+    // загружаем микро-сетку при смене города
+    useEffect(() => {
+        const lat = Number(coords?.lat);
+        const lon = Number(coords?.lon);
+        if (!Number.isNaN(lat) && !Number.isNaN(lon) && coords?.lat != null && coords?.lon != null) {
+            loadMicroGrid(lat, lon);
+        }
+    }, [coords.lat, coords.lon, loadMicroGrid]);
+
+    // подгрузка микро-сетки при перемещении области видимости карты
+    const handleViewportMove = useCallback((newCoords) => {
+        const lat = Number(newCoords?.lat);
+        const lon = Number(newCoords?.lon);
+        if (!Number.isNaN(lat) && !Number.isNaN(lon) && newCoords?.lat != null && newCoords?.lon != null) {
+            loadMicroGrid(lat, lon);
+        }
+    }, [loadMicroGrid]);
+
+    // точная ISO-метка времени для синхронизации
+    const selectedIsoTime =
+        selectedTimeIndex !== null && selectedTimeIndex !== undefined && airData?.hourly?.time?.[selectedTimeIndex]
+            ? airData.hourly.time[selectedTimeIndex]
+            : undefined;
 
     // Сохранение выбранного слоя в localStorage под ключом aerocast_map_layer
     const [activeBaseLayer, setActiveBaseLayer] = useState(() => {
@@ -52,9 +80,8 @@ function App() {
         let isMounted = true;
         setIsLoading(true);
         setLoadError(null);
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-        fetch(`${apiBase}/api/air-quality?lat=${coords.lat}&lon=${coords.lon}`)
+        fetch(`${API_BASE}/api/air-quality?lat=${coords.lat}&lon=${coords.lon}`)
             .then((response) => {
                 if (!response.ok) {
                     throw new Error(`Ошибка сервера: ${response.status}`);
@@ -170,12 +197,16 @@ function App() {
                     lon={coords.lon}
                     airData={airData}
                     selectedTimeIndex={selectedTimeIndex}
+                    selectedIsoTime={selectedIsoTime}
+                    macroGrid={macroGrid}
+                    microGrid={microGrid}
                     viewMode={viewMode}
                     onMapClick={handleLocationSelect}
                     onLocationSelect={handleLocationSelect}
                     onMarkerClick={() => setIsRightPanelOpen(true)}
                     activeBaseLayer={activeBaseLayer}
                     recenterTrigger={recenterTrigger}
+                    onViewportMove={handleViewportMove}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}

@@ -45,6 +45,14 @@ export const osmStyle = {
         visibility: 'none',
       },
     },
+    // слой-якорь для позиционирования оверлеев под DOM-маркерами
+    {
+      id: 'map-marker',
+      type: 'background',
+      layout: {
+        visibility: 'none',
+      },
+    },
   ],
 };
 

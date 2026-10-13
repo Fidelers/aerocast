@@ -53,12 +53,24 @@ async function getGridAirQuality(req, res) {
         try {
             let coordinates;
             let microData = null;
+            let bbox = null;
 
             if (type === 'macro') {
-            coordinates = batchAirService.generateMacroGridCoordinates();
+                coordinates = batchAirService.generateMacroGridCoordinates();
+                if (Array.isArray(coordinates) && coordinates.length > 0) {
+                    const lats = coordinates.map(p => p.lat);
+                    const lons = coordinates.map(p => p.lon);
+                    bbox = [
+                        Math.min(...lons),
+                        Math.min(...lats),
+                        Math.max(...lons),
+                        Math.max(...lats)
+                    ];
+                }
             } else {
                 microData = batchAirService.generateMicroGridCoordinates(latNum, lonNum);
                 coordinates = Array.isArray(microData) ? microData : (microData?.points || microData?.coordinates || []);
+                bbox = microData?.bbox || null;
             }
 
 
@@ -67,13 +79,13 @@ async function getGridAirQuality(req, res) {
 
             //итоговый объект для кэша и ответа
             const payload = {
-            type,
-            ...(microData?.bbox ? { bbox: microData.bbox } : {}),
-            used_source: 'open-meteo',
-            points_count: normalized?.points?.length || coordinates?.length || 0,
-            time: normalized?.time,
-            points: normalized?.points || []
-        };
+                type,
+                ...(bbox ? { bbox } : {}),
+                used_source: 'open-meteo',
+                points_count: normalized?.points?.length || coordinates?.length || 0,
+                time: normalized?.time,
+                points: normalized?.points || []
+            };
 
         //сохранение на часик в кэщ
         try {
@@ -115,15 +127,24 @@ async function getGridAirQuality(req, res) {
 
 //макро
 async function getMacroGrid(req, res) {
-    req.query = { ...req.query, type: 'macro'};
+    Object.defineProperty(req, 'query', {
+        value: { ...(req.query || {}), type: 'macro' },
+        writable: true,
+        enumerable: true,
+        configurable: true
+    });
     return getGridAirQuality(req, res);
 }
 
 //микро
 async function getMicroGrid(req, res) {
-    req.query = { ...req.query, type: 'micro'};
+    Object.defineProperty(req, 'query', {
+        value: { ...(req.query || {}), type: 'micro' },
+        writable: true,
+        enumerable: true,
+        configurable: true
+    });
     return getGridAirQuality(req, res);
-    
 }
 
 //очистка пространственного кэша

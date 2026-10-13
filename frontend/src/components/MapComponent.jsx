@@ -7,7 +7,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { osmStyle, SATELLITE_MAX_ZOOM, OSM_MAX_ZOOM } from '../styles/mapStyle';
 import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
 import { createFieldCanvas, renderFieldToCanvas } from '../utils/canvasFieldRenderer';
-// import { parseIsoTimeString } from '../utils/timeUtils'; // POPUP DISABLED
+import { parseIsoTimeString } from '../utils/timeUtils';
+import russiaBoundaries from '../utils/russiaBoundary2026.js';
 
 /* POPUP DISABLED — используется RightAirPanel
 const POLLUTANTS = [
@@ -121,11 +122,51 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Сопоставление временного среза сетки с выбранной меткой времени
+export function resolveGridTimeIndex(grid, selectedIsoTime, fallbackIndex) {
+    if (grid && Array.isArray(grid.time) && selectedIsoTime) {
+        const exactIndex = grid.time.indexOf(selectedIsoTime);
+        if (exactIndex !== -1) return exactIndex;
+
+        const targetParsed = parseIsoTimeString(selectedIsoTime);
+        if (targetParsed) {
+            const dateHourIndex = grid.time.findIndex((t) => {
+                const p = parseIsoTimeString(t);
+                return p && p.dateStr === targetParsed.dateStr && p.hour === targetParsed.hour;
+            });
+            if (dateHourIndex !== -1) return dateHourIndex;
+        }
+    }
+    return fallbackIndex ?? 0;
+}
+
+// Надежное ожидание готовности стиля MapLibre с поддержкой styledata
+function runWhenStyleReady(mapInstance, callback) {
+    if (!mapInstance) return;
+    if ((mapInstance.style && typeof mapInstance.getStyle === 'function' && mapInstance.getStyle()) ||
+        (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded())) {
+        callback();
+    } else if (typeof mapInstance.once === 'function') {
+        const onReady = () => {
+            if (mapInstance.style || (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded())) {
+                callback();
+            } else {
+                mapInstance.once('styledata', onReady);
+            }
+        };
+        mapInstance.once('load', onReady);
+        mapInstance.once('styledata', onReady);
+    } else {
+        callback();
+    }
+}
+
 export default function MapComponent({
     lat,
     lon,
     airData,
     selectedTimeIndex,
+    selectedIsoTime,
     viewMode,
     onLocationSelect,
     onMapClick,
@@ -155,6 +196,7 @@ export default function MapComponent({
     const macroGridRef = useRef(macroGrid);
     const microGridRef = useRef(microGrid);
     const selectedTimeIndexRef = useRef(selectedTimeIndex);
+    const updateLodOpacityRef = useRef(null);
 
     useEffect(() => {
         onMarkerClickRef.current = onMarkerClick;
@@ -197,6 +239,10 @@ export default function MapComponent({
             maxZoom: activeBaseLayer === 'satellite' ? SATELLITE_MAX_ZOOM : OSM_MAX_ZOOM,
             attributionControl: false,
         });
+
+        if (typeof window !== 'undefined') {
+            window.__aerocastMap = map.current;
+        }
 
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
@@ -245,12 +291,13 @@ export default function MapComponent({
                 macroOpacity = 0.70;
                 microOpacity = 0.0;
             } else if (currentZoom >= 9.0) {
-                macroOpacity = 0.0;
+                macroOpacity = microGridRef.current ? 0.0 : 0.50;
                 microOpacity = 0.70;
             } else {
                 // Плавный линейный кроссфейд на интервале [8.5 .. 9.0]
                 const t = (currentZoom - 8.5) / (9.0 - 8.5);
-                macroOpacity = 0.70 * (1 - t);
+                const targetMacro = microGridRef.current ? 0.0 : 0.50;
+                macroOpacity = 0.70 * (1 - t) + targetMacro * t;
                 microOpacity = 0.70 * t;
             }
 
@@ -261,6 +308,8 @@ export default function MapComponent({
                 map.current.setPaintProperty(MICRO_LAYER_ID, 'raster-opacity', microOpacity);
             }
         };
+
+        updateLodOpacityRef.current = updateLodOpacity;
 
         const handleMoveStart = () => {
             // Очищаем активный дебаунс-таймер перемещения
@@ -540,12 +589,22 @@ export default function MapComponent({
 
     // Эффект отрисовки и обновления макро-слоя (macroGrid)
     useEffect(() => {
-        if (!map.current || !macroGrid || !macroGrid.bbox || !macroGrid.points) {
+        if (!map.current || !macroGrid || !macroGrid.points) {
             return;
         }
 
         const mapInstance = map.current;
-        const coords = bboxToImageCoordinates(macroGrid.bbox);
+        const gridBbox = macroGrid.bbox || (
+            macroGrid.points.length ? [
+                Math.min(...macroGrid.points.map(p => p.lon)),
+                Math.min(...macroGrid.points.map(p => p.lat)),
+                Math.max(...macroGrid.points.map(p => p.lon)),
+                Math.max(...macroGrid.points.map(p => p.lat))
+            ] : null
+        );
+        if (!gridBbox) return;
+
+        const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
         // Инициализация рабочего Canvas буфера для макро-сетки
@@ -554,15 +613,23 @@ export default function MapComponent({
         }
 
         const canvas = macroCanvasRef.current;
-        const result = renderFieldToCanvas(canvas, macroGrid.points, macroGrid.bbox, {
-            timeIndex: selectedTimeIndex ?? 0
+        const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
+        const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
+            timeIndex,
+            maskPolygons: russiaBoundaries,
+            useMercator: true
         });
         const dataUrl = result.toDataUrl();
+        if (!dataUrl) return;
 
         const applyMacroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
 
             const existingSource = mapInstance.getSource(MACRO_SOURCE_ID);
+            const beforeLayerId = (mapInstance.getLayer && mapInstance.getLayer(MICRO_LAYER_ID))
+                ? MICRO_LAYER_ID
+                : 'map-marker';
+
             if (existingSource) {
                 if (typeof existingSource.updateImage === 'function') {
                     existingSource.updateImage({
@@ -587,7 +654,7 @@ export default function MapComponent({
                             'raster-opacity': 0.70,
                             'raster-fade-duration': 300
                         }
-                    }, 'map-marker');
+                    }, beforeLayerId);
                 }
             } else {
                 mapInstance.addSource(MACRO_SOURCE_ID, {
@@ -599,10 +666,11 @@ export default function MapComponent({
                 const currentZoom = typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 11;
                 let initialOpacity = 0.70;
                 if (currentZoom > 9.0) {
-                    initialOpacity = 0.0;
+                    initialOpacity = microGridRef.current ? 0.0 : 0.50;
                 } else if (currentZoom > 8.5) {
                     const t = (currentZoom - 8.5) / 0.5;
-                    initialOpacity = 0.70 * (1 - t);
+                    const targetMacro = microGridRef.current ? 0.0 : 0.50;
+                    initialOpacity = 0.70 * (1 - t) + targetMacro * t;
                 }
 
                 mapInstance.addLayer({
@@ -613,25 +681,50 @@ export default function MapComponent({
                         'raster-opacity': initialOpacity,
                         'raster-fade-duration': 300
                     }
-                }, 'map-marker');
+                }, beforeLayerId);
             }
         };
 
-        if (typeof mapInstance.isStyleLoaded === 'function' && !mapInstance.isStyleLoaded()) {
-            mapInstance.once('load', applyMacroLayer);
-        } else {
+        runWhenStyleReady(mapInstance, () => {
             applyMacroLayer();
-        }
-    }, [macroGrid, selectedTimeIndex]);
+            if (updateLodOpacityRef.current) updateLodOpacityRef.current();
+        });
+    }, [macroGrid, selectedTimeIndex, selectedIsoTime]);
 
     // Эффект отрисовки и обновления микро-слоя (microGrid)
     useEffect(() => {
-        if (!map.current || !microGrid || !microGrid.bbox || !microGrid.points) {
+        if (!map.current || !microGrid || !microGrid.points) {
             return;
         }
 
         const mapInstance = map.current;
-        const coords = bboxToImageCoordinates(microGrid.bbox);
+        const baseBbox = microGrid.bbox || (
+            microGrid.points.length ? [
+                Math.min(...microGrid.points.map(p => p.lon)),
+                Math.min(...microGrid.points.map(p => p.lat)),
+                Math.max(...microGrid.points.map(p => p.lon)),
+                Math.max(...microGrid.points.map(p => p.lat))
+            ] : null
+        );
+        if (!baseBbox) return;
+
+        let gridBbox = baseBbox;
+        // Расширяем границы микро-слоя (если явно не выключено expandBbox: false),
+        // чтобы до перехода зума на макро (зум 8.5–9.0) микро-градиент заполнял весь экран
+        if (microGrid.expandBbox !== false) {
+            const centerLon = microGrid.center?.lon ?? ((baseBbox[0] + baseBbox[2]) / 2);
+            const centerLat = microGrid.center?.lat ?? ((baseBbox[1] + baseBbox[3]) / 2);
+            const EXPAND_HALF_LON = 4.0;
+            const EXPAND_HALF_LAT = 2.5;
+            gridBbox = [
+                Math.max(-180, Number((centerLon - EXPAND_HALF_LON).toFixed(4))),
+                Math.max(-85, Number((centerLat - EXPAND_HALF_LAT).toFixed(4))),
+                Math.min(180, Number((centerLon + EXPAND_HALF_LON).toFixed(4))),
+                Math.min(85, Number((centerLat + EXPAND_HALF_LAT).toFixed(4)))
+            ];
+        }
+
+        const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
         // Инициализация рабочего Canvas буфера для микро-сетки
@@ -640,10 +733,13 @@ export default function MapComponent({
         }
 
         const canvas = microCanvasRef.current;
-        const result = renderFieldToCanvas(canvas, microGrid.points, microGrid.bbox, {
-            timeIndex: selectedTimeIndex ?? 0
+        const timeIndex = resolveGridTimeIndex(microGrid, selectedIsoTime, selectedTimeIndex);
+        const result = renderFieldToCanvas(canvas, microGrid.points, gridBbox, {
+            timeIndex,
+            useMercator: true
         });
         const dataUrl = result.toDataUrl();
+        if (!dataUrl) return;
 
         const applyMicroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
@@ -701,14 +797,22 @@ export default function MapComponent({
                     }
                 }, 'map-marker');
             }
+
+            // Гарантируем, что макро-слой всегда располагается СТРОГО ПОД микро-слоем
+            if (mapInstance.getLayer && mapInstance.getLayer(MACRO_LAYER_ID) && mapInstance.getLayer(MICRO_LAYER_ID) && typeof mapInstance.moveLayer === 'function') {
+                try {
+                    mapInstance.moveLayer(MACRO_LAYER_ID, MICRO_LAYER_ID);
+                } catch {
+                    // защитная обработка
+                }
+            }
         };
 
-        if (typeof mapInstance.isStyleLoaded === 'function' && !mapInstance.isStyleLoaded()) {
-            mapInstance.once('load', applyMicroLayer);
-        } else {
+        runWhenStyleReady(mapInstance, () => {
             applyMicroLayer();
-        }
-    }, [microGrid, selectedTimeIndex]);
+            if (updateLodOpacityRef.current) updateLodOpacityRef.current();
+        });
+    }, [microGrid, selectedTimeIndex, selectedIsoTime]);
 
     return (
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
