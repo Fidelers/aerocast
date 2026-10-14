@@ -184,4 +184,163 @@ describe('Mobile Layout & Responsive Controls (Оптимизация под т�
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(screen.getByText(/О проекте Aerocast/i)).toBeTruthy();
     });
+
+    it('8. В мобильном сайдбаре присутствует декоративный хэндл на правом краю (.sidebar__drag-handle)', () => {
+        render(<Sidebar isOpen={true} onClose={() => {}} />);
+
+        const handle = document.querySelector('.sidebar__drag-handle');
+        expect(handle).toBeTruthy();
+        expect(handle.getAttribute('data-testid')).toBe('sidebar-drag-handle');
+    });
+
+    it('9. Жест закрытия сайдбара: перетаскивание влево смещает сайдбар в реальном времени (transform: translateX)', () => {
+        render(<Sidebar isOpen={true} onClose={() => {}} />);
+
+        const handle = document.querySelector('.sidebar__drag-handle');
+        const sidebar = document.querySelector('.sidebar');
+
+        // Начинаем жест перетаскивания пальцем за правый край
+        fireEvent.touchStart(handle, { touches: [{ clientX: 300, clientY: 200 }] });
+        // Ведем влево на 80px (300 -> 220)
+        fireEvent.touchMove(handle, { touches: [{ clientX: 220, clientY: 200 }] });
+
+        expect(sidebar.style.transform).toBe('translateX(-80px)');
+    });
+
+    it('10. Жест закрытия сайдбара: при смещении влево больше порога сайдбар уходит за экран и вызывает onClose', async () => {
+        const onCloseMock = vi.fn();
+        render(<Sidebar isOpen={true} onClose={onCloseMock} />);
+
+        const handle = document.querySelector('.sidebar__drag-handle');
+        const sidebar = document.querySelector('.sidebar');
+
+        // Перетаскиваем влево больше порога (на 140px)
+        fireEvent.touchStart(handle, { touches: [{ clientX: 300, clientY: 200 }] });
+        fireEvent.touchMove(handle, { touches: [{ clientX: 160, clientY: 200 }] });
+        fireEvent.touchEnd(handle);
+
+        // Сайдбар уходит за экран
+        expect(sidebar.style.transform).toBe('translateX(-100%)');
+
+        // Вызывается onClose
+        await waitFor(() => {
+            expect(onCloseMock).toHaveBeenCalled();
+        });
+    });
+
+    it('11. Жест закрытия сайдбара: при смещении влево меньше порога сайдбар возвращается на место (snap back к 0)', async () => {
+        const onCloseMock = vi.fn();
+        render(<Sidebar isOpen={true} onClose={onCloseMock} />);
+
+        const handle = document.querySelector('.sidebar__drag-handle');
+        const sidebar = document.querySelector('.sidebar');
+
+        // Смещаем влево всего на 15px (меньше порога)
+        fireEvent.touchStart(handle, { touches: [{ clientX: 300, clientY: 200 }] });
+        fireEvent.touchMove(handle, { touches: [{ clientX: 285, clientY: 200 }] });
+        fireEvent.touchEnd(handle);
+
+        // Сайдбар возвращается на место
+        expect(sidebar.style.transform).toBe('translateX(0)');
+        expect(onCloseMock).not.toHaveBeenCalled();
+    });
+
+    it('12. Жест закрытия показателей (RightAirPanel): перетаскивание вниз смещает панель в реальном времени (transform: translateY)', () => {
+        render(
+            <RightAirPanel
+                airData={mockAirData}
+                selectedTimeIndex={0}
+                isOpen={true}
+                onClose={() => {}}
+            />
+        );
+
+        const handle = document.querySelector('.panel-drag-handle');
+        const panel = document.querySelector('.right-air-panel');
+
+        // Начинаем жест утягивания панели вниз за хэндл
+        fireEvent.touchStart(handle, { touches: [{ clientX: 150, clientY: 100 }] });
+        // Ведем вниз на 90px (100 -> 190)
+        fireEvent.touchMove(handle, { touches: [{ clientX: 150, clientY: 190 }] });
+
+        expect(panel.style.transform).toBe('translateY(90px)');
+    });
+
+    it('13. Жест закрытия показателей: при смещении вниз больше порога панель уходит за экран и вызывает onClose', async () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel
+                airData={mockAirData}
+                selectedTimeIndex={0}
+                isOpen={true}
+                onClose={onCloseMock}
+            />
+        );
+
+        const handle = document.querySelector('.panel-drag-handle');
+        const panel = document.querySelector('.right-air-panel');
+
+        // Перетаскиваем вниз больше порога (на 150px)
+        fireEvent.touchStart(handle, { touches: [{ clientX: 150, clientY: 100 }] });
+        fireEvent.touchMove(handle, { touches: [{ clientX: 150, clientY: 250 }] });
+        fireEvent.touchEnd(handle);
+
+        // Панель уходит за экран вниз
+        expect(panel.style.transform).toBe('translateY(100%)');
+
+        // Вызывается onClose
+        await waitFor(() => {
+            expect(onCloseMock).toHaveBeenCalled();
+        });
+    });
+
+    it('14. Жест закрытия показателей: при смещении вниз меньше порога панель возвращается в исходное положение (snap back)', () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel
+                airData={mockAirData}
+                selectedTimeIndex={0}
+                isOpen={true}
+                onClose={onCloseMock}
+            />
+        );
+
+        const handle = document.querySelector('.panel-drag-handle');
+        const panel = document.querySelector('.right-air-panel');
+
+        // Смещаем вниз всего на 15px (меньше порога)
+        fireEvent.touchStart(handle, { touches: [{ clientX: 150, clientY: 100 }] });
+        fireEvent.touchMove(handle, { touches: [{ clientX: 150, clientY: 115 }] });
+        fireEvent.touchEnd(handle);
+
+        // Панель возвращается в исходное положение
+        expect(panel.style.transform).toBe('translateY(0)');
+        expect(onCloseMock).not.toHaveBeenCalled();
+    });
+
+    it('15. Поддержка управления жестами закрытия через Pointer Events (pointerdown, pointermove, pointerup)', async () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel
+                airData={mockAirData}
+                selectedTimeIndex={0}
+                isOpen={true}
+                onClose={onCloseMock}
+            />
+        );
+
+        const handle = document.querySelector('.panel-drag-handle');
+        const panel = document.querySelector('.right-air-panel');
+
+        fireEvent.pointerDown(handle, { clientX: 150, clientY: 100, pointerType: 'mouse' });
+        fireEvent.pointerMove(handle, { clientX: 150, clientY: 260, pointerType: 'mouse' });
+
+        expect(panel.style.transform).toBe('translateY(160px)');
+
+        fireEvent.pointerUp(handle, { pointerType: 'mouse' });
+
+        await waitFor(() => {
+            expect(onCloseMock).toHaveBeenCalled();
+        });
+    });
 });
