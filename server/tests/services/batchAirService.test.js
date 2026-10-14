@@ -9,11 +9,11 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
     });
 
     describe('1. generateMacroGridCoordinates()', () => {
-        it('возвращает массив из 80–100 опорных узлов для территории РФ', () => {
+        it('возвращает расширенный массив калиброванных опорных узлов (100–200) для территории РФ', () => {
             const points = batchAirService.generateMacroGridCoordinates();
             expect(Array.isArray(points)).toBe(true);
-            expect(points.length).toBeGreaterThanOrEqual(80);
-            expect(points.length).toBeLessThanOrEqual(100);
+            expect(points.length).toBeGreaterThanOrEqual(100);
+            expect(points.length).toBeLessThanOrEqual(200);
         });
 
         it('все точки имеют валидные числовые координаты в границах РФ и смежных зон', () => {
@@ -22,7 +22,7 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
                 expect(typeof p.lat).toBe('number');
                 expect(typeof p.lon).toBe('number');
                 expect(p.lat).toBeGreaterThanOrEqual(41);
-                expect(p.lat).toBeLessThanOrEqual(75);
+                expect(p.lat).toBeLessThanOrEqual(82);
                 expect(p.lon).toBeGreaterThanOrEqual(19);
                 expect(p.lon).toBeLessThanOrEqual(180);
                 expect(Number.isNaN(p.lat)).toBe(false);

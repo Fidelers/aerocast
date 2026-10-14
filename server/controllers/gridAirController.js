@@ -57,16 +57,7 @@ async function getGridAirQuality(req, res) {
 
             if (type === 'macro') {
                 coordinates = batchAirService.generateMacroGridCoordinates();
-                if (Array.isArray(coordinates) && coordinates.length > 0) {
-                    const lats = coordinates.map(p => p.lat);
-                    const lons = coordinates.map(p => p.lon);
-                    bbox = [
-                        Math.min(...lons),
-                        Math.min(...lats),
-                        Math.max(...lons),
-                        Math.max(...lats)
-                    ];
-                }
+                bbox = [19.5, 41.0, 190.5, 82.0];
             } else {
                 microData = batchAirService.generateMicroGridCoordinates(latNum, lonNum);
                 coordinates = Array.isArray(microData) ? microData : (microData?.points || microData?.coordinates || []);
