@@ -40,7 +40,7 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const apiBase = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : '';
         const response = await fetch(`${apiBase}/api/search?q=${encodeURIComponent(trimmed)}`);
         if (cancelled) return;
         if (!response.ok) {
