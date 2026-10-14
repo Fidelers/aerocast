@@ -6,10 +6,7 @@ const primaryAirService = require('../services/primaryAirService');
 const backupAirService = require('../services/backupAirService');
 const timeUtils = require('../services/timeUtils');
 
-/**
- * ГЛАВНЫЙ эндпоинт получения данных о качестве воздуха
- * GET /api/air-quality?lat=...&lon=...&source=...
- */
+
 async function getAirQuality(req, res) {
     try {
         const { lat: latQuery, lon: lonQuery, source: sourceQuery } = req.query;
@@ -75,19 +72,19 @@ async function getAirQuality(req, res) {
 
             // 6. Полный сбой источников -> Офлайн-резерв
 
-const DEFAULT_HOURLY_UNITS = {
-    time: 'iso8601',
-    pm10: 'μg/m³',
-    pm2_5: 'μg/m³',
-    carbon_monoxide: 'μg/m³',
-    nitrogen_dioxide: 'μg/m³',
-    sulphur_dioxide: 'μg/m³',
-    ozone: 'μg/m³',
-    aerosol_optical_depth: '',
-    dust: 'μg/m³',
-    uv_index: '',
-    european_aqi: 'EAQI'
-};
+            const DEFAULT_HOURLY_UNITS = {
+                time: 'iso8601',
+                pm10: 'μg/m³',
+                pm2_5: 'μg/m³',
+                carbon_monoxide: 'μg/m³',
+                nitrogen_dioxide: 'μg/m³',
+                sulphur_dioxide: 'μg/m³',
+                ozone: 'μg/m³',
+                aerosol_optical_depth: '',
+                dust: 'μg/m³',
+                uv_index: '',
+                european_aqi: 'EAQI'
+            };
 
             // 6.1 Проверка устаревшего кэша (игнорирование TTL)
             const staleData = await cacheService.getCache(cacheKey, true);
@@ -162,6 +159,49 @@ const DEFAULT_HOURLY_UNITS = {
     }
 }
 
+async function locateByIp(req, res) {
+    try {
+        const axios = require('axios');
+        // 1. Попытка через ipwho.is
+        try {
+            const resp = await axios.get('https://ipwho.is/', { timeout: 3500 });
+            if (resp.data && resp.data.success && typeof resp.data.latitude === 'number' && typeof resp.data.longitude === 'number') {
+                return res.json({
+                    latitude: resp.data.latitude,
+                    longitude: resp.data.longitude,
+                    city: resp.data.city || ''
+                });
+            }
+        } catch {
+            // fallback
+        }
+
+        // 2. Попытка через ipapi.co
+        try {
+            const resp = await axios.get('https://ipapi.co/json/', { timeout: 3500 });
+            if (resp.data && typeof resp.data.latitude === 'number' && typeof resp.data.longitude === 'number') {
+                return res.json({
+                    latitude: resp.data.latitude,
+                    longitude: resp.data.longitude,
+                    city: resp.data.city || ''
+                });
+            }
+        } catch {
+            // fallback
+        }
+
+        // 3. Fallback по умолчанию (Новокузнецк)
+        return res.json({
+            latitude: 53.7596,
+            longitude: 87.1467,
+            city: 'Новокузнецк'
+        });
+    } catch (err) {
+        return res.status(500).json({ error: 'Failed to determine location' });
+    }
+}
+
 module.exports = {
-    getAirQuality
+    getAirQuality,
+    locateByIp
 };

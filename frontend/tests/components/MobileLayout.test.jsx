@@ -163,4 +163,25 @@ describe('Mobile Layout & Responsive Controls (Оптимизация под т�
 
         expect(backdrop.classList.contains('sidebar-backdrop--visible')).toBe(false);
     });
+
+    it('7. Клик на кнопку "Информация о проекте" в мобильном сайдбаре закрывает сайдбар и открывает модальное окно', async () => {
+        render(<App />);
+
+        // Открываем мобильный сайдбар
+        const toggleBtn = screen.getByTestId('mobile-menu-toggle');
+        fireEvent.click(toggleBtn);
+
+        const sidebar = document.querySelector('.sidebar');
+        expect(sidebar.classList.contains('sidebar--open')).toBe(true);
+
+        // Кликаем по кнопке информации о проекте
+        const infoBtn = screen.getByLabelText('Информация о проекте');
+        fireEvent.click(infoBtn);
+
+        // Сайдбар должен закрыться
+        expect(sidebar.classList.contains('sidebar--open')).toBe(false);
+        // Модальное окно «О проекте» должно открыться
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(screen.getByText(/О проекте Aerocast/i)).toBeTruthy();
+    });
 });

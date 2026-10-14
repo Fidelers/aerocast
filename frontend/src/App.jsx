@@ -189,7 +189,10 @@ function App() {
                 onLocationSelect={handleLocationSelect}
                 viewMode={viewMode}
                 onViewModeChange={handleViewModeChange}
-                onOpenAbout={() => setIsAboutOpen(true)}
+                onOpenAbout={() => {
+                    setIsMobileSidebarOpen(false);
+                    setIsAboutOpen(true);
+                }}
                 isLoading={isLoading}
                 loadError={loadError}
                 isOpen={isMobileSidebarOpen}

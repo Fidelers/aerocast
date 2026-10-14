@@ -121,8 +121,8 @@ function Sidebar({
     const scrollContainer = () => {
       const container = daysContainerRef.current;
       const targetCard = container?.querySelector('[data-is-current="true"]') ||
-                         container?.querySelector('.day-card--active') ||
-                         container?.querySelector('[data-is-today="true"]');
+        container?.querySelector('.day-card--active') ||
+        container?.querySelector('[data-is-today="true"]');
 
       if (targetCard) {
         if (container.clientWidth > 0) {
@@ -164,8 +164,47 @@ function Sidebar({
   };
 
 
+  // Определение приблизительного местоположения по IP (при отсутствии GPS / на небезопасном HTTP)
+  const fetchIpLocation = async () => {
+    // 1. Собственный бекенд через /api/locate-me (проксируется Vite без проблем с CORS и блокировщиками)
+    try {
+      const res = await fetch('/api/locate-me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            city: data.city || ''
+          };
+        }
+      }
+    } catch {
+      // Игнорируем и пробуем резервный внешний сервис
+    }
+
+    // 2. Резервный опрос внешнего сервиса ipwho.is
+    try {
+      const res = await fetch('https://ipwho.is/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            city: data.city || ''
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return null;
+  };
+
   // Клик по кнопке местоположения 
-  const handleLocationClick = () => {
+  const handleLocationClick = async () => {
     // Сброс существующей ошибки и таймеров
     clearGeoTimers();
     setGeoError(null);
@@ -174,22 +213,46 @@ function Sidebar({
     if (typeof onLocateMe === 'function') {
       onLocateMe();
     }
-    
-    if (!navigator.geolocation) {
-      setGeoErrorWithTimeout('Геолокация не поддерживается вашим браузером');
+
+    setIsGeoLoading(true);
+
+    const applyLocationSuccess = (lat, lon, cityName = '') => {
+      clearGeoTimers();
+      setGeoError(null);
+      setIsGeoErrorVisible(false);
+      setIsGeoLoading(false);
+      if (typeof onLocationSelect === 'function') {
+        onLocationSelect(lat, lon, cityName);
+      }
+      if (typeof onClose === 'function') {
+        onClose();
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      try {
+        const ipLoc = await fetchIpLocation();
+        if (ipLoc) {
+          applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
+          return;
+        }
+      } catch {
+        // fallback failed
+      }
+      setGeoErrorWithTimeout('Не удалось определить местоположение. Попробуйте поиск города.');
+      setIsGeoLoading(false);
       return;
     }
-    setIsGeoLoading(true);
+
+    if (!navigator.geolocation) {
+      setGeoErrorWithTimeout('Геолокация не поддерживается вашим браузером');
+      setIsGeoLoading(false);
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        clearGeoTimers();
-        setGeoError(null);
-        setIsGeoErrorVisible(false);
-        if (typeof onLocationSelect === "function") {
-          onLocationSelect(position.coords.latitude, position.coords.longitude, "");
-        }
-        setIsGeoLoading(false);
+        applyLocationSuccess(position.coords.latitude, position.coords.longitude, '');
       },
       (err) => {
         let message = 'Не удалось определить местоположение.';
@@ -206,9 +269,19 @@ function Sidebar({
         }
         setGeoErrorWithTimeout(message);
         setIsGeoLoading(false);
+
+        // Попытка фонового IP-фоллбэка при ошибке GPS на мобильных
+        fetchIpLocation()
+          .then((ipLoc) => {
+            if (ipLoc) {
+              applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
+            }
+          })
+          .catch(() => {
+            // ignore
+          });
       },
-      { timeout: 10000, maximumAge: 60000 }
-      
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false }
     );
   };
   return (
@@ -225,6 +298,9 @@ function Sidebar({
             aria-label="Информация о проекте"
             onClick={(e) => {
               e.preventDefault();
+              if (typeof onClose === 'function') {
+                onClose();
+              }
               if (typeof onOpenAbout === 'function') {
                 onOpenAbout();
               } else {
