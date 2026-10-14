@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { POLLUTANTS_METADATA, getPollutantAssessment } from '../utils/pollutantsInfo';
 import { getAqiInfo, getAqiRecommendation } from '../types';
 import { parseIsoTimeString } from '../utils/timeUtils';
@@ -27,6 +27,48 @@ const SCALE_RANGES = [
 export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen = false, onClose }) {
   const [selectedKey, setSelectedKey] = useState('pm2_5');
 
+  const panelRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragStartXRef = useRef(0);
+  const currentTranslateYRef = useRef(0);
+  const dragStartTimeRef = useRef(0);
+  const isClosingRef = useRef(false);
+  const isTouchActiveRef = useRef(false);
+  const didDragRef = useRef(false);
+
+  // Сброс стилей анимации при открытии панели
+  useEffect(() => {
+    if (isOpen) {
+      isClosingRef.current = false;
+      if (panelRef.current) {
+        panelRef.current.style.transform = '';
+        panelRef.current.style.transition = '';
+        panelRef.current.style.opacity = '';
+        panelRef.current.style.animation = '';
+        panelRef.current.classList.remove('right-air-panel--dragging');
+        panelRef.current.classList.remove('right-air-panel--closing');
+      }
+    }
+  }, [isOpen]);
+
+  // Не-пассивный слушатель touchmove для отмены нативного скролла при перетаскивании панели
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const onNativeTouchMove = (e) => {
+      if (isDraggingRef.current && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    panel.addEventListener('touchmove', onNativeTouchMove, { passive: false });
+    return () => {
+      panel.removeEventListener('touchmove', onNativeTouchMove);
+    };
+  }, [isOpen]);
+
   // Закрытие по кнопке Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -40,6 +82,207 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Обработка жеста утягивания панели вниз (как шторки / комментариев в TikTok)
+  const startDrag = useCallback((clientX, clientY, target) => {
+    if (isClosingRef.current) return;
+    const isCloseBtn = target?.closest?.('.panel-header__close-btn');
+    if (isCloseBtn) return;
+
+    const isHandle = !!target?.closest?.('.panel-drag-handle');
+    const isHeader = !!target?.closest?.('.panel-header');
+    const isMeta = !!target?.closest?.('.panel-meta');
+
+    dragStartYRef.current = clientY;
+    dragStartXRef.current = clientX;
+    dragStartTimeRef.current = Date.now();
+    currentTranslateYRef.current = 0;
+    didDragRef.current = false;
+
+    // Снимаем блокировку CSS-анимацией, чтобы inline transform беспрепятственно управлял панелью
+    if (panelRef.current) {
+      panelRef.current.style.animation = 'none';
+    }
+
+    if (isHandle || isHeader || isMeta) {
+      isDraggingRef.current = true;
+      if (panelRef.current) {
+        panelRef.current.classList.add('right-air-panel--dragging');
+        panelRef.current.style.transition = 'none';
+      }
+    } else {
+      isDraggingRef.current = false;
+    }
+  }, []);
+
+  const moveDrag = useCallback((clientX, clientY, e) => {
+    if (isClosingRef.current) return;
+    const deltaY = clientY - dragStartYRef.current;
+    const deltaX = clientX - dragStartXRef.current;
+
+    if (!isDraggingRef.current) {
+      const panel = panelRef.current;
+      const isAtTop = panel ? panel.scrollTop <= 0 : true;
+      if (isAtTop && deltaY > 4 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        isDraggingRef.current = true;
+        dragStartYRef.current = clientY;
+        if (panel) {
+          panel.style.animation = 'none';
+          panel.classList.add('right-air-panel--dragging');
+          panel.style.transition = 'none';
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (isDraggingRef.current) {
+      if (e?.cancelable && deltaY > 0) {
+        e.preventDefault?.();
+      }
+      didDragRef.current = true;
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      let translateY = 0;
+      if (deltaY > 0) {
+        translateY = deltaY;
+      } else {
+        // Резиновое сопротивление при попытке тянуть вверх
+        translateY = deltaY * 0.15;
+      }
+
+      currentTranslateYRef.current = translateY;
+      panel.style.animation = 'none';
+      panel.style.transform = `translateY(${translateY}px)`;
+    }
+  }, []);
+
+  const endDrag = useCallback(() => {
+    if (!isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
+    isDraggingRef.current = false;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    panel.classList.remove('right-air-panel--dragging');
+
+    const deltaY = currentTranslateYRef.current;
+    const elapsed = Math.max(1, Date.now() - dragStartTimeRef.current);
+    const velocityY = deltaY / elapsed;
+    const panelHeight = panel.offsetHeight || 380;
+    const threshold = Math.min(100, Math.max(50, panelHeight * 0.22));
+
+    const shouldClose = deltaY > threshold || (velocityY > 0.35 && deltaY > 20);
+    const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const closeDelay = isTest ? 30 : 250;
+
+    if (shouldClose) {
+      isClosingRef.current = true;
+      panel.classList.add('right-air-panel--closing');
+      panel.style.animation = 'none';
+      panel.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out';
+      panel.style.transform = 'translateY(100%)';
+      panel.style.opacity = '0';
+
+      const timerId = setTimeout(() => {
+        if (typeof onClose === 'function') {
+          onClose();
+        }
+        if (panel) {
+          panel.classList.remove('right-air-panel--closing');
+          panel.style.transition = '';
+          panel.style.transform = '';
+          panel.style.opacity = '';
+          panel.style.animation = '';
+        }
+        isClosingRef.current = false;
+      }, closeDelay);
+      return () => clearTimeout(timerId);
+    } else {
+      panel.style.animation = 'none';
+      panel.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
+      panel.style.transform = 'translateY(0)';
+      const resetTimer = setTimeout(() => {
+        if (panel && !isClosingRef.current) {
+          panel.style.transition = '';
+          panel.style.transform = 'translateY(0)';
+          // Не сбрасываем animation в пустую строку, чтобы CSS не перезапускал анимацию появления
+        }
+      }, 200);
+      return () => clearTimeout(resetTimer);
+    }
+  }, [onClose]);
+
+  const onTouchStart = (e) => {
+    isTouchActiveRef.current = true;
+    const touch = e.touches?.[0];
+    if (touch) {
+      startDrag(touch.clientX, touch.clientY, e.target);
+    }
+  };
+
+  const onTouchMove = (e) => {
+    const touch = e.touches?.[0];
+    if (touch) {
+      moveDrag(touch.clientX, touch.clientY, e);
+    }
+  };
+
+  const onTouchEnd = () => {
+    setTimeout(() => {
+      isTouchActiveRef.current = false;
+    }, 100);
+    endDrag();
+  };
+
+  const onTouchCancel = () => {
+    setTimeout(() => {
+      isTouchActiveRef.current = false;
+    }, 100);
+    endDrag();
+  };
+
+  const onPointerDown = (e) => {
+    if (isTouchActiveRef.current) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.target && typeof e.target.setPointerCapture === 'function') {
+      try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    startDrag(e.clientX, e.clientY, e.target);
+  };
+
+  const onPointerMove = (e) => {
+    if (isTouchActiveRef.current) return;
+    moveDrag(e.clientX, e.clientY, e);
+  };
+
+  const onPointerUp = (e) => {
+    if (isTouchActiveRef.current) return;
+    if (e.target && typeof e.target.releasePointerCapture === 'function') {
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    endDrag();
+  };
+
+  const onPointerCancel = (e) => {
+    if (isTouchActiveRef.current) return;
+    if (e.target && typeof e.target.releasePointerCapture === 'function') {
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    endDrag();
+  };
+
+  const onClickCapture = (e) => {
+    if (didDragRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      didDragRef.current = false;
+    }
+  };
 
   if (!isOpen || !airData) return null;
 
@@ -58,9 +301,31 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
 
   return (
-    <aside className="right-air-panel" aria-label="Детальная информация о качестве воздуха">
+    <aside
+      ref={panelRef}
+      className="right-air-panel"
+      aria-label="Детальная информация о качестве воздуха"
+      onAnimationEnd={() => {
+        if (panelRef.current) {
+          panelRef.current.style.animation = 'none';
+        }
+      }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onClickCapture={onClickCapture}
+    >
       {/* Декоративный хэндл для мобильного Bottom Sheet */}
-      <div className="panel-drag-handle" aria-hidden="true" />
+      <div
+        className="panel-drag-handle"
+        aria-hidden="true"
+        data-testid="panel-drag-handle"
+      />
       {/* Шапка с крестиком закрытия */}
       <div className="panel-header">
         <h3 className="panel-header__title">Качество воздуха</h3>

@@ -46,6 +46,10 @@
   color: var(--text-h);
 }
 
+.sidebar__drag-handle {
+  display: none;
+}
+
 .mobile-menu-toggle {
   display: none;
 }
@@ -706,10 +710,53 @@ h2 {
     -webkit-overflow-scrolling: touch;
     padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    will-change: transform;
+    touch-action: pan-y;
   }
 
   .sidebar.sidebar--open {
     transform: translateX(0);
+  }
+
+  .sidebar--dragging {
+    user-select: none;
+    cursor: grabbing;
+  }
+
+  /* Декоративная область и хэндл на правом краю мобильного сайдбара */
+  .sidebar__drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    z-index: 50;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .sidebar__drag-handle::after {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 52px;
+    border-radius: 2px;
+    background-color: var(--border-input, #c6cbd2);
+    opacity: 0.65;
+    transition: opacity 0.2s, background-color 0.2s, transform 0.2s;
+  }
+
+  .sidebar__drag-handle:active::after,
+  .sidebar--dragging .sidebar__drag-handle::after {
+    opacity: 1;
+    transform: scaleY(1.15);
+    background-color: var(--primary, #2563eb);
+    cursor: grabbing;
   }
 
   .sidebar__close-btn {
@@ -718,6 +765,8 @@ h2 {
 
   .sidebar__header {
     padding: 16px;
+    touch-action: pan-y;
+    cursor: grab;
   }
 
   /* Затемняющий оверлей за сайдбаром */
