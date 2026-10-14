@@ -59,6 +59,8 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
 
   return (
     <aside className="right-air-panel" aria-label="Детальная информация о качестве воздуха">
+      {/* Декоративный хэндл для мобильного Bottom Sheet */}
+      <div className="panel-drag-handle" aria-hidden="true" />
       {/* Шапка с крестиком закрытия */}
       <div className="panel-header">
         <h3 className="panel-header__title">Качество воздуха</h3>

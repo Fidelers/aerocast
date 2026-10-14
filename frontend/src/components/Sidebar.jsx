@@ -18,7 +18,9 @@ function Sidebar({
   onLocationSelect,
   onCitySelect,
   onOpenAbout,
-  onLocateMe
+  onLocateMe,
+  isOpen = false,
+  onClose
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -210,27 +212,39 @@ function Sidebar({
     );
   };
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
       <div className="sidebar__header">
         <div className="sidebar__brand">
           <img src={Logo} alt="AeroCast" className="sidebar__logo" />
           <div className="sidebar__title">Aerocast</div>
         </div>
-        <a
-          href="#"
-          className="sidebar__info-btn"
-          aria-label="Информация о проекте"
-          onClick={(e) => {
-            e.preventDefault();
-            if (typeof onOpenAbout === 'function') {
-              onOpenAbout();
-            } else {
-              setIsAboutOpen(true);
-            }
-          }}
-        >
-          <img src={InfoIcon} className="sidebar__info-icon" alt="" />
-        </a>
+        <div className="sidebar__header-actions">
+          <a
+            href="#"
+            className="sidebar__info-btn"
+            aria-label="Информация о проекте"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof onOpenAbout === 'function') {
+                onOpenAbout();
+              } else {
+                setIsAboutOpen(true);
+              }
+            }}
+          >
+            <img src={InfoIcon} className="sidebar__info-icon" alt="" />
+          </a>
+          {typeof onClose === 'function' && (
+            <button
+              type="button"
+              className="sidebar__close-btn"
+              aria-label="Закрыть меню"
+              onClick={onClose}
+            >
+              &times;
+            </button>
+          )}
+        </div>
       </div>
 
       <CitySearch

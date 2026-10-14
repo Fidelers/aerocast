@@ -145,3 +145,47 @@
     font-size: 15px;
   }
 }
+
+/* === Оптимизация для телефонов и мобильных устройств (до 768px) === */
+@media (max-width: 768px) {
+  .layer-switcher {
+    /* Ровно под блоком навигации MapLibre (+, -, компас), с чистым отступом 11px */
+    top: calc(max(10px, env(safe-area-inset-top, 10px)) + 100px);
+    right: max(10px, env(safe-area-inset-right, 10px));
+  }
+
+  .layer-switcher__toggle {
+    /* Строго по сетке контролов MapLibre: 29x29px, радиус 4px, тень 2px */
+    width: 29px;
+    height: 29px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+    position: relative;
+  }
+
+  /* Невидимая расширенная область тача для комфортного касания пальцем 45x45px */
+  .layer-switcher__toggle::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+
+  .layer-switcher__icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .layer-switcher__menu {
+    right: 0;
+    min-width: 200px;
+    max-width: calc(100vw - 20px);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .layer-switcher__item {
+    padding: 12px 14px;
+    min-height: 44px;
+    font-size: 14px;
+  }
+}
