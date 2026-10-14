@@ -1,5 +1,4 @@
-// Sidebar.jsx - боковая панель: поиск, переключатели, навигация по времени
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import Logo from '../assets/icons/logo.svg';
 import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
@@ -18,7 +17,9 @@ function Sidebar({
   onLocationSelect,
   onCitySelect,
   onOpenAbout,
-  onLocateMe
+  onLocateMe,
+  isOpen = false,
+  onClose
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -119,8 +120,8 @@ function Sidebar({
     const scrollContainer = () => {
       const container = daysContainerRef.current;
       const targetCard = container?.querySelector('[data-is-current="true"]') ||
-                         container?.querySelector('.day-card--active') ||
-                         container?.querySelector('[data-is-today="true"]');
+        container?.querySelector('.day-card--active') ||
+        container?.querySelector('[data-is-today="true"]');
 
       if (targetCard) {
         if (container.clientWidth > 0) {
@@ -162,8 +163,47 @@ function Sidebar({
   };
 
 
+  // Определение приблизительного местоположения по IP (при отсутствии GPS / на небезопасном HTTP)
+  const fetchIpLocation = async () => {
+    // 1. Собственный бекенд через /api/locate-me (проксируется Vite без проблем с CORS и блокировщиками)
+    try {
+      const res = await fetch('/api/locate-me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            city: data.city || ''
+          };
+        }
+      }
+    } catch {
+      // Игнорируем и пробуем резервный внешний сервис
+    }
+
+    // 2. Резервный опрос внешнего сервиса ipwho.is
+    try {
+      const res = await fetch('https://ipwho.is/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            city: data.city || ''
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return null;
+  };
+
   // Клик по кнопке местоположения 
-  const handleLocationClick = () => {
+  const handleLocationClick = async () => {
     // Сброс существующей ошибки и таймеров
     clearGeoTimers();
     setGeoError(null);
@@ -172,22 +212,46 @@ function Sidebar({
     if (typeof onLocateMe === 'function') {
       onLocateMe();
     }
-    
-    if (!navigator.geolocation) {
-      setGeoErrorWithTimeout('Геолокация не поддерживается вашим браузером');
+
+    setIsGeoLoading(true);
+
+    const applyLocationSuccess = (lat, lon, cityName = '') => {
+      clearGeoTimers();
+      setGeoError(null);
+      setIsGeoErrorVisible(false);
+      setIsGeoLoading(false);
+      if (typeof onLocationSelect === 'function') {
+        onLocationSelect(lat, lon, cityName);
+      }
+      if (typeof onClose === 'function') {
+        onClose();
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      try {
+        const ipLoc = await fetchIpLocation();
+        if (ipLoc) {
+          applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
+          return;
+        }
+      } catch {
+        // fallback failed
+      }
+      setGeoErrorWithTimeout('Не удалось определить местоположение. Попробуйте поиск города.');
+      setIsGeoLoading(false);
       return;
     }
-    setIsGeoLoading(true);
+
+    if (!navigator.geolocation) {
+      setGeoErrorWithTimeout('Геолокация не поддерживается вашим браузером');
+      setIsGeoLoading(false);
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        clearGeoTimers();
-        setGeoError(null);
-        setIsGeoErrorVisible(false);
-        if (typeof onLocationSelect === "function") {
-          onLocationSelect(position.coords.latitude, position.coords.longitude, "");
-        }
-        setIsGeoLoading(false);
+        applyLocationSuccess(position.coords.latitude, position.coords.longitude, '');
       },
       (err) => {
         let message = 'Не удалось определить местоположение.';
@@ -204,33 +268,323 @@ function Sidebar({
         }
         setGeoErrorWithTimeout(message);
         setIsGeoLoading(false);
+
+        // Попытка фонового IP-фоллбэка при ошибке GPS на мобильных
+        fetchIpLocation()
+          .then((ipLoc) => {
+            if (ipLoc) {
+              applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
+            }
+          })
+          .catch(() => {
+            // ignore
+          });
       },
-      { timeout: 10000, maximumAge: 60000 }
-      
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false }
     );
   };
+
+  const sidebarRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartYRef = useRef(0);
+  const currentTranslateXRef = useRef(0);
+  const dragStartTimeRef = useRef(0);
+  const isClosingRef = useRef(false);
+  const isTouchActiveRef = useRef(false);
+  const didDragRef = useRef(false);
+
+  // Сброс inline стилей при открытии сайдбара
+  useEffect(() => {
+    if (isOpen) {
+      isClosingRef.current = false;
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transform = '';
+        sidebarRef.current.style.transition = '';
+        sidebarRef.current.classList.remove('sidebar--dragging');
+      }
+      const backdrop = document.querySelector('.sidebar-backdrop');
+      if (backdrop) {
+        backdrop.style.opacity = '';
+        backdrop.style.transition = '';
+      }
+    }
+  }, [isOpen]);
+
+  // Обработка жеста утягивания сайдбара влево (за край, как шторки в мобильных приложениях)
+  const startDrag = useCallback((clientX, clientY, target) => {
+    if (!isOpen || isClosingRef.current) return;
+
+    // Не перехватываем жест, если пользователь взаимодействует со слайдером дней, поиском или кнопками закрытия
+    if (
+      target?.closest?.('.days') ||
+      target?.closest?.('input') ||
+      target?.closest?.('.sidebar__close-btn') ||
+      target?.closest?.('.sidebar__info-btn')
+    ) {
+      return;
+    }
+
+    const isHandle = !!target?.closest?.('.sidebar__drag-handle');
+    const isHeader = !!target?.closest?.('.sidebar__header');
+
+    dragStartXRef.current = clientX;
+    dragStartYRef.current = clientY;
+    dragStartTimeRef.current = Date.now();
+    currentTranslateXRef.current = 0;
+    didDragRef.current = false;
+
+    if (isHandle || isHeader) {
+      isDraggingRef.current = true;
+      if (sidebarRef.current) {
+        sidebarRef.current.classList.add('sidebar--dragging');
+        sidebarRef.current.style.transition = 'none';
+      }
+    } else {
+      isDraggingRef.current = false;
+    }
+  }, [isOpen]);
+
+  const moveDrag = useCallback((clientX, clientY, e) => {
+    if (!isOpen || isClosingRef.current) return;
+    const deltaX = clientX - dragStartXRef.current;
+    const deltaY = clientY - dragStartYRef.current;
+
+    if (!isDraggingRef.current) {
+      // Начинаем drag, если движение явно горизонтальное влево
+      if (deltaX < -6 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        isDraggingRef.current = true;
+        dragStartXRef.current = clientX;
+        if (sidebarRef.current) {
+          sidebarRef.current.classList.add('sidebar--dragging');
+          sidebarRef.current.style.transition = 'none';
+        }
+      } else if (Math.abs(deltaY) > 8) {
+        // Вертикальный скролл списка сайдбара - не перехватываем
+        return;
+      }
+    }
+
+    if (isDraggingRef.current) {
+      if (e?.cancelable) {
+        e.preventDefault?.();
+      }
+      didDragRef.current = true;
+      const sidebar = sidebarRef.current;
+      if (!sidebar) return;
+
+      let translateX = 0;
+      if (deltaX <= 0) {
+        translateX = deltaX;
+      } else {
+        // Резиновое сопротивление при попытке тянуть вправо
+        translateX = deltaX * 0.1;
+      }
+
+      currentTranslateXRef.current = translateX;
+      sidebar.style.transform = `translateX(${translateX}px)`;
+
+      // Синхронное затухание затемняющего бэкдропа
+      const backdrop = document.querySelector('.sidebar-backdrop');
+      if (backdrop) {
+        const width = sidebar.offsetWidth || 300;
+        const progress = Math.max(0, Math.min(1, 1 - Math.abs(translateX) / width));
+        backdrop.style.opacity = String(progress);
+      }
+    }
+  }, [isOpen]);
+
+  const endDrag = useCallback(() => {
+    if (!isDraggingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
+    isDraggingRef.current = false;
+
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+
+    sidebar.classList.remove('sidebar--dragging');
+
+    const deltaX = currentTranslateXRef.current;
+    const elapsed = Math.max(1, Date.now() - dragStartTimeRef.current);
+    const velocityX = deltaX / elapsed;
+    const sidebarWidth = sidebar.offsetWidth || 300;
+    const threshold = Math.min(90, Math.max(50, sidebarWidth * 0.22));
+
+    const shouldClose = deltaX < -threshold || (velocityX < -0.35 && deltaX < -20);
+    const backdrop = document.querySelector('.sidebar-backdrop');
+    const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const closeDelay = isTest ? 30 : 220;
+
+    if (shouldClose) {
+      isClosingRef.current = true;
+      sidebar.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+      sidebar.style.transform = 'translateX(-100%)';
+      if (backdrop) {
+        backdrop.style.transition = 'opacity 0.22s ease';
+        backdrop.style.opacity = '0';
+      }
+
+      const timerId = setTimeout(() => {
+        if (typeof onClose === 'function') {
+          onClose();
+        }
+        if (sidebar) {
+          sidebar.style.transition = '';
+          sidebar.style.transform = '';
+        }
+        if (backdrop) {
+          backdrop.style.transition = '';
+          backdrop.style.opacity = '';
+        }
+        isClosingRef.current = false;
+      }, closeDelay);
+      return () => clearTimeout(timerId);
+    } else {
+      sidebar.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
+      sidebar.style.transform = 'translateX(0)';
+      if (backdrop) {
+        backdrop.style.transition = 'opacity 0.2s ease';
+        backdrop.style.opacity = '1';
+      }
+      const resetTimer = setTimeout(() => {
+        if (sidebar && !isClosingRef.current) {
+          sidebar.style.transition = '';
+          sidebar.style.transform = '';
+        }
+        if (backdrop && !isClosingRef.current) {
+          backdrop.style.transition = '';
+          backdrop.style.opacity = '';
+        }
+      }, 200);
+      return () => clearTimeout(resetTimer);
+    }
+  }, [onClose]);
+
+  const onTouchStart = (e) => {
+    isTouchActiveRef.current = true;
+    const touch = e.touches?.[0];
+    if (touch) {
+      startDrag(touch.clientX, touch.clientY, e.target);
+    }
+  };
+
+  const onTouchMove = (e) => {
+    const touch = e.touches?.[0];
+    if (touch) {
+      moveDrag(touch.clientX, touch.clientY, e);
+    }
+  };
+
+  const onTouchEnd = () => {
+    setTimeout(() => {
+      isTouchActiveRef.current = false;
+    }, 100);
+    endDrag();
+  };
+
+  const onTouchCancel = () => {
+    setTimeout(() => {
+      isTouchActiveRef.current = false;
+    }, 100);
+    endDrag();
+  };
+
+  const onPointerDown = (e) => {
+    if (isTouchActiveRef.current) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.target && typeof e.target.setPointerCapture === 'function') {
+      try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    startDrag(e.clientX, e.clientY, e.target);
+  };
+
+  const onPointerMove = (e) => {
+    if (isTouchActiveRef.current) return;
+    moveDrag(e.clientX, e.clientY, e);
+  };
+
+  const onPointerUp = (e) => {
+    if (isTouchActiveRef.current) return;
+    if (e.target && typeof e.target.releasePointerCapture === 'function') {
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    endDrag();
+  };
+
+  const onPointerCancel = (e) => {
+    if (isTouchActiveRef.current) return;
+    if (e.target && typeof e.target.releasePointerCapture === 'function') {
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    endDrag();
+  };
+
+  const onClickCapture = (e) => {
+    if (didDragRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      didDragRef.current = false;
+    }
+  };
+
   return (
-    <aside className="sidebar">
+    <aside
+      ref={sidebarRef}
+      className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onClickCapture={onClickCapture}
+    >
+      {/* Декоративный хэндл для удобного перетаскивания мобильного сайдбара за правый край */}
+      <div
+        className="sidebar__drag-handle"
+        data-testid="sidebar-drag-handle"
+        aria-label="Потяните влево, чтобы закрыть меню"
+        tabIndex={-1}
+      />
       <div className="sidebar__header">
         <div className="sidebar__brand">
           <img src={Logo} alt="AeroCast" className="sidebar__logo" />
           <div className="sidebar__title">Aerocast</div>
         </div>
-        <a
-          href="#"
-          className="sidebar__info-btn"
-          aria-label="Информация о проекте"
-          onClick={(e) => {
-            e.preventDefault();
-            if (typeof onOpenAbout === 'function') {
-              onOpenAbout();
-            } else {
-              setIsAboutOpen(true);
-            }
-          }}
-        >
-          <img src={InfoIcon} className="sidebar__info-icon" alt="" />
-        </a>
+        <div className="sidebar__header-actions">
+          <a
+            href="#"
+            className="sidebar__info-btn"
+            aria-label="Информация о проекте"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof onClose === 'function') {
+                onClose();
+              }
+              if (typeof onOpenAbout === 'function') {
+                onOpenAbout();
+              } else {
+                setIsAboutOpen(true);
+              }
+            }}
+          >
+            <img src={InfoIcon} className="sidebar__info-icon" alt="" />
+          </a>
+          {typeof onClose === 'function' && (
+            <button
+              type="button"
+              className="sidebar__close-btn"
+              aria-label="Закрыть меню"
+              onClick={onClose}
+            >
+              &times;
+            </button>
+          )}
+        </div>
       </div>
 
       <CitySearch
@@ -254,17 +608,17 @@ function Sidebar({
         <div className="segmented">
           <button
             type="button"
-            className={`segmented__btn ${viewMode === 'color' ? 'segmented__btn--active' : ''}`}
-            onClick={() => onViewModeChange?.('color')}
-          >
-            Цветовой
-          </button>
-          <button
-            type="button"
             className={`segmented__btn ${viewMode === 'numeric' ? 'segmented__btn--active' : ''}`}
             onClick={() => onViewModeChange?.('numeric')}
           >
             Цифровой
+          </button>
+          <button
+            type="button"
+            className={`segmented__btn ${viewMode === 'color' ? 'segmented__btn--active' : ''}`}
+            onClick={() => onViewModeChange?.('color')}
+          >
+            Цветовой
           </button>
           <button
             type="button"

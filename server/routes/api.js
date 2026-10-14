@@ -23,6 +23,11 @@ const asyncHandler = (fn) => async (req, res, next) => {
 // 1. Поиск населённого пункта (обращается к внешнему геокодеру)
 router.get('/search', asyncHandler(searchController.search));
 
+// Определение местоположения по IP (для мобильных устройств в локальной сети)
+if (typeof airController.locateByIp === 'function') {
+    router.get('/locate-me', asyncHandler(airController.locateByIp));
+}
+
 // 2. Главный эндпоинт качества воздуха (стратегия источников и история)
 router.get('/air-quality', asyncHandler(airController.getAirQuality));
 

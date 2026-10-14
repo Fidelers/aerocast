@@ -140,3 +140,33 @@
     color: var(--text);
     border-left: 3px solid #f3c82e;
 }
+
+/* === Мобильная оптимизация для попапов карты (до 768px) === */
+@media (max-width: 768px) {
+  .maplibregl-popup {
+    max-width: min(290px, 86vw) !important;
+  }
+
+  .maplibregl-popup-content {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .map-popup__title {
+    font-size: 15px;
+  }
+
+  .map-popup__aqi-block {
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+
+  .map-popup__aqi-number {
+    font-size: 18px;
+  }
+
+  .map-popup__row {
+    padding: 2px 0;
+    font-size: 12px;
+  }
+}

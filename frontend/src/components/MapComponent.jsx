@@ -215,6 +215,7 @@ export default function MapComponent({
     const macroGridRef = useRef(macroGrid);
     const microGridRef = useRef(microGrid);
     const selectedTimeIndexRef = useRef(selectedTimeIndex);
+    const viewModeRef = useRef(viewMode);
     const updateLodOpacityRef = useRef(null);
 
     useEffect(() => {
@@ -247,6 +248,16 @@ export default function MapComponent({
     useEffect(() => {
         selectedTimeIndexRef.current = selectedTimeIndex;
     }, [selectedTimeIndex]);
+    useEffect(() => {
+        viewModeRef.current = viewMode;
+        if (!map.current) return;
+        const mapInstance = map.current;
+        runWhenStyleReady(mapInstance, () => {
+            if (updateLodOpacityRef.current) {
+                updateLodOpacityRef.current();
+            }
+        });
+    }, [viewMode]);
 
     // Инициализация карты MapLibre
     useEffect(() => {
@@ -301,6 +312,26 @@ export default function MapComponent({
         // Функция расчета и применения прозрачности слоев (LOD crossfade)
         const updateLodOpacity = () => {
             if (!map.current || typeof map.current.getZoom !== 'function') return;
+
+            // В цифровом режиме растровые слои качества воздуха скрываются
+            if (viewModeRef.current === 'numeric') {
+                if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                    map.current.setLayoutProperty(MACRO_LAYER_ID, 'visibility', 'none');
+                }
+                if (map.current.getLayer && map.current.getLayer(MICRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                    map.current.setLayoutProperty(MICRO_LAYER_ID, 'visibility', 'none');
+                }
+                return;
+            }
+
+            // В цветовом и комбо режимах включаем видимость
+            if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                map.current.setLayoutProperty(MACRO_LAYER_ID, 'visibility', 'visible');
+            }
+            if (map.current.getLayer && map.current.getLayer(MICRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                map.current.setLayoutProperty(MICRO_LAYER_ID, 'visibility', 'visible');
+            }
+
             const currentZoom = map.current.getZoom();
 
             let macroOpacity;
@@ -340,8 +371,8 @@ export default function MapComponent({
             if (!map.current) return;
             const currentZoom = typeof map.current.getZoom === 'function' ? map.current.getZoom() : 11;
 
-            // При zoom > 9 фоном отображается макро-слой
-            if (currentZoom > 9 && map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
+            // При zoom > 9 фоном отображается макро-слой (только в цветовом и комбо режимах)
+            if (viewModeRef.current !== 'numeric' && currentZoom > 9 && map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
                 map.current.setPaintProperty(MACRO_LAYER_ID, 'raster-opacity', 0.50);
             }
         };
@@ -662,6 +693,9 @@ export default function MapComponent({
                         id: MACRO_LAYER_ID,
                         type: 'raster',
                         source: MACRO_SOURCE_ID,
+                        layout: {
+                            visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                        },
                         paint: {
                             'raster-opacity': 0.70,
                             'raster-fade-duration': 300
@@ -689,6 +723,9 @@ export default function MapComponent({
                     id: MACRO_LAYER_ID,
                     type: 'raster',
                     source: MACRO_SOURCE_ID,
+                    layout: {
+                        visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                    },
                     paint: {
                         'raster-opacity': initialOpacity,
                         'raster-fade-duration': 300
@@ -777,6 +814,9 @@ export default function MapComponent({
                         id: MICRO_LAYER_ID,
                         type: 'raster',
                         source: MICRO_SOURCE_ID,
+                        layout: {
+                            visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                        },
                         paint: {
                             'raster-opacity': 0.70,
                             'raster-fade-duration': 300
@@ -803,6 +843,9 @@ export default function MapComponent({
                     id: MICRO_LAYER_ID,
                     type: 'raster',
                     source: MICRO_SOURCE_ID,
+                    layout: {
+                        visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                    },
                     paint: {
                         'raster-opacity': initialOpacity,
                         'raster-fade-duration': 300

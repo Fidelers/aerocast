@@ -21,9 +21,15 @@
   color: var(--text);
   box-sizing: border-box;
   
-  animation: slideInRight 0.3s ease-out forwards;
+  will-change: transform;
+  transform: translateX(0);
+  animation: slideInRight 0.3s ease-out;
 }
 
+
+.panel-drag-handle {
+  display: none;
+}
 
 .panel-header {
   display: flex;
@@ -445,3 +451,142 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* === Мобильная верстка: панель в формате Bottom Sheet (шторка снизу) === */
+@media (max-width: 768px) {
+  .right-air-panel {
+    width: 100%;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 20px 20px 0 0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    max-height: 80vh;
+    max-height: 80dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.32);
+    z-index: 1100;
+    transform: translateY(0);
+    animation: slideUpBottomSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    padding-bottom: max(32px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  }
+
+  .right-air-panel::-webkit-scrollbar {
+    width: 4px;
+  }
+  .right-air-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .right-air-panel::-webkit-scrollbar-thumb {
+    background: var(--border-input, #c6cbd2);
+    border-radius: 4px;
+  }
+
+  .panel-drag-handle {
+    display: block;
+    width: 44px;
+    height: 5px;
+    border-radius: 3px;
+    margin: 8px auto 4px;
+    background-color: var(--border-input, #c6cbd2);
+    opacity: 0.8;
+    cursor: grab;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.2s, background-color 0.2s, transform 0.2s;
+  }
+
+  .panel-drag-handle:active,
+  .right-air-panel--dragging .panel-drag-handle {
+    opacity: 1;
+    background-color: var(--primary, #2563eb);
+    transform: scaleX(1.1);
+    cursor: grabbing;
+  }
+
+  .right-air-panel--dragging,
+  .right-air-panel--closing {
+    animation: none !important;
+  }
+
+  .right-air-panel--dragging {
+    transition: none !important;
+    user-select: none;
+    cursor: grabbing;
+  }
+
+  .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bg);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--sidebar-divider);
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .panel-header__close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+  }
+
+  .panel-meta {
+    padding: 6px 16px;
+  }
+
+  .aqi-summary {
+    padding: 10px 16px;
+  }
+
+  .pollutant-row {
+    padding: 8px 16px;
+    min-height: 44px;
+  }
+
+  .general-info-card {
+    margin: 10px 16px 20px;
+    height: auto;
+    min-height: unset;
+    max-height: none;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+
+  .info-description {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .info-sources,
+  .info-impact {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .fab-open-panel {
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    right: max(16px, env(safe-area-inset-right, 16px));
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 24px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+    min-height: 46px;
+  }
+}
+
+@keyframes slideUpBottomSheet {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

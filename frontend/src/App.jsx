@@ -13,7 +13,7 @@ const DEFAULT_COORDS = {
     lon: 87.1467
 };
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : '';
 
 function App() {
     const [airData, setAirData] = useState(null);
@@ -25,6 +25,7 @@ function App() {
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     // подключаем сетку качества воздуха
     const { macroGrid, microGrid, loadMicroGrid } = useAirGrid({ baseUrl: API_BASE });
 
@@ -153,6 +154,7 @@ function App() {
     };
 
     const handleLocationSelect = (loc, maybeLon) => {
+        setIsMobileSidebarOpen(false);
         if (typeof loc === 'object' && loc !== null) {
             if (loc.lat == null || loc.lon == null) {
                 setCoords({ lat: null, lon: null });
@@ -187,11 +189,43 @@ function App() {
                 onLocationSelect={handleLocationSelect}
                 viewMode={viewMode}
                 onViewModeChange={handleViewModeChange}
-                onOpenAbout={() => setIsAboutOpen(true)}
+                onOpenAbout={() => {
+                    setIsMobileSidebarOpen(false);
+                    setIsAboutOpen(true);
+                }}
                 isLoading={isLoading}
                 loadError={loadError}
+                isOpen={isMobileSidebarOpen}
+                onClose={() => setIsMobileSidebarOpen(false)}
             />
-            <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, position: 'relative', overflow: 'hidden' }}>
+            <div
+                className={`sidebar-backdrop ${isMobileSidebarOpen ? 'sidebar-backdrop--visible' : ''}`}
+                onClick={() => setIsMobileSidebarOpen(false)}
+                aria-hidden="true"
+            />
+            <div className="map-container" style={{ position: 'relative', overflow: 'hidden' }}>
+                <button
+                    type="button"
+                    className="mobile-menu-toggle"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    aria-label="Открыть меню и поиск"
+                    data-testid="mobile-menu-toggle"
+                >
+                    <svg className="mobile-menu-toggle__icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                    <span className="mobile-menu-toggle__title">Aerocast</span>
+                    <span className="mobile-menu-toggle__divider" aria-hidden="true"></span>
+                    <span className="mobile-menu-toggle__search-hint">
+                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        Поиск
+                    </span>
+                </button>
                 <MapComponent
                     lat={coords.lat}
                     lon={coords.lon}

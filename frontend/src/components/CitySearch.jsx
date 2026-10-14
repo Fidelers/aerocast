@@ -40,7 +40,7 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const apiBase = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : '';
         const response = await fetch(`${apiBase}/api/search?q=${encodeURIComponent(trimmed)}`);
         if (cancelled) return;
         if (!response.ok) {
@@ -132,9 +132,9 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
         <div className="city-search__dropdown">
           {results.length > 0 ? (
             <ul className="city-search__list">
-              {results.map((item) => (
+              {results.map((item, index) => (
                 <li
-                  key={item.id ?? `${item.latitude}-${item.longitude}`}
+                  key={item.id ?? `${item.latitude ?? item.lat ?? ''}-${item.longitude ?? item.lon ?? ''}-${index}`}
                   className="city-search__item"
                 >
                   <button
