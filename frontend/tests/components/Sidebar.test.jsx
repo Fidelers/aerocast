@@ -137,6 +137,15 @@ describe('Sidebar component (переключатели режимов отоб�
         expect(numericBtn.className).not.toContain('segmented__btn--active');
     });
 
+    it('3b. Кнопки расположены в порядке: "Цифровой", "Цветовой", "Комбо"', () => {
+        const { container } = render(<Sidebar viewMode="combo" />);
+        const buttons = container.querySelectorAll('.segmented .segmented__btn');
+        expect(buttons).toHaveLength(3);
+        expect(buttons[0].textContent.trim()).toBe('Цифровой');
+        expect(buttons[1].textContent.trim()).toBe('Цветовой');
+        expect(buttons[2].textContent.trim()).toBe('Комбо');
+    });
+
     it('4. Вызывает callback onViewModeChange с "color" при клике на кнопку "Цветовой"', () => {
         const handleViewModeChange = vi.fn();
         render(<Sidebar viewMode="combo" onViewModeChange={handleViewModeChange} />);

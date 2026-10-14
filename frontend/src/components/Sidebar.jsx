@@ -268,17 +268,17 @@ function Sidebar({
         <div className="segmented">
           <button
             type="button"
-            className={`segmented__btn ${viewMode === 'color' ? 'segmented__btn--active' : ''}`}
-            onClick={() => onViewModeChange?.('color')}
-          >
-            Цветовой
-          </button>
-          <button
-            type="button"
             className={`segmented__btn ${viewMode === 'numeric' ? 'segmented__btn--active' : ''}`}
             onClick={() => onViewModeChange?.('numeric')}
           >
             Цифровой
+          </button>
+          <button
+            type="button"
+            className={`segmented__btn ${viewMode === 'color' ? 'segmented__btn--active' : ''}`}
+            onClick={() => onViewModeChange?.('color')}
+          >
+            Цветовой
           </button>
           <button
             type="button"

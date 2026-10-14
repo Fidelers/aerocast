@@ -608,5 +608,99 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             );
         });
     });
+
+    describe('5. Управление видимостью растровых слоев в зависимости от viewMode', () => {
+        it('5.1. В режиме "Цифровой" (viewMode="numeric") скрывает растровые слои (visibility: none)', () => {
+            render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={mockMicroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="numeric"
+                />
+            );
+
+            const macroLayer = createdLayers.get('air-grid-macro-layer');
+            const microLayer = createdLayers.get('air-grid-micro-layer');
+
+            expect(macroLayer).toBeDefined();
+            expect(macroLayer.layout?.visibility).toBe('none');
+
+            expect(microLayer).toBeDefined();
+            expect(microLayer.layout?.visibility).toBe('none');
+        });
+
+        it('5.2. В режимах "Цветовой" (viewMode="color") и "Комбо" (viewMode="combo") растровые слои видимы (visibility: visible)', () => {
+            const { rerender } = render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={mockMicroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="color"
+                />
+            );
+
+            let macroLayer = createdLayers.get('air-grid-macro-layer');
+            let microLayer = createdLayers.get('air-grid-micro-layer');
+
+            expect(macroLayer.layout?.visibility).toBe('visible');
+            expect(microLayer.layout?.visibility).toBe('visible');
+
+            rerender(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={mockMicroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="combo"
+                />
+            );
+
+            macroLayer = createdLayers.get('air-grid-macro-layer');
+            microLayer = createdLayers.get('air-grid-micro-layer');
+
+            expect(macroLayer.layout?.visibility).toBe('visible');
+            expect(microLayer.layout?.visibility).toBe('visible');
+        });
+
+        it('5.3. При динамическом переключении с "combo" на "numeric" скрывает слои, а обратно на "color" — отображает', () => {
+            const { rerender } = render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={mockMicroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="combo"
+                />
+            );
+
+            expect(createdLayers.get('air-grid-macro-layer')?.layout?.visibility).toBe('visible');
+
+            // Пользователь переключает на "Цифровой"
+            rerender(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={mockMicroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="numeric"
+                />
+            );
+
+            expect(createdLayers.get('air-grid-macro-layer')?.layout?.visibility).toBe('none');
+            expect(createdLayers.get('air-grid-micro-layer')?.layout?.visibility).toBe('none');
+
+            // Пользователь переключает на "Цветовой"
+            rerender(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    microGrid={mockMicroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="color"
+                />
+            );
+
+            expect(createdLayers.get('air-grid-macro-layer')?.layout?.visibility).toBe('visible');
+            expect(createdLayers.get('air-grid-micro-layer')?.layout?.visibility).toBe('visible');
+        });
+    });
 });
+
 
