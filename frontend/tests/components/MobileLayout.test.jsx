@@ -343,4 +343,30 @@ describe('Mobile Layout & Responsive Controls (Оптимизация под т�
             expect(onCloseMock).toHaveBeenCalled();
         });
     });
+
+    it('16. Нажатие мыши/тачпада на тело панели или шапку не вызывает перетаскивание (защита для ноутбуков)', () => {
+        const onCloseMock = vi.fn();
+        render(
+            <RightAirPanel
+                airData={mockAirData}
+                selectedTimeIndex={0}
+                isOpen={true}
+                onClose={onCloseMock}
+            />
+        );
+
+        const header = document.querySelector('.panel-header');
+        const panel = document.querySelector('.right-air-panel');
+
+        // Клик и движение мышью/тачпадом по шапке или контенту
+        fireEvent.pointerDown(header, { clientX: 150, clientY: 100, pointerType: 'mouse' });
+        fireEvent.pointerMove(header, { clientX: 150, clientY: 260, pointerType: 'mouse' });
+
+        // Панель НЕ должна сдвигаться
+        expect(panel.style.transform).not.toBe('translateY(160px)');
+        expect(panel.classList.contains('right-air-panel--dragging')).toBe(false);
+
+        fireEvent.pointerUp(header, { pointerType: 'mouse' });
+        expect(onCloseMock).not.toHaveBeenCalled();
+    });
 });
