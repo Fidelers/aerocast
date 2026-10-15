@@ -293,6 +293,7 @@ function Sidebar({
   const isClosingRef = useRef(false);
   const isTouchActiveRef = useRef(false);
   const didDragRef = useRef(false);
+  const dragPointerTypeRef = useRef('');
 
   // Сброс inline стилей при открытии сайдбара
   useEffect(() => {
@@ -312,8 +313,13 @@ function Sidebar({
   }, [isOpen]);
 
   // Обработка жеста утягивания сайдбара влево (за край, как шторки в мобильных приложениях)
-  const startDrag = useCallback((clientX, clientY, target) => {
+  const startDrag = useCallback((clientX, clientY, target, pointerType = '') => {
     if (!isOpen || isClosingRef.current) return;
+
+    // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО при целенаправленном захвате хэндла на краю
+    if (pointerType === 'mouse' && !target?.closest?.('.sidebar__drag-handle')) {
+      return;
+    }
 
     // Не перехватываем жест, если пользователь взаимодействует со слайдером дней, поиском или кнопками закрытия
     if (
@@ -333,6 +339,7 @@ function Sidebar({
     dragStartTimeRef.current = Date.now();
     currentTranslateXRef.current = 0;
     didDragRef.current = false;
+    dragPointerTypeRef.current = pointerType;
 
     if (isHandle || isHeader) {
       isDraggingRef.current = true;
@@ -351,6 +358,10 @@ function Sidebar({
     const deltaY = clientY - dragStartYRef.current;
 
     if (!isDraggingRef.current) {
+      // Для указателя мыши/тачпада запрещаем автозахват из контента
+      if (dragPointerTypeRef.current === 'mouse') {
+        return;
+      }
       // Начинаем drag, если движение явно горизонтальное влево
       if (deltaX < -6 && Math.abs(deltaX) > Math.abs(deltaY)) {
         isDraggingRef.current = true;
@@ -494,14 +505,21 @@ function Sidebar({
   const onPointerDown = (e) => {
     if (isTouchActiveRef.current) return;
     if (e.button !== undefined && e.button !== 0) return;
+
+    // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО за специальный хэндл на краю
+    if (e.pointerType === 'mouse' && !e.target?.closest?.('.sidebar__drag-handle')) {
+      return;
+    }
+
     if (e.target && typeof e.target.setPointerCapture === 'function') {
       try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     }
-    startDrag(e.clientX, e.clientY, e.target);
+    startDrag(e.clientX, e.clientY, e.target, e.pointerType);
   };
 
   const onPointerMove = (e) => {
     if (isTouchActiveRef.current) return;
+    if (e.pointerType === 'mouse' && !isDraggingRef.current) return;
     moveDrag(e.clientX, e.clientY, e);
   };
 

@@ -36,6 +36,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const isClosingRef = useRef(false);
   const isTouchActiveRef = useRef(false);
   const didDragRef = useRef(false);
+  const dragPointerTypeRef = useRef('');
 
   // Сброс стилей анимации при открытии панели
   useEffect(() => {
@@ -84,10 +85,15 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   }, [isOpen, onClose]);
 
   // Обработка жеста утягивания панели вниз (как шторки / комментариев в TikTok)
-  const startDrag = useCallback((clientX, clientY, target) => {
+  const startDrag = useCallback((clientX, clientY, target, pointerType = '') => {
     if (isClosingRef.current) return;
     const isCloseBtn = target?.closest?.('.panel-header__close-btn');
     if (isCloseBtn) return;
+
+    // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО при целенаправленном захвате хэндла
+    if (pointerType === 'mouse' && !target?.closest?.('.panel-drag-handle')) {
+      return;
+    }
 
     const isHandle = !!target?.closest?.('.panel-drag-handle');
     const isHeader = !!target?.closest?.('.panel-header');
@@ -98,6 +104,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
     dragStartTimeRef.current = Date.now();
     currentTranslateYRef.current = 0;
     didDragRef.current = false;
+    dragPointerTypeRef.current = pointerType;
 
     // Снимаем блокировку CSS-анимацией, чтобы inline transform беспрепятственно управлял панелью
     if (panelRef.current) {
@@ -121,6 +128,10 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
     const deltaX = clientX - dragStartXRef.current;
 
     if (!isDraggingRef.current) {
+      // Для указателя мыши/тачпада запрещаем автозахват из контента
+      if (dragPointerTypeRef.current === 'mouse') {
+        return;
+      }
       const panel = panelRef.current;
       const isAtTop = panel ? panel.scrollTop <= 0 : true;
       if (isAtTop && deltaY > 4 && Math.abs(deltaY) > Math.abs(deltaX)) {
@@ -249,14 +260,21 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const onPointerDown = (e) => {
     if (isTouchActiveRef.current) return;
     if (e.button !== undefined && e.button !== 0) return;
+
+    // С мыши / тачпада на ноутбуке перетаскивание работает ТОЛЬКО за специальный хэндл
+    if (e.pointerType === 'mouse' && !e.target?.closest?.('.panel-drag-handle')) {
+      return;
+    }
+
     if (e.target && typeof e.target.setPointerCapture === 'function') {
       try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     }
-    startDrag(e.clientX, e.clientY, e.target);
+    startDrag(e.clientX, e.clientY, e.target, e.pointerType);
   };
 
   const onPointerMove = (e) => {
     if (isTouchActiveRef.current) return;
+    if (e.pointerType === 'mouse' && !isDraggingRef.current) return;
     moveDrag(e.clientX, e.clientY, e);
   };
 
