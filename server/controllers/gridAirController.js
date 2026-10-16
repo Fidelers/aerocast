@@ -1,5 +1,6 @@
 const batchAirService = require('../services/batchAirService');
 const spatialCacheService = require('../services/spatialCacheService');
+const timeUtils = require('../services/timeUtils');
 
 //глав обработчик
 async function getGridAirQuality(req, res) {
@@ -43,10 +44,30 @@ async function getGridAirQuality(req, res) {
         const quantized = spatialCacheService.quantizeCoordinates(latNum, lonNum);
         cacheKey = quantized?.cacheKey || `grid_micro_${(Math.round(latNum / 0.2) * 0.2).toFixed(2)}_${(Math.round(lonNum / 0.2) * 0.2).toFixed(2)}`;
         }
-        //проверка кэша
-        const cachedData = await spatialCacheService.getSpatialCache(cacheKey, false);
+        //проверка кэша: для макросетки проверяем наличие сохранённой сетки за сегодня (в этот день)
+        let cachedData = null;
+
+        if (type === 'macro') {
+            if (typeof spatialCacheService.getTodayMacroGrid === 'function') {
+                cachedData = await spatialCacheService.getTodayMacroGrid(cacheKey);
+            }
+            if (!cachedData) {
+                const candidate = await spatialCacheService.getSpatialCache(cacheKey, false);
+                if (candidate) {
+                    const isToday = typeof spatialCacheService.isRecordSavedToday === 'function'
+                        ? spatialCacheService.isRecordSavedToday(candidate)
+                        : (candidate.cached_date ? candidate.cached_date === timeUtils.getTodayDateString() : true);
+                    if (isToday) {
+                        cachedData = candidate;
+                    }
+                }
+            }
+        } else {
+            cachedData = await spatialCacheService.getSpatialCache(cacheKey, false);
+        }
+
         if (cachedData) {
-        return res.status(200).json(cachedData);
+            return res.status(200).json(cachedData);
         }
 
         //промах по кэшу и пакетный запрос к Open-Meteo
@@ -68,6 +89,9 @@ async function getGridAirQuality(req, res) {
             const rawResponse = await batchAirService.fetchBatchAirQuality(coordinates);
             const normalized = batchAirService.normalizeBatchResponse(rawResponse, coordinates);
 
+            const todayStr = timeUtils.getTodayDateString();
+            const now = Date.now();
+
             //итоговый объект для кэша и ответа
             const payload = {
                 type,
@@ -75,18 +99,21 @@ async function getGridAirQuality(req, res) {
                 used_source: 'open-meteo',
                 points_count: normalized?.points?.length || coordinates?.length || 0,
                 time: normalized?.time,
-                points: normalized?.points || []
+                points: normalized?.points || [],
+                cached_at: now,
+                cached_date: todayStr
             };
 
-        //сохранение в кэш: для макросетки 86400 сек (24 часа / 1 день), для микро 3600 сек
-        try {
-            const ttl = type === 'macro' ? 86400 : 3600;
-            await spatialCacheService.setSpatialCache(cacheKey, payload, ttl);
-        } catch (cacheErr) {
-            console.warn('Не удалось записать в кэш:', cacheErr);
-        }
+            //сохранение в кэш: для макросетки 86400 сек (24 часа / 1 день), для микро 3600 сек
+            try {
+                const ttl = type === 'macro' ? 86400 : 3600;
+                await spatialCacheService.setSpatialCache(cacheKey, payload, ttl);
+            } catch (cacheErr) {
+                console.warn('Не удалось записать в кэш:', cacheErr);
+            }
 
-        return res.status(200).json(payload);
+            return res.status(200).json(payload);
+
 
         } catch (fetchError) {
             //при сбое проверяем наличие устаревшего кэшща
