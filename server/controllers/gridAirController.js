@@ -78,9 +78,10 @@ async function getGridAirQuality(req, res) {
                 points: normalized?.points || []
             };
 
-        //сохранение на часик в кэщ
+        //сохранение в кэш: для макросетки 86400 сек (24 часа / 1 день), для микро 3600 сек
         try {
-            await spatialCacheService.setSpatialCache(cacheKey, payload, 3600);
+            const ttl = type === 'macro' ? 86400 : 3600;
+            await spatialCacheService.setSpatialCache(cacheKey, payload, ttl);
         } catch (cacheErr) {
             console.warn('Не удалось записать в кэш:', cacheErr);
         }

@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 
-const MACRO_GRID_POINTS = require('./macroGridPoints500.json');
+const MACRO_GRID_POINTS = require('./macroGridPoints750.json');
 
 
 

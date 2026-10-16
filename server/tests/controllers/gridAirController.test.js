@@ -172,7 +172,7 @@ describe('Controller: gridAirController', () => {
     });
 
     describe('3. Промах кэша и получение данных (Cache Miss & Batch Fetch)', () => {
-        it('для macro генерирует узлы РФ, делает пакетный запрос и сохраняет в SQLite с TTL 3600', async () => {
+        it('для macro генерирует узлы РФ, делает пакетный запрос и сохраняет в SQLite с TTL 86400 (24 часа)', async () => {
             spatialCacheService.getSpatialCache.mockResolvedValue(null);
 
             req.query = { type: 'macro' };
@@ -182,14 +182,14 @@ describe('Controller: gridAirController', () => {
             expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalledWith(expect.any(Array));
             expect(batchAirService.normalizeBatchResponse).toHaveBeenCalled();
 
-            // Проверяем сохранение в кэш с TTL 3600 сек (1 час)
+            // Проверяем сохранение в кэш с TTL 86400 сек (24 часа / 1 день)
             expect(spatialCacheService.setSpatialCache).toHaveBeenCalledWith(
                 'grid_macro_russia',
                 expect.objectContaining({
                     type: 'macro',
                     used_source: 'open-meteo'
                 }),
-                3600
+                86400
             );
 
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({

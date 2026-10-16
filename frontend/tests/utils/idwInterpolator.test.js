@@ -186,4 +186,106 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             expect(duration).toBeLessThan(50);
         });
     });
+
+    describe('6. Точность позиционирования и центрирование очагов загрязнения', () => {
+        it('строго центрирует пик загрязнения на координатах города без 0.5-пиксельного сдвига', () => {
+            // Координаты Череповца
+            const cherepovets = { lat: 59.12, lon: 37.91, value: 100 };
+            const background = [
+                { lat: 59.22, lon: 39.88, value: 25 }, // Вологда
+                { lat: 58.05, lon: 38.83, value: 25 }  // Рыбинск
+            ];
+            // Региональная область Северо-Запада
+            const bbox = [30.0, 55.0, 45.0, 62.0];
+            const width = 100;
+            const height = 100;
+
+            const grid = interpolateGrid([cherepovets, ...background], width, height, bbox, {
+                useMercator: true
+            });
+
+            // Находим пиксель с максимальным значением
+            let maxVal = -1;
+            let maxPx = -1;
+            let maxPy = -1;
+            for (let py = 0; py < height; py++) {
+                for (let px = 0; px < width; px++) {
+                    const val = grid[py * width + px];
+                    if (val > maxVal) {
+                        maxVal = val;
+                        maxPx = px;
+                        maxPy = py;
+                    }
+                }
+            }
+
+            // Центр найденного пикселя в географических координатах WebGL-текстуры
+            const minMercY = latToMercator(bbox[1]);
+            const maxMercY = latToMercator(bbox[3]);
+            const mercDiff = maxMercY - minMercY;
+
+            const centerLon = bbox[0] + ((maxPx + 0.5) / width) * (bbox[2] - bbox[0]);
+            const centerMercY = minMercY + (1 - (maxPy + 0.5) / height) * mercDiff;
+            const centerLat = mercatorToLat(centerMercY);
+
+            // Расстояние от истинного положения Череповца до центра отображаемого пикселя
+            const dLatKm = (centerLat - cherepovets.lat) * 111.32;
+            const dLonKm = (centerLon - cherepovets.lon) * 111.32 * Math.cos(cherepovets.lat * Math.PI / 180);
+            const distKm = Math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm);
+
+            // Пик локализован с точностью менее 3 км (в границах самого города)
+            expect(distKm).toBeLessThan(3.0);
+            expect(maxVal).toBeGreaterThan(99);
+        });
+
+        it('учитывает сжатие долготы на высоких широтах (cosLat) для изотропного распределения', () => {
+            // На широте 60°: cos(60°) = 0.5.
+            // 2 градуса долготы равны по расстоянию 1 градусу широты (~111.32 км)
+            const center = { lat: 60.0, lon: 30.0 };
+            const northPoint = { lat: 61.0, lon: 30.0, value: 80 }; // 1° на север = ~111 км
+            const eastPoint = { lat: 60.0, lon: 32.0, value: 40 };  // 2° на восток = 2 * cos(60°) = ~111 км
+
+            // В точке center расстояния до northPoint и eastPoint физически одинаковы
+            const val = interpolatePoint(center.lat, center.lon, [northPoint, eastPoint], {
+                useMercator: true
+            });
+
+            // Так как физические расстояния равны, вес точек одинаков -> значение ровно (80 + 40) / 2 = 60
+            expect(val).toBeCloseTo(60.0, 1);
+        });
+
+        it('плавно снижает загрязнение до фонового уровня (decayRadius) на удалении от очага', () => {
+            const city = { lat: 55.0, lon: 37.0, value: 100 };
+            const bbox = [35.0, 53.0, 39.0, 57.0];
+            const width = 50;
+            const height = 50;
+
+            // Сетка с decayRadius = 0.30 (~33 км) и фоновым значением 20
+            const grid = interpolateGrid([city], width, height, bbox, {
+                decayRadius: 0.30,
+                bgVal: 20
+            });
+
+            // Точка близко к городу (~5 км)
+            const nearVal = interpolatePoint(55.04, 37.0, [city], { decayRadius: 0.30, bgVal: 20 });
+            expect(nearVal).toBeGreaterThan(85);
+
+            // Точка вдали от города (~60 км, > 0.5 градуса)
+            const farVal = interpolatePoint(55.6, 37.0, [city], { decayRadius: 0.30, bgVal: 20 });
+            expect(farVal).toBeLessThan(40);
+        });
+
+        it('гарантирует зеленое значение в измеренной чистой точке рядом с промышленным очагом', () => {
+            const industrial = { lat: 59.12, lon: 37.91, value: 100 };
+            const cleanReservoir = { lat: 59.08, lon: 37.85, value: 33 };
+
+            // В точке чистого водоема значение должно быть близко к 33 (зеленая зона), а не 100
+            const valAtReservoir = interpolatePoint(cleanReservoir.lat, cleanReservoir.lon, [industrial, cleanReservoir]);
+            expect(valAtReservoir).toBe(33);
+
+            // В точке промзоны значение 100
+            const valAtIndustrial = interpolatePoint(industrial.lat, industrial.lon, [industrial, cleanReservoir]);
+            expect(valAtIndustrial).toBe(100);
+        });
+    });
 });

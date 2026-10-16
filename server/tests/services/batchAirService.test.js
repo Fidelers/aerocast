@@ -9,10 +9,25 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
     });
 
     describe('1. generateMacroGridCoordinates()', () => {
-        it('возвращает расширенный массив калиброванных опорных узлов (500) для территории РФ', () => {
+        it('возвращает расширенный массив калиброванных опорных узлов (750) для территории РФ', () => {
             const points = batchAirService.generateMacroGridCoordinates();
             expect(Array.isArray(points)).toBe(true);
-            expect(points.length).toBe(500);
+            expect(points.length).toBe(750);
+        });
+
+        it('содержит плотные кластеры точек в промышленных центрах с повышенным загрязнением (Череповец, Мирный, Москва)', () => {
+            const points = batchAirService.generateMacroGridCoordinates();
+            // Череповец (lat ~ 59.0..59.3, lon ~ 37.7..38.6)
+            const cherepovetsPoints = points.filter(p => p.lat >= 59.0 && p.lat <= 59.3 && p.lon >= 37.7 && p.lon <= 38.6);
+            expect(cherepovetsPoints.length).toBeGreaterThanOrEqual(10);
+
+            // Мирный (lat ~ 62.4..63.1, lon ~ 112.4..114.5)
+            const mirnyPoints = points.filter(p => p.lat >= 62.4 && p.lat <= 63.1 && p.lon >= 112.4 && p.lon <= 114.5);
+            expect(mirnyPoints.length).toBeGreaterThanOrEqual(10);
+
+            // Москва и МО (lat ~ 54.8..56.1, lon ~ 37.0..38.9)
+            const moscowPoints = points.filter(p => p.lat >= 54.8 && p.lat <= 56.1 && p.lon >= 37.0 && p.lon <= 38.9);
+            expect(moscowPoints.length).toBeGreaterThanOrEqual(25);
         });
 
         it('все точки имеют валидные числовые координаты в границах РФ и смежных зон', () => {

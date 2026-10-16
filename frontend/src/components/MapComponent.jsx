@@ -114,7 +114,8 @@ function bboxToImageCoordinates(bbox) {
 }
 
 // Фиксированный bbox макро-слоя: покрывает ВСЮ территорию РФ
-const RUSSIA_MACRO_BBOX = [19.5, 41.0, 190.5, 82.0];
+export const RUSSIA_MACRO_BBOX = [19.5, 41.0, 190.5, 82.0];
+export const MACRO_GRID_CANVAS_SIZE = 600;
 
 // Нормализация долгот маски государственной границы: Чукотка к востоку
 function normalizeBoundaryLongitudes(polygons) {
@@ -678,26 +679,31 @@ export default function MapComponent({
 
         // 1. Инициализация рабочего Canvas буфера для базовой макро-сетки
         if (!macroCanvasRef.current) {
-            macroCanvasRef.current = createFieldCanvas(250, 250);
+            macroCanvasRef.current = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
         }
 
         const canvas = macroCanvasRef.current;
         const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
+
+        // Макро-сетка статична и рассчитывается строго по калиброванным опорным станциям
         const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
             timeIndex,
             maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
             useMercator: true,
-            zoneMode: true
+            zoneMode: true,
+            maxRadius: 10,
+            decayRadius: 0.30,
+            bgVal: 20
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
 
         // 2. Инициализация и рендер отдельного пульсирующего слоя загрязнения (41-100+)
         if (!macroPollutionCanvasRef.current) {
-            macroPollutionCanvasRef.current = createFieldCanvas(250, 250);
+            macroPollutionCanvasRef.current = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
         }
         const pollutionCanvas = macroPollutionCanvasRef.current;
-        const pollutionResult = renderFieldToCanvas(pollutionCanvas, macroGrid.points, gridBbox, {
+        const pollutionResult = renderFieldToCanvas(pollutionCanvas, result.grid, gridBbox, {
             timeIndex,
             maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
             useMercator: true,

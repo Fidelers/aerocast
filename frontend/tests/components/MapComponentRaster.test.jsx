@@ -114,19 +114,23 @@ vi.mock('maplibre-gl', () => {
     return {
         default: {
             Map: MockMap,
-            Marker: vi.fn().mockImplementation(() => ({
-                setLngLat: vi.fn().mockReturnThis(),
-                addTo: vi.fn().mockReturnThis(),
-                remove: vi.fn().mockReturnThis()
-            })),
+            Marker: vi.fn().mockImplementation(function () {
+                return {
+                    setLngLat: vi.fn().mockReturnThis(),
+                    addTo: vi.fn().mockReturnThis(),
+                    remove: vi.fn().mockReturnThis()
+                };
+            }),
             NavigationControl: vi.fn()
         },
         Map: MockMap,
-        Marker: vi.fn().mockImplementation(() => ({
-            setLngLat: vi.fn().mockReturnThis(),
-            addTo: vi.fn().mockReturnThis(),
-            remove: vi.fn().mockReturnThis()
-        })),
+        Marker: vi.fn().mockImplementation(function () {
+            return {
+                setLngLat: vi.fn().mockReturnThis(),
+                addTo: vi.fn().mockReturnThis(),
+                remove: vi.fn().mockReturnThis()
+            };
+        }),
         NavigationControl: vi.fn()
     };
 });
@@ -256,6 +260,33 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             // Отрицательные долготы (Чукотка за антмеридианом) должны быть сдвинуты: -180..-169 -> 180..191
             expect(allLons.every(lon => lon >= 0)).toBe(true);
             expect(Math.max(...allLons)).toBeGreaterThan(180);
+        });
+
+        it('1.1d. Макросетка статична относительно выбранной точки (рендерит строго точки macroGrid без искажения полем клика)', async () => {
+            const { renderFieldToCanvas } = await import('../../src/utils/canvasFieldRenderer.js');
+            const mockAirData = {
+                latitude: 59.08,
+                longitude: 37.85,
+                hourly: {
+                    european_aqi: [33, 30, 28]
+                }
+            };
+
+            render(
+                <MapComponent
+                    macroGrid={mockMacroGrid}
+                    selectedTimeIndex={0}
+                    lat={59.08}
+                    lon={37.85}
+                    airData={mockAirData}
+                />
+            );
+
+            const renderCall = renderFieldToCanvas.mock.calls.find(c => Array.isArray(c[1]));
+            expect(renderCall).toBeTruthy();
+            const points = renderCall[1];
+            expect(points.length).toBe(mockMacroGrid.points.length);
+            expect(points.find(p => p.lat === 59.08 && p.lon === 37.85)).toBeUndefined();
         });
 
         it('1.2. Создает слой air-grid-macro-layer типа raster с raster-fade-duration 300 строго под DOM-маркерами', () => {

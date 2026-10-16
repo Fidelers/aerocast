@@ -128,9 +128,12 @@ export function interpolatePoint(lat, lon, points, options = {}) {
     const {
         p = DEFAULT_P,
         maxRadius = Infinity,
+        decayRadius = 0,
+        bgVal = 20,
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
-        timeIndex = null
+        timeIndex = null,
+        useMercator = true
     } = options;
 
     const validPoints = sanitizePoints(points, timeIndex);
@@ -138,7 +141,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
         return null;
     }
 
-    if (validPoints.length === 1) {
+    if (validPoints.length === 1 && (!decayRadius || decayRadius <= 0)) {
         return Math.max(minVal, Math.min(maxVal, validPoints[0].val));
     }
 
@@ -148,11 +151,14 @@ export function interpolatePoint(lat, lon, points, options = {}) {
     let minDistanceSq = Infinity;
     const maxRadiusSq = maxRadius * maxRadius;
     const isP2 = p === DEFAULT_P;
+    const cosLat = useMercator ? Math.cos((lat * Math.PI) / 180) : 1;
+
+    const bgWeight = (Number.isFinite(decayRadius) && decayRadius > 0) ? 1 / (decayRadius * decayRadius) : 0;
 
     for (let i = 0; i < validPoints.length; i++) {
         const pt = validPoints[i];
         const dLat = lat - pt.lat;
-        const dLon = lon - pt.lon;
+        const dLon = (lon - pt.lon) * cosLat;
         const distSq = dLat * dLat + dLon * dLon;
 
         if (distSq < minDistanceSq) {
@@ -175,9 +181,14 @@ export function interpolatePoint(lat, lon, points, options = {}) {
         sumWeight += weight;
     }
 
+    if (bgWeight > 0) {
+        sumWeightVal += bgWeight * bgVal;
+        sumWeight += bgWeight;
+    }
+
     if (sumWeight === 0) {
         // Все точки оказались за пределами maxRadius — возвращаем значение ближайшей
-        return nearestVal !== null ? Math.max(minVal, Math.min(maxVal, nearestVal)) : null;
+        return nearestVal !== null ? Math.max(minVal, Math.min(maxVal, nearestVal)) : bgVal;
     }
 
     const calculated = sumWeightVal / sumWeight;
@@ -199,6 +210,8 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
     const {
         p = DEFAULT_P,
         maxRadius = Infinity,
+        decayRadius = 0,
+        bgVal = 20,
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
@@ -213,8 +226,8 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         return grid;
     }
 
-    // Если точка всего одна — мгновенно заполняем весь массив её значением
-    if (validPoints.length === 1) {
+    // Если точка всего одна и без затухания к фону — мгновенно заполняем весь массив её значением
+    if (validPoints.length === 1 && (!decayRadius || decayRadius <= 0)) {
         const clampedSingle = Math.max(minVal, Math.min(maxVal, validPoints[0].val));
         grid.fill(clampedSingle);
         return grid;
@@ -222,37 +235,59 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
 
     const [minLon, minLat, maxLon, maxLat] = bbox;
 
-    // Предрасчёт долгот по X
+    // Предрасчёт долгот по X (сэмплирование строго по центрам пикселей WebGL-текстуры)
     const lons = new Float64Array(width);
     for (let px = 0; px < width; px++) {
-        lons[px] = minLon + (px / width) * (maxLon - minLon);
+        lons[px] = minLon + ((px + 0.5) / width) * (maxLon - minLon);
     }
 
-    // Предрасчёт широт по Y (с учётом проекции)
+    // Предрасчёт широт по Y (сэмплирование строго по центрам пикселей WebGL-текстуры)
     const lats = new Float64Array(height);
     if (useMercator) {
         const minMercY = latToMercator(minLat);
         const maxMercY = latToMercator(maxLat);
         const mercDiff = maxMercY - minMercY;
         for (let py = 0; py < height; py++) {
-            const mercY = minMercY + (1 - py / height) * mercDiff;
+            const mercY = minMercY + (1 - (py + 0.5) / height) * mercDiff;
             lats[py] = mercatorToLat(mercY);
         }
     } else {
         const latDiff = maxLat - minLat;
         for (let py = 0; py < height; py++) {
-            lats[py] = minLat + (1 - py / height) * latDiff;
+            lats[py] = minLat + (1 - (py + 0.5) / height) * latDiff;
         }
     }
 
     const pointsCount = validPoints.length;
     const maxRadiusSq = maxRadius * maxRadius;
     const isP2 = p === DEFAULT_P;
+    const hasCutoff = Number.isFinite(maxRadius) && maxRadius > 0;
+    const rowPts = hasCutoff ? [] : null;
+    const bgWeight = (Number.isFinite(decayRadius) && decayRadius > 0) ? 1 / (decayRadius * decayRadius) : 0;
 
     // Оптимизированный цикл по всем строкам и колонкам без Math.hypot и Math.sqrt
     for (let py = 0; py < height; py++) {
         const curLat = lats[py];
+        const cosLat = useMercator ? Math.cos((curLat * Math.PI) / 180) : 1;
         const rowOffset = py * width;
+
+        let activePoints = validPoints;
+        let activeCount = pointsCount;
+
+        if (hasCutoff) {
+            rowPts.length = 0;
+            for (let i = 0; i < pointsCount; i++) {
+                const pt = validPoints[i];
+                const dLat = curLat - pt.lat;
+                if (dLat >= -maxRadius && dLat <= maxRadius) {
+                    rowPts.push(pt);
+                }
+            }
+            activePoints = rowPts;
+            activeCount = rowPts.length;
+        }
+
+        const maxLonDiff = hasCutoff ? (cosLat > 0.05 ? maxRadius / cosLat : maxRadius * 20) : Infinity;
 
         for (let px = 0; px < width; px++) {
             const curLon = lons[px];
@@ -263,10 +298,15 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
             let minDistanceSq = Infinity;
             let exactMatchVal = null;
 
-            for (let i = 0; i < pointsCount; i++) {
-                const pt = validPoints[i];
+            for (let i = 0; i < activeCount; i++) {
+                const pt = activePoints[i];
+                const dLonRaw = curLon - pt.lon;
+                if (hasCutoff && (dLonRaw < -maxLonDiff || dLonRaw > maxLonDiff)) {
+                    continue;
+                }
+
                 const dLat = curLat - pt.lat;
-                const dLon = curLon - pt.lon;
+                const dLon = dLonRaw * cosLat;
                 const distSq = dLat * dLat + dLon * dLon;
 
                 if (distSq < minDistanceSq) {
@@ -291,10 +331,16 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
             let finalValue;
             if (exactMatchVal !== null) {
                 finalValue = exactMatchVal;
-            } else if (sumWeight === 0) {
-                finalValue = nearestVal !== null ? nearestVal : 0;
             } else {
-                finalValue = sumWeightVal / sumWeight;
+                if (bgWeight > 0) {
+                    sumWeightVal += bgWeight * bgVal;
+                    sumWeight += bgWeight;
+                }
+                if (sumWeight === 0) {
+                    finalValue = nearestVal !== null ? nearestVal : bgVal;
+                } else {
+                    finalValue = sumWeightVal / sumWeight;
+                }
             }
 
             // Clamp
