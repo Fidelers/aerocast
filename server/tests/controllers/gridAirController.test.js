@@ -14,7 +14,10 @@ jest.mock('../../services/spatialCacheService', () => ({
     quantizeCoordinates: jest.fn(),
     getSpatialCache: jest.fn(),
     setSpatialCache: jest.fn(),
-    clearSpatialCache: jest.fn()
+    clearSpatialCache: jest.fn(),
+    getTodayMacroGrid: jest.fn(),
+    isMacroGridSavedToday: jest.fn(),
+    isRecordSavedToday: jest.fn()
 }));
 
 describe('Controller: gridAirController', () => {
@@ -45,6 +48,15 @@ describe('Controller: gridAirController', () => {
         spatialCacheService.getSpatialCache.mockResolvedValue(null);
         spatialCacheService.setSpatialCache.mockResolvedValue(undefined);
         spatialCacheService.clearSpatialCache.mockResolvedValue(0);
+        spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
+        spatialCacheService.isMacroGridSavedToday.mockResolvedValue(false);
+        spatialCacheService.isRecordSavedToday.mockImplementation((rec) => {
+            if (!rec) return false;
+            const timeUtils = require('../../services/timeUtils');
+            if (rec.cached_date) return rec.cached_date === timeUtils.getTodayDateString();
+            return true;
+        });
+
 
         // Базовые моки batchAirService
         batchAirService.generateMacroGridCoordinates.mockReturnValue([
@@ -146,9 +158,26 @@ describe('Controller: gridAirController', () => {
             req.query = { type: 'macro' };
             await gridAirController.getGridAirQuality(req, res);
 
-            expect(spatialCacheService.getSpatialCache).toHaveBeenCalledWith('grid_macro_russia', false);
             expect(batchAirService.fetchBatchAirQuality).not.toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith(cachedMacro);
+        });
+
+        it('возвращает сетку через getTodayMacroGrid, если она сохранена сегодня', async () => {
+            const cachedMacroToday = {
+                type: 'macro',
+                points_count: 550,
+                used_source: 'open-meteo',
+                cached_date: '2026-10-16',
+                points: [{ lat: 55.75, lon: 37.61, european_aqi: [15] }]
+            };
+            spatialCacheService.getTodayMacroGrid.mockResolvedValue(cachedMacroToday);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(spatialCacheService.getTodayMacroGrid).toHaveBeenCalledWith('grid_macro_russia');
+            expect(batchAirService.fetchBatchAirQuality).not.toHaveBeenCalled();
+            expect(res.json).toHaveBeenCalledWith(cachedMacroToday);
         });
 
         it('возвращает 200 и кэшированную микро-сетку по квантованному ключу без вызова внешнего API', async () => {
@@ -172,7 +201,7 @@ describe('Controller: gridAirController', () => {
     });
 
     describe('3. Промах кэша и получение данных (Cache Miss & Batch Fetch)', () => {
-        it('для macro генерирует узлы РФ, делает пакетный запрос и сохраняет в SQLite с TTL 86400 (24 часа)', async () => {
+        it('для macro генерирует узлы РФ, делает пакетный запрос и сохраняет в SQLite с TTL 86400 (24 часа) и cached_date', async () => {
             spatialCacheService.getSpatialCache.mockResolvedValue(null);
 
             req.query = { type: 'macro' };
@@ -182,12 +211,14 @@ describe('Controller: gridAirController', () => {
             expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalledWith(expect.any(Array));
             expect(batchAirService.normalizeBatchResponse).toHaveBeenCalled();
 
-            // Проверяем сохранение в кэш с TTL 86400 сек (24 часа / 1 день)
+            // Проверяем сохранение в кэш с TTL 86400 сек (24 часа / 1 день) и метками даты
             expect(spatialCacheService.setSpatialCache).toHaveBeenCalledWith(
                 'grid_macro_russia',
                 expect.objectContaining({
                     type: 'macro',
-                    used_source: 'open-meteo'
+                    used_source: 'open-meteo',
+                    cached_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+                    cached_at: expect.any(Number)
                 }),
                 86400
             );
@@ -198,6 +229,35 @@ describe('Controller: gridAirController', () => {
                 points: expect.any(Array)
             }));
         });
+
+        it('если в кэше сохранена макросетка за вчерашний день, запрашивает Open-Meteo для актуализации', async () => {
+            // Вчерашняя макросетка
+            const yesterdayMacro = {
+                type: 'macro',
+                points_count: 550,
+                used_source: 'open-meteo',
+                cached_date: '2026-10-15', // вчера
+                cached_at: Date.now() - 24 * 3600 * 1000,
+                points: [{ lat: 55.75, lon: 37.61, european_aqi: [10] }]
+            };
+            spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
+            spatialCacheService.getSpatialCache.mockResolvedValue(yesterdayMacro);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            // Должен был пойти в Open-Meteo за актуализацией!
+            expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalled();
+            expect(spatialCacheService.setSpatialCache).toHaveBeenCalledWith(
+                'grid_macro_russia',
+                expect.objectContaining({
+                    type: 'macro',
+                    used_source: 'open-meteo'
+                }),
+                86400
+            );
+        });
+
 
         it('для micro генерирует матрицу вокруг центра, запрашивает API и сохраняет в кэш', async () => {
             spatialCacheService.getSpatialCache.mockResolvedValue(null);

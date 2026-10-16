@@ -52,4 +52,38 @@ describe('Service: timeUtils', () => {
             expect(timeUtils.formatIsoHourMillis(1789862400 * 1000)).toBe(timeUtils.formatIsoHour(1789862400));
         });
     });
+
+    describe('getTodayDateString(timestamp)', () => {
+        it('возвращает дату в формате "ГГГГ-ММ-ДД" в часовом поясе Europe/Moscow', () => {
+            // 1789862400 -> 2026-09-20T03:00 Europe/Moscow
+            expect(timeUtils.getTodayDateString(1789862400 * 1000)).toBe('2026-09-20');
+            // 1789855200 -> 2026-09-19T22:00 UTC -> 2026-09-20T01:00 Europe/Moscow
+            expect(timeUtils.getTodayDateString(1789855200 * 1000)).toBe('2026-09-20');
+        });
+    });
+
+    describe('isToday(timestampOrDate, referenceDate)', () => {
+        it('возвращает true, если метка времени относится к тому же дню в Europe/Moscow', () => {
+            const ref = 1789862400 * 1000; // 2026-09-20
+            const sameDay = ref + 3600 * 1000; // на 1 час позже
+            expect(timeUtils.isToday(sameDay, ref)).toBe(true);
+            expect(timeUtils.isToday('2026-09-20', ref)).toBe(true);
+        });
+
+        it('возвращает false, если метка времени из другого дня (вчера / завтра)', () => {
+            const ref = 1789862400 * 1000; // 2026-09-20
+            const yesterday = ref - 24 * 3600 * 1000; // 2026-09-19
+            const tomorrow = ref + 24 * 3600 * 1000; // 2026-09-21
+            expect(timeUtils.isToday(yesterday, ref)).toBe(false);
+            expect(timeUtils.isToday(tomorrow, ref)).toBe(false);
+            expect(timeUtils.isToday('2026-09-19', ref)).toBe(false);
+        });
+
+        it('возвращает false для невалидных значений', () => {
+            expect(timeUtils.isToday(null)).toBe(false);
+            expect(timeUtils.isToday(undefined)).toBe(false);
+            expect(timeUtils.isToday('invalid-date')).toBe(false);
+        });
+    });
 });
+

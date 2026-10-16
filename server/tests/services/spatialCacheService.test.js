@@ -272,4 +272,53 @@ describe('Service: spatialCacheService (Пространственное кэш�
             expect(res).toEqual(data);
         });
     });
+
+    describe('6. Кеширование макросетки на текущий день (getTodayMacroGrid & isMacroGridSavedToday)', () => {
+        const key = 'grid_macro_russia';
+        const sampleMacro = {
+            type: 'macro',
+            points_count: 550,
+            points: [{ lat: 55.75, lon: 37.61, european_aqi: [20] }]
+        };
+
+        it('возвращает сетку, если она была сохранена сегодня (в этот день)', async () => {
+            // Текущее зафиксированное время в тестах: '2026-10-09T12:00:00Z' (15:00 по Москве)
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-09' }),
+                expires_at: Date.now() + 86400 * 1000,
+                updated_at: Date.now()
+            });
+
+            const result = await spatialCacheService.getTodayMacroGrid(key);
+            expect(result).not.toBeNull();
+            expect(result.type).toBe('macro');
+
+            const isSaved = await spatialCacheService.isMacroGridSavedToday(key);
+            expect(isSaved).toBe(true);
+        });
+
+        it('возвращает null, если макросетка сохранена во вчерашний день (требуется актуализация)', async () => {
+            const yesterdayMs = Date.now() - 24 * 3600 * 1000;
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-08' }),
+                expires_at: Date.now() + 3600 * 1000,
+                updated_at: yesterdayMs
+            });
+
+            const result = await spatialCacheService.getTodayMacroGrid(key);
+            expect(result).toBeNull();
+
+            const isSaved = await spatialCacheService.isMacroGridSavedToday(key);
+            expect(isSaved).toBe(false);
+        });
+
+        it('возвращает null, если кэш макросетки пуст', async () => {
+            mockDb.get.mockResolvedValue(undefined);
+
+            const result = await spatialCacheService.getTodayMacroGrid(key);
+            expect(result).toBeNull();
+            expect(await spatialCacheService.isMacroGridSavedToday(key)).toBe(false);
+        });
+    });
 });
+
