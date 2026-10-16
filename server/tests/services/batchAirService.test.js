@@ -9,10 +9,10 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
     });
 
     describe('1. generateMacroGridCoordinates()', () => {
-        it('возвращает расширенный массив калиброванных опорных узлов (750) для территории РФ', () => {
+        it('возвращает расширенный массив калиброванных опорных узлов (550) для территории РФ', () => {
             const points = batchAirService.generateMacroGridCoordinates();
             expect(Array.isArray(points)).toBe(true);
-            expect(points.length).toBe(750);
+            expect(points.length).toBe(550);
         });
 
         it('содержит плотные кластеры точек в промышленных центрах с повышенным загрязнением (Череповец, Мирный, Москва)', () => {

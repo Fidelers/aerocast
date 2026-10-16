@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 
-const MACRO_GRID_POINTS = require('./macroGridPoints750.json');
+const MACRO_GRID_POINTS = require('./macroGridPoints550.json');
 
 
 
@@ -72,18 +72,34 @@ async function fetchBatchAirQuality(coordinates) {
         chunks.push(coordinates.slice(i, i + CHUNK_SIZE));
     }
 
-    const promises = chunks.map(async (chunk) => {
+    const results = [];
+    for (const chunk of chunks) {
         const lats = chunk.map(c => Number(c.lat).toFixed(4)).join(',');
         const lons = chunk.map(c => Number(c.lon).toFixed(4)).join(',');
 
         const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lats}&longitude=${lons}&hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,european_aqi&timezone=Europe/Moscow&past_days=7&forecast_days=4`;
 
-        const response = await axios.get(url, { timeout: 4000 });
-        return response.data;
-    });
+        let response;
+        try {
+            response = await axios.get(url, { timeout: 5000 });
+        } catch (err) {
+            if (err.response && err.response.status === 429) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                response = await axios.get(url, { timeout: 5000 });
+            } else {
+                throw err;
+            }
+        }
 
-    const results = await Promise.all(promises);
-    return results.flat();
+        const data = response.data;
+        if (Array.isArray(data)) {
+            results.push(...data);
+        } else if (data) {
+            results.push(data);
+        }
+    }
+
+    return results;
 }
 
 
