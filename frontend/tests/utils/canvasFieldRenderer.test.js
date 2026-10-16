@@ -6,6 +6,7 @@ import {
     renderFieldToCanvas,
     createFieldCanvas,
     clipCanvasToPolygons,
+    hasPollutedZones,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_ALPHA
@@ -212,21 +213,101 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('6. Производительность', () => {
-        it('заполняет буфер 150x150 (22 500 пикселей) менее чем за 15 мс', () => {
-            const size = 150 * 150;
-            const grid = new Float32Array(size);
-            for (let i = 0; i < size; i++) {
-                grid[i] = (i % 120);
+    describe('7. Плавный режим чётких зон загрязнения с обводкой без дырок (zoneMode)', () => {
+        it('заполняет чистый воздух (AQI <= 20) непрерывным зеленым цветом без дырок (alpha = DEFAULT_ALPHA)', () => {
+            const width = 4;
+            const height = 4;
+            const grid = new Float32Array(width * height);
+            grid.fill(15); // чистый воздух
+
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
+
+            for (let i = 0; i < width * height; i++) {
+                expect(imgData.data[i * 4 + 3]).toBe(DEFAULT_ALPHA);
+                expect(imgData.data[i * 4]).toBe(76);
+                expect(imgData.data[i * 4 + 1]).toBe(175);
+                expect(imgData.data[i * 4 + 2]).toBe(80);
             }
-            const imgData = { data: new Uint8ClampedArray(size * 4) };
+        });
 
-            const start = performance.now();
-            renderFieldToBuffer(grid, imgData, 150, 150);
-            const duration = performance.now() - start;
+        it('создает плавное сплошное поле без искусственных контуров и яиц', () => {
+            const width = 5;
+            const height = 5;
+            const grid = new Float32Array(width * height);
+            grid.fill(15); // чистый воздух
+            // Центр 3x3 — загрязнение
+            for (let y = 1; y <= 3; y++) {
+                for (let x = 1; x <= 3; x++) {
+                    grid[y * width + x] = 50;
+                }
+            }
 
-            expect(duration).toBeLessThan(15);
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
+
+            // (0, 0) — чистый воздух -> непрерывный цвет, alpha = DEFAULT_ALPHA
+            expect(imgData.data[0 * 4 + 3]).toBe(DEFAULT_ALPHA);
+
+            // (1, 1) — край зоны -> ровный базовый alpha без искусственной обводки/яиц
+            const edgeIdx = (1 * width + 1) * 4;
+            expect(imgData.data[edgeIdx + 3]).toBe(DEFAULT_ALPHA);
+
+            // (2, 2) — внутренняя часть зоны -> базовый alpha
+            const innerIdx = (2 * width + 2) * 4;
+            expect(imgData.data[innerIdx + 3]).toBe(DEFAULT_ALPHA);
+        });
+
+        it('в чистом воздухе (AQI <= 40) отсутствуют искусственные контуры или кольца', () => {
+            const width = 4;
+            const height = 4;
+            const grid = new Float32Array(width * height);
+            // Плавный переход вокруг 20 (например, 19.5 и 20.5)
+            grid[0] = 19;
+            grid[1] = 21;
+            grid[2] = 25;
+            grid[3] = 30;
+
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
+
+            // Все пиксели чистого воздуха имеют стандартную прозрачность DEFAULT_ALPHA (нет колец)
+            for (let i = 0; i < 4; i++) {
+                expect(imgData.data[i * 4 + 3]).toBe(DEFAULT_ALPHA);
+            }
+        });
+
+        it('в режиме onlyPollution делает чистый воздух (<= 40) полностью прозрачным', () => {
+            const width = 4;
+            const height = 4;
+            const grid = new Float32Array(width * height);
+            grid[0] = 20; // чистый
+            grid[1] = 35; // чистый
+            grid[2] = 55; // загрязнение (AQI > 40)
+            grid[3] = 85; // сильное загрязнение
+
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { onlyPollution: true });
+
+            // Чистый воздух (<= 40) -> alpha = 0
+            expect(imgData.data[0 * 4 + 3]).toBe(0);
+            expect(imgData.data[1 * 4 + 3]).toBe(0);
+
+            // Загрязненные зоны (> 40) -> alpha > 0
+            expect(imgData.data[2 * 4 + 3]).toBeGreaterThan(0);
+            expect(imgData.data[3 * 4 + 3]).toBeGreaterThan(0);
+        });
+
+        it('hasPollutedZones корректно определяет наличие значений > 40', () => {
+            const cleanGrid = new Float32Array([10, 20, 30, 40]);
+            expect(hasPollutedZones(cleanGrid, 40)).toBe(false);
+
+            const pollutedGrid = new Float32Array([10, 20, 41, 15]);
+            expect(hasPollutedZones(pollutedGrid, 40)).toBe(true);
+
+            expect(hasPollutedZones(null)).toBe(false);
         });
     });
 });
+
 

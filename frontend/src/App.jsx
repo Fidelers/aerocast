@@ -26,26 +26,8 @@ function App() {
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-    // подключаем сетку качества воздуха
-    const { macroGrid, microGrid, loadMicroGrid } = useAirGrid({ baseUrl: API_BASE });
-
-    // загружаем микро-сетку при смене города
-    useEffect(() => {
-        const lat = Number(coords?.lat);
-        const lon = Number(coords?.lon);
-        if (!Number.isNaN(lat) && !Number.isNaN(lon) && coords?.lat != null && coords?.lon != null) {
-            loadMicroGrid(lat, lon);
-        }
-    }, [coords.lat, coords.lon, loadMicroGrid]);
-
-    // подгрузка микро-сетки при перемещении области видимости карты
-    const handleViewportMove = useCallback((newCoords) => {
-        const lat = Number(newCoords?.lat);
-        const lon = Number(newCoords?.lon);
-        if (!Number.isNaN(lat) && !Number.isNaN(lon) && newCoords?.lat != null && newCoords?.lon != null) {
-            loadMicroGrid(lat, lon);
-        }
-    }, [loadMicroGrid]);
+    // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
+    const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
 
     // точная ISO-метка времени для синхронизации
     const selectedIsoTime =
@@ -233,14 +215,11 @@ function App() {
                     selectedTimeIndex={selectedTimeIndex}
                     selectedIsoTime={selectedIsoTime}
                     macroGrid={macroGrid}
-                    microGrid={microGrid}
                     viewMode={viewMode}
                     onMapClick={handleLocationSelect}
-                    onLocationSelect={handleLocationSelect}
                     onMarkerClick={() => setIsRightPanelOpen(true)}
                     activeBaseLayer={activeBaseLayer}
                     recenterTrigger={recenterTrigger}
-                    onViewportMove={handleViewportMove}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}

@@ -142,7 +142,8 @@ vi.mock('../../src/utils/canvasFieldRenderer.js', () => {
             return {
                 toDataUrl: () => 'data:image/png;base64,MOCK_CANVAS_DATA_URL',
                 width: 150,
-                height: 150
+                height: 150,
+                hasPollution: true
             };
         })
     };
@@ -384,7 +385,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             expect(mockSetPaintProperty).toHaveBeenCalledWith('air-grid-micro-layer', 'raster-opacity', 0);
         });
 
-        it('2.2. При zoom >= 9.0: макро-слой скрыт (opacity 0.0), микро-слой активен (opacity 0.70)', () => {
+        it('2.2. При zoom >= 9.0: макро-слой активен (opacity 0.70) даже при близком приближении', () => {
             render(
                 <MapComponent
                     macroGrid={mockMacroGrid}
@@ -398,11 +399,11 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
 
             triggerMapEvent('zoom');
 
-            expect(mockSetPaintProperty).toHaveBeenCalledWith('air-grid-macro-layer', 'raster-opacity', 0);
+            expect(mockSetPaintProperty).toHaveBeenCalledWith('air-grid-macro-layer', 'raster-opacity', 0.7);
             expect(mockSetPaintProperty).toHaveBeenCalledWith('air-grid-micro-layer', 'raster-opacity', 0.7);
         });
 
-        it('2.3. На интервале zoom 8.5..9.0 настраивается плавный переход прозрачности (кроссфейд)', () => {
+        it('2.3. На интервале zoom 8.5..9.0 макро-слой сохраняет стабильную видимость (opacity 0.70)', () => {
             render(
                 <MapComponent
                     macroGrid={mockMacroGrid}
@@ -412,20 +413,14 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             );
 
             const mapInstance = MockMap.mock.results[0].value;
-            // Точно середина диапазона 8.5 .. 9.0: zoom = 8.75 -> t = 0.5
             mapInstance._zoom = 8.75;
 
             triggerMapEvent('zoom');
 
-            // Ожидаем плавные промежуточные значения прозрачности (примерно 0.35)
             const macroCalls = mockSetPaintProperty.mock.calls.filter(c => c[0] === 'air-grid-macro-layer' && c[1] === 'raster-opacity');
-            const microCalls = mockSetPaintProperty.mock.calls.filter(c => c[0] === 'air-grid-micro-layer' && c[1] === 'raster-opacity');
-
             const lastMacroOpacity = macroCalls[macroCalls.length - 1]?.[2];
-            const lastMicroOpacity = microCalls[microCalls.length - 1]?.[2];
 
-            expect(lastMacroOpacity).toBeCloseTo(0.35, 1);
-            expect(lastMicroOpacity).toBeCloseTo(0.35, 1);
+            expect(lastMacroOpacity).toBeCloseTo(0.70, 1);
         });
     });
 
@@ -699,6 +694,60 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
 
             expect(createdLayers.get('air-grid-macro-layer')?.layout?.visibility).toBe('visible');
             expect(createdLayers.get('air-grid-micro-layer')?.layout?.visibility).toBe('visible');
+        });
+    });
+
+    describe('6. Пульсирование загрязненных зон (41-100+) и стабильность маркера', () => {
+        it('6.1. При наличии точек с AQI > 40 регистрирует пульсирующий слой air-grid-macro-pollution-layer', () => {
+            const pollutedMacroGrid = {
+                points: [
+                    { lat: 55.75, lon: 37.61, eaqi: 20 },
+                    { lat: 53.75, lon: 87.14, eaqi: 65 } // AQI > 40
+                ]
+            };
+
+            render(
+                <MapComponent
+                    macroGrid={pollutedMacroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="combo"
+                />
+            );
+
+            expect(mockAddSource).toHaveBeenCalledWith(
+                'air-grid-macro-pollution-source',
+                expect.objectContaining({
+                    type: 'image'
+                })
+            );
+
+            expect(mockAddLayer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'air-grid-macro-pollution-layer',
+                    type: 'raster',
+                    source: 'air-grid-macro-pollution-source'
+                }),
+                expect.any(String)
+            );
+        });
+
+        it('6.2. В цифровом режиме скрывает пульсирующий слой загрязнения', () => {
+            const pollutedMacroGrid = {
+                points: [
+                    { lat: 53.75, lon: 87.14, eaqi: 70 }
+                ]
+            };
+
+            render(
+                <MapComponent
+                    macroGrid={pollutedMacroGrid}
+                    selectedTimeIndex={0}
+                    viewMode="numeric"
+                />
+            );
+
+            const pollutionLayer = createdLayers.get('air-grid-macro-pollution-layer');
+            expect(pollutionLayer?.layout?.visibility).toBe('none');
         });
     });
 });

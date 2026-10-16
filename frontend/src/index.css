@@ -190,3 +190,50 @@ code {
   }
 }
 
+/* === Анимация пульсирования при загрязнении воздуха (Яндекс.Погода radar style) === */
+@keyframes markerPollutionPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.8), 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(244, 67, 54, 0), 0 0 0 2px rgba(255, 152, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0), 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.map-marker--polluted-pulse {
+  animation: markerPollutionPulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+  position: relative !important;
+}
+
+.map-marker--polluted-pulse::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 67, 54, 0.85);
+  animation: markerRadarWave 2.2s cubic-bezier(0.1, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes markerRadarWave {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+

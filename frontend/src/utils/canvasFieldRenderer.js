@@ -58,28 +58,71 @@ export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA) {
 }
 
 /**
+ * Проверяет, содержит ли сетка значения, превышающие порог загрязнения (по умолчанию > 40).
+ * @param {Float32Array|Array<number>} grid - одномерный массив значений
+ * @param {number} [threshold=40] - порог загрязнения (EAQI > 40)
+ * @returns {boolean}
+ */
+export function hasPollutedZones(grid, threshold = 40) {
+    if (!grid) return false;
+    for (let i = 0; i < grid.length; i++) {
+        if (grid[i] > threshold) return true;
+    }
+    return false;
+}
+
+/**
  * Заполняет буфер ImageData (Uint8ClampedArray) пикселями на основе массива сетки.
+ * Полностью монолитный, бесшовный градиент без искусственных контуров, яиц и ступеней.
+ * В режиме options.onlyPollution = true пиксели чистого воздуха (<= 40) прозрачны,
+ * а загрязнение плавно проявляется для независимого пульсирования.
+ *
  * @param {Float32Array|Array<number>} grid - одномерный массив значений EAQI (размера width * height)
  * @param {{ data: Uint8ClampedArray }} imgData - объект с буфером пикселей
  * @param {number} width - ширина холста
  * @param {number} height - высота холста
- * @param {Object} [options={}] - параметры (alpha)
+ * @param {Object} [options={}] - параметры (alpha, onlyPollution, pollutionThreshold)
  */
 export function renderFieldToBuffer(grid, imgData, width, height, options = {}) {
     const alpha = options.alpha !== undefined ? options.alpha : DEFAULT_ALPHA;
+    const onlyPollution = options.onlyPollution === true;
+    const pollutionThreshold = options.pollutionThreshold !== undefined ? options.pollutionThreshold : 40;
     const data = imgData.data;
     const totalPixels = width * height;
 
     for (let i = 0; i < totalPixels; i++) {
         const val = grid[i];
-        const color = interpolateAqiColor(val, alpha);
         const idx = i * 4;
-        data[idx] = color.r;
-        data[idx + 1] = color.g;
-        data[idx + 2] = color.b;
-        data[idx + 3] = color.a;
+
+        if (onlyPollution) {
+            // В режиме пульсирующего слоя загрязнения:
+            // чистый воздух (<= 40) полностью прозрачен,
+            // а загрязненные области (41-100+) плавно проявляются
+            if (val <= pollutionThreshold) {
+                data[idx] = 0;
+                data[idx + 1] = 0;
+                data[idx + 2] = 0;
+                data[idx + 3] = 0;
+                continue;
+            }
+            const baseColor = interpolateAqiColor(val, alpha);
+            const fade = Math.min(1, (val - pollutionThreshold) / 6);
+            data[idx] = baseColor.r;
+            data[idx + 1] = baseColor.g;
+            data[idx + 2] = baseColor.b;
+            data[idx + 3] = Math.round(alpha * fade);
+            continue;
+        }
+
+        // Абсолютно гладкое, монолитное и естественное поле без искусственных контуров, яиц и ступеней
+        const baseColor = interpolateAqiColor(val, alpha);
+        data[idx] = baseColor.r;
+        data[idx + 1] = baseColor.g;
+        data[idx + 2] = baseColor.b;
+        data[idx + 3] = alpha;
     }
 }
+
 
 /**
  * Создаёт экземпляр холста (OffscreenCanvas либо HTMLCanvasElement) с заданными размерами.
@@ -221,6 +264,7 @@ export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, op
         width,
         height,
         grid,
+        hasPollution: hasPollutedZones(grid, 40),
         toDataUrl: () => (canvas.toDataURL ? canvas.toDataURL('image/png') : '')
     };
 }

@@ -9,11 +9,10 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
     });
 
     describe('1. generateMacroGridCoordinates()', () => {
-        it('возвращает расширенный массив калиброванных опорных узлов (100–200) для территории РФ', () => {
+        it('возвращает расширенный массив калиброванных опорных узлов (500) для территории РФ', () => {
             const points = batchAirService.generateMacroGridCoordinates();
             expect(Array.isArray(points)).toBe(true);
-            expect(points.length).toBeGreaterThanOrEqual(100);
-            expect(points.length).toBeLessThanOrEqual(200);
+            expect(points.length).toBe(500);
         });
 
         it('все точки имеют валидные числовые координаты в границах РФ и смежных зон', () => {

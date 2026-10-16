@@ -140,21 +140,21 @@ describe('Epic: App.jsx и синхронизация по времени (Timel
     });
 
     describe('1. Интеграция пространственной сетки в App.jsx', () => {
-        it('передает macroGrid и microGrid в MapComponent после загрузки', async () => {
+        it('передает высокоточную macroGrid в MapComponent (microGrid отключена)', async () => {
             render(<App />);
 
             await waitFor(() => {
                 expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
             });
 
-            // MapComponent должен получить сетки
+            // MapComponent должен получить макросетку (микросетка отключена)
             await waitFor(() => {
                 expect(screen.getByTestId('map-macro').textContent).toBe('present');
-                expect(screen.getByTestId('map-micro').textContent).toBe('present');
+                expect(screen.getByTestId('map-micro').textContent).toBe('none');
             });
         });
 
-        it('запрашивает новую microGrid при смене координат города', async () => {
+        it('запрашивает обновленные данные качества воздуха при смене координат города без микросетки', async () => {
             render(<App />);
 
             await waitFor(() => {
@@ -166,8 +166,7 @@ describe('Epic: App.jsx и синхронизация по времени (Timel
 
             await waitFor(() => {
                 expect(globalThis.fetch).toHaveBeenCalledWith(
-                    expect.stringMatching(/\/api\/air-quality\/grid\/micro\?.*lat=59\.9386.*lon=30\.3141/),
-                    expect.any(Object)
+                    expect.stringMatching(/\/api\/air-quality\?.*lat=59\.9386.*lon=30\.3141/)
                 );
             });
         });
