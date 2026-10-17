@@ -372,7 +372,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
 
       {/* Показатель AQI: цветовой индикатор, оценка и рекомендация */}
       <div className="aqi-summary">
-        <div className="aqi-indicator" style={{ backgroundColor: aqiInfo.hex }}>
+        <div className="aqi-indicator" data-level={aqiInfo.level} style={{ backgroundColor: aqiInfo.hex }}>
           <span className="aqi-indicator__number">{aqi !== null ? aqi : '—'}</span>
           <span className="aqi-indicator__label">{aqiInfo.label}</span>
         </div>

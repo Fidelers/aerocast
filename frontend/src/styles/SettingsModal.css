@@ -1,0 +1,313 @@
+/* SettingsModal.css — стили компактного окна настроек сайта */
+
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: settingsFadeIn 0.2s ease-out;
+}
+
+@keyframes settingsFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.settings-modal__card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg, #ffffff);
+  color: var(--text, #374151);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 18px;
+  box-shadow: 0 20px 30px -8px rgba(0, 0, 0, 0.25), 0 8px 12px -4px rgba(0, 0, 0, 0.15);
+  padding: 22px;
+  animation: settingsScaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--inter, system-ui, sans-serif);
+  box-sizing: border-box;
+}
+
+@keyframes settingsScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.settings-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sidebar-divider, #e2e8f0);
+}
+
+.settings-modal__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-modal__icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent-bg, rgba(170, 59, 255, 0.12));
+  color: var(--accent, #aa3bff);
+}
+
+.settings-modal__title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-h, #111827);
+  line-height: 1.2;
+}
+
+.settings-modal__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+}
+
+.settings-modal__close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.settings-modal__close-btn:hover {
+  background-color: var(--surface-secondary, #f1f5f9);
+  color: var(--text-h, #111827);
+}
+
+.settings-modal__close-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent, #aa3bff);
+  outline: none;
+}
+
+.settings-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Элемент отдельной настройки */
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  background-color: var(--surface-secondary, #f8fafc);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-item:hover {
+  border-color: var(--border-hover, #93c5fd);
+}
+
+.settings-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-item__label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-item__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary, #2563eb);
+  flex-shrink: 0;
+}
+
+.settings-item__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h, #111827);
+  line-height: 1.25;
+}
+
+.settings-item__desc {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.35;
+}
+
+/* Красивый свитчер (iOS-style switch) */
+.settings-switch {
+  position: relative;
+  width: 50px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background-color: var(--border-input, #cbd5e1);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background-color 0.25s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.settings-switch:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-bg, rgba(170, 59, 255, 0.3));
+  outline: none;
+}
+
+.settings-switch--active {
+  background-color: var(--primary, #2563eb);
+}
+
+.settings-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.settings-switch--active .settings-switch__thumb {
+  transform: translateX(22px);
+}
+
+.settings-switch__icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Блок предпросмотра палитры качества воздуха */
+.settings-preview {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background-color: var(--surface-card, #ffffff);
+  border: 1px dashed var(--border, #e5e7eb);
+  border-radius: 12px;
+}
+
+.settings-preview__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #6b7280);
+}
+
+.settings-preview__badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: var(--surface-secondary, #f1f5f9);
+  color: var(--text, #374151);
+  font-weight: 500;
+}
+
+.settings-preview__palette {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.settings-preview__color-chip {
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.settings-preview__color-chip:hover {
+  transform: translateY(-1px);
+}
+
+.settings-preview__legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-muted, #6b7280);
+}
+
+/* Мобильная адаптация */
+@media (max-width: 480px) {
+  .settings-modal__card {
+    padding: 18px 16px;
+    max-width: 100%;
+    border-radius: 16px;
+  }
+
+  .settings-item {
+    padding: 10px 12px;
+  }
+
+  .settings-item__title {
+    font-size: 13.5px;
+  }
+
+  .settings-item__desc {
+    font-size: 11.5px;
+  }
+}

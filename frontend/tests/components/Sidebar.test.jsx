@@ -300,6 +300,43 @@ describe('Sidebar component (вызов информационного мода�
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    it('4. Рендерит значок настроек слева от значка «О проекте» в шапке сайдбара', () => {
+        render(<Sidebar />);
+
+        const settingsBtn = screen.getByRole('button', { name: /настройки/i });
+        const infoBtn = screen.getByLabelText(/информация о проекте/i);
+
+        expect(settingsBtn).toBeTruthy();
+        expect(infoBtn).toBeTruthy();
+        // Проверяем, что значок настроек предшествует значку информации в DOM
+        expect(settingsBtn.compareDocumentPosition(infoBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('5. При клике на значок настроек вызывает onOpenSettings, если передан в пропсы', () => {
+        const handleOpenSettings = vi.fn();
+        render(<Sidebar onOpenSettings={handleOpenSettings} />);
+
+        const settingsBtn = screen.getByRole('button', { name: /настройки/i });
+        fireEvent.click(settingsBtn);
+
+        expect(handleOpenSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('6. Открывает и закрывает внутренний SettingsModal, если onOpenSettings не передан в пропсы', () => {
+        render(<Sidebar />);
+
+        const settingsBtn = screen.getByRole('button', { name: /настройки/i });
+        fireEvent.click(settingsBtn);
+
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: /настройки/i })).toBeTruthy();
+
+        const closeBtn = screen.getByRole('button', { name: /закрыть настройки/i });
+        fireEvent.click(closeBtn);
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('вызывает onLocateMe при нажатии кнопки "Моё местоположение", если передан коллбэк', () => {
         const handleLocateMe = vi.fn();
         render(<Sidebar onLocateMe={handleLocateMe} />);

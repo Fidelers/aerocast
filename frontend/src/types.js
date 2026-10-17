@@ -25,19 +25,41 @@ const HAZARDOUS = Object.freeze({
     hex: '#D50000'
 });
 
+// Палитра для людей с цветовой слепотой (дальтоников), палитра Okabe-Ito.
+// Используется в режиме data-colorblind="true" и совпадает с CSS-оверрайдами в index.css.
+const COLORBLIND_HEX = Object.freeze({
+    none: '#9E9E9E',
+    excellent: '#0072B2',
+    good: '#56B4E9',
+    fair: '#F0E442',
+    poor: '#E69F00',
+    'very-poor': '#D55E00',
+    hazardous: '#7B3294'
+});
+
 // Возвращает описание уровня для числового индекса качества воздуха.
-export function getAqiInfo(aqi) {
+// Опция options.colorBlind=true возвращает hex из доступной палитры Okabe-Ito.
+export function getAqiInfo(aqi, options = {}) {
     if (aqi === null || aqi === undefined || Number.isNaN(aqi)) {
         return NO_DATA;
     }
 
+    let info = NO_DATA;
     for (const level of LEVELS) {
         if (aqi <= level.max) {
-            return level;
+            info = level;
+            break;
         }
     }
+    if (info === NO_DATA) {
+        info = HAZARDOUS;
+    }
 
-    return HAZARDOUS;
+    if (options.colorBlind) {
+        return { ...info, hex: COLORBLIND_HEX[info.level] || info.hex };
+    }
+
+    return info;
 }
 
 export const AQI_RECOMMENDATIONS = Object.freeze({

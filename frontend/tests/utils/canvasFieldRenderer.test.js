@@ -65,6 +65,72 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
+    describe('1b. Доступная палитра для дальтоников (options.colorBlind)', () => {
+        it('возвращает цвета палитры Okabe-Ito на контрольных границах', () => {
+            const opts = { colorBlind: true };
+            expect(interpolateAqiColor(0, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });    // #0072B2
+            expect(interpolateAqiColor(20, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });   // #0072B2
+            expect(interpolateAqiColor(40, DEFAULT_ALPHA, opts)).toEqual({ r: 86, g: 180, b: 233, a: DEFAULT_ALPHA });  // #56B4E9
+            expect(interpolateAqiColor(60, DEFAULT_ALPHA, opts)).toEqual({ r: 240, g: 228, b: 66, a: DEFAULT_ALPHA });  // #F0E442
+            expect(interpolateAqiColor(80, DEFAULT_ALPHA, opts)).toEqual({ r: 230, g: 159, b: 0, a: DEFAULT_ALPHA });   // #E69F00
+            expect(interpolateAqiColor(100, DEFAULT_ALPHA, opts)).toEqual({ r: 213, g: 94, b: 0, a: DEFAULT_ALPHA });   // #D55E00
+            expect(interpolateAqiColor(150, DEFAULT_ALPHA, opts)).toEqual({ r: 123, g: 50, b: 148, a: DEFAULT_ALPHA }); // #7B3294
+        });
+
+        it('интерполирует промежуточные значения в доступной палитре', () => {
+            // AQI = 30 (середина между 20 [0,114,178] и 40 [86,180,233])
+            const c30 = interpolateAqiColor(30, DEFAULT_ALPHA, { colorBlind: true });
+            expect(c30.r).toBe(43);
+            expect(c30.g).toBe(147);
+            expect(c30.b).toBe(206);
+        });
+
+        it('ограничивает значения за пределами шкалы (clamp) в доступной палитре', () => {
+            expect(interpolateAqiColor(-10, DEFAULT_ALPHA, { colorBlind: true })).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(250, DEFAULT_ALPHA, { colorBlind: true })).toEqual({ r: 123, g: 50, b: 148, a: DEFAULT_ALPHA });
+        });
+
+        it('без опции colorBlind (или при false) использует стандартную палитру', () => {
+            expect(interpolateAqiColor(10)).toEqual({ r: 76, g: 175, b: 80, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(10, DEFAULT_ALPHA, { colorBlind: false })).toEqual({ r: 76, g: 175, b: 80, a: DEFAULT_ALPHA });
+        });
+
+        it('renderFieldToBuffer применяет доступную палитру при options.colorBlind', () => {
+            const width = 2;
+            const height = 1;
+            const grid = new Float32Array([10, 90]);
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+
+            renderFieldToBuffer(grid, imgData, width, height, { colorBlind: true });
+
+            // Пиксель 0: AQI 10 -> #0072B2
+            expect(imgData.data[0]).toBe(0);
+            expect(imgData.data[1]).toBe(114);
+            expect(imgData.data[2]).toBe(178);
+            // Пиксель 1: AQI 90 -> интерполяция между #E69F00 (80) и #D55E00 (100)
+            const idx = 4;
+            expect(imgData.data[idx]).toBe(222); // round(230 + 0.5 * (213-230)) = 222
+            expect(imgData.data[idx + 1]).toBe(127); // round(159 + 0.5 * (94-159)) = 127
+            expect(imgData.data[idx + 2]).toBe(0);
+        });
+
+        it('renderFieldToBuffer в режиме onlyPollution тоже поддерживает палитру дальтоника', () => {
+            const width = 2;
+            const height = 1;
+            const grid = new Float32Array([20, 90]);
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+
+            renderFieldToBuffer(grid, imgData, width, height, { onlyPollution: true, colorBlind: true });
+
+            // Чистый воздух (20) — полностью прозрачен
+            expect(imgData.data[3]).toBe(0);
+            // Загрязнение (90) — доступный оранжевый #E69F00..#D55E00
+            expect(imgData.data[4]).toBe(222);
+            expect(imgData.data[5]).toBe(127);
+            expect(imgData.data[6]).toBe(0);
+        });
+    });
+
     describe('2. Заполнение буфера пикселей (renderFieldToBuffer)', () => {
         it('корректно заполняет массив ImageData длиной width * height * 4', () => {
             const width = 10;

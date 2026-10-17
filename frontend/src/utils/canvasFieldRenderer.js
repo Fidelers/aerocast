@@ -21,28 +21,45 @@ const COLOR_STOPS = Object.freeze([
     Object.freeze({ aqi: 150, r: 213, g: 0, b: 0 })      // #D50000 опасно
 ]);
 
+// Доступные контрольные точки шкалы для людей с цветовой слепотой (палитра Okabe-Ito).
+// Совпадают с COLORBLIND_PALETTE в SettingsModal.jsx и CSS-оверрайдами в index.css.
+export const COLORBLIND_COLOR_STOPS = Object.freeze([
+    Object.freeze({ aqi: 0, r: 0, g: 114, b: 178 }),      // #0072B2 отлично
+    Object.freeze({ aqi: 20, r: 0, g: 114, b: 178 }),     // #0072B2 граница отлично
+    Object.freeze({ aqi: 40, r: 86, g: 180, b: 233 }),    // #56B4E9 хорошо
+    Object.freeze({ aqi: 60, r: 240, g: 228, b: 66 }),    // #F0E442 удовлетворительно
+    Object.freeze({ aqi: 80, r: 230, g: 159, b: 0 }),     // #E69F00 плохо
+    Object.freeze({ aqi: 100, r: 213, g: 94, b: 0 }),     // #D55E00 очень плохо
+    Object.freeze({ aqi: 150, r: 123, g: 50, b: 148 })    // #7B3294 опасно
+]);
+
 /**
  * Преобразует числовое значение AQI в RGBA-цвет с непрерывной линейной RGB-интерполяцией.
  * @param {number|null|undefined} aqi - значение индекса качества воздуха
  * @param {number} [alpha=DEFAULT_ALPHA] - альфа-канал (0..255)
+ * @param {{ colorBlind?: boolean }} [options={}] - additional options; colorBlind переключает палитру на доступную (Okabe-Ito)
  * @returns {{ r: number, g: number, b: number, a: number }}
  */
-export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA) {
+export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA, options = {}) {
     if (aqi === null || aqi === undefined || typeof aqi !== 'number' || Number.isNaN(aqi)) {
         return { r: 0, g: 0, b: 0, a: 0 };
     }
 
+    const stops = options.colorBlind ? COLORBLIND_COLOR_STOPS : COLOR_STOPS;
+    const first = stops[0];
+    const last = stops[stops.length - 1];
+
     if (aqi <= 20) {
-        return { r: 76, g: 175, b: 80, a: alpha };
+        return { r: first.r, g: first.g, b: first.b, a: alpha };
     }
 
-    if (aqi >= 150) {
-        return { r: 213, g: 0, b: 0, a: alpha };
+    if (aqi >= last.aqi) {
+        return { r: last.r, g: last.g, b: last.b, a: alpha };
     }
 
-    for (let i = 1; i < COLOR_STOPS.length; i++) {
-        const prev = COLOR_STOPS[i - 1];
-        const next = COLOR_STOPS[i];
+    for (let i = 1; i < stops.length; i++) {
+        const prev = stops[i - 1];
+        const next = stops[i];
 
         if (aqi <= next.aqi) {
             const range = next.aqi - prev.aqi;
@@ -54,7 +71,7 @@ export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA) {
         }
     }
 
-    return { r: 213, g: 0, b: 0, a: alpha };
+    return { r: last.r, g: last.g, b: last.b, a: alpha };
 }
 
 /**
@@ -81,12 +98,13 @@ export function hasPollutedZones(grid, threshold = 40) {
  * @param {{ data: Uint8ClampedArray }} imgData - объект с буфером пикселей
  * @param {number} width - ширина холста
  * @param {number} height - высота холста
- * @param {Object} [options={}] - параметры (alpha, onlyPollution, pollutionThreshold)
+ * @param {Object} [options={}] - параметры (alpha, onlyPollution, pollutionThreshold, colorBlind)
  */
 export function renderFieldToBuffer(grid, imgData, width, height, options = {}) {
     const alpha = options.alpha !== undefined ? options.alpha : DEFAULT_ALPHA;
     const onlyPollution = options.onlyPollution === true;
     const pollutionThreshold = options.pollutionThreshold !== undefined ? options.pollutionThreshold : 40;
+    const colorBlind = options.colorBlind === true;
     const data = imgData.data;
     const totalPixels = width * height;
 
@@ -105,7 +123,7 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
                 data[idx + 3] = 0;
                 continue;
             }
-            const baseColor = interpolateAqiColor(val, alpha);
+            const baseColor = interpolateAqiColor(val, alpha, { colorBlind });
             const fade = Math.min(1, (val - pollutionThreshold) / 6);
             data[idx] = baseColor.r;
             data[idx + 1] = baseColor.g;
@@ -115,7 +133,7 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
         }
 
         // Абсолютно гладкое, монолитное и естественное поле без искусственных контуров, яиц и ступеней
-        const baseColor = interpolateAqiColor(val, alpha);
+        const baseColor = interpolateAqiColor(val, alpha, { colorBlind });
         data[idx] = baseColor.r;
         data[idx + 1] = baseColor.g;
         data[idx + 2] = baseColor.b;

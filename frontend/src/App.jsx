@@ -3,6 +3,7 @@ import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
 import AboutModal from './components/AboutModal';
+import SettingsModal from './components/SettingsModal';
 import RightAirPanel from './components/RightAirPanel';
 import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
@@ -24,8 +25,40 @@ function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+    // Управление темой сайта (тёмная / светлая)
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return 'light';
+        const saved = localStorage.getItem('aerocast_theme');
+        if (saved === 'dark' || saved === 'light') return saved;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    });
+
+    // Режим для людей с цветовой слепотой (дальтоников)
+    const [isColorBlind, setIsColorBlind] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('aerocast_colorblind') === 'true';
+    });
+
+    useEffect(() => {
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('aerocast_theme', theme);
+        }
+    }, [theme]);
+
+    useEffect(() => {
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-colorblind', isColorBlind ? 'true' : 'false');
+            localStorage.setItem('aerocast_colorblind', isColorBlind ? 'true' : 'false');
+        }
+    }, [isColorBlind]);
+
     // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
 
@@ -175,6 +208,10 @@ function App() {
                     setIsMobileSidebarOpen(false);
                     setIsAboutOpen(true);
                 }}
+                onOpenSettings={() => {
+                    setIsMobileSidebarOpen(false);
+                    setIsSettingsOpen(true);
+                }}
                 isLoading={isLoading}
                 loadError={loadError}
                 isOpen={isMobileSidebarOpen}
@@ -220,6 +257,7 @@ function App() {
                     onMarkerClick={() => setIsRightPanelOpen(true)}
                     activeBaseLayer={activeBaseLayer}
                     recenterTrigger={recenterTrigger}
+                    isColorBlind={isColorBlind}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}
@@ -229,6 +267,14 @@ function App() {
             <AboutModal
                 isOpen={isAboutOpen}
                 onClose={() => setIsAboutOpen(false)}
+            />
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                theme={theme}
+                onThemeChange={setTheme}
+                isColorBlind={isColorBlind}
+                onColorBlindChange={setIsColorBlind}
             />
             <RightAirPanel
                 airData={airData}
