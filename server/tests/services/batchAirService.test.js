@@ -15,19 +15,34 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             expect(points.length).toBe(550);
         });
 
-        it('содержит плотные кластеры точек в промышленных центрах с повышенным загрязнением (Череповец, Мирный, Москва)', () => {
+        it('обеспечивает сбалансированное покрытие промышленных центров с защитными буферами фона без паразитной скученности', () => {
             const points = batchAirService.generateMacroGridCoordinates();
-            // Череповец (lat ~ 59.0..59.3, lon ~ 37.7..38.6)
-            const cherepovetsPoints = points.filter(p => p.lat >= 59.0 && p.lat <= 59.3 && p.lon >= 37.7 && p.lon <= 38.6);
-            expect(cherepovetsPoints.length).toBeGreaterThanOrEqual(10);
+            // Череповец и защитные буферы (lat ~ 58.7..59.6, lon ~ 37.0..38.8)
+            const cherepovetsPoints = points.filter(p => p.lat >= 58.7 && p.lat <= 59.6 && p.lon >= 37.0 && p.lon <= 38.8);
+            expect(cherepovetsPoints.length).toBeGreaterThanOrEqual(3);
 
-            // Мирный (lat ~ 62.4..63.1, lon ~ 112.4..114.5)
-            const mirnyPoints = points.filter(p => p.lat >= 62.4 && p.lat <= 63.1 && p.lon >= 112.4 && p.lon <= 114.5);
-            expect(mirnyPoints.length).toBeGreaterThanOrEqual(10);
+            // Мирный и защитные буферы (lat ~ 62.0..63.1, lon ~ 113.0..115.0)
+            const mirnyPoints = points.filter(p => p.lat >= 62.0 && p.lat <= 63.1 && p.lon >= 113.0 && p.lon <= 115.0);
+            expect(mirnyPoints.length).toBeGreaterThanOrEqual(3);
 
-            // Москва и МО (lat ~ 54.8..56.1, lon ~ 37.0..38.9)
-            const moscowPoints = points.filter(p => p.lat >= 54.8 && p.lat <= 56.1 && p.lon >= 37.0 && p.lon <= 38.9);
-            expect(moscowPoints.length).toBeGreaterThanOrEqual(25);
+            // Москва и прилегающий пояс (lat ~ 54.8..56.3, lon ~ 36.8..38.5)
+            const moscowPoints = points.filter(p => p.lat >= 54.8 && p.lat <= 56.3 && p.lon >= 36.8 && p.lon <= 38.5);
+            expect(moscowPoints.length).toBeGreaterThanOrEqual(3);
+
+            // Отсутствие паразитных дубликатов (минимальное расстояние между любыми узлами >= 20 км)
+            let minPairDist = Infinity;
+            for (let i = 0; i < points.length; i++) {
+                for (let j = i + 1; j < points.length; j++) {
+                    const dLat = (points[i].lat - points[j].lat) * 111.13;
+                    const avgLatRad = ((points[i].lat + points[j].lat) / 2) * Math.PI / 180;
+                    const dLon = (points[i].lon - points[j].lon) * 111.32 * Math.cos(avgLatRad);
+                    const distKm = Math.sqrt(dLat * dLat + dLon * dLon);
+                    if (distKm < minPairDist) {
+                        minPairDist = distKm;
+                    }
+                }
+            }
+            expect(minPairDist).toBeGreaterThanOrEqual(20);
         });
 
         it('все точки имеют валидные числовые координаты в границах РФ и смежных зон', () => {
