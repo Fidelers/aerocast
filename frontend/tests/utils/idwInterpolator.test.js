@@ -5,7 +5,8 @@ import {
     interpolateGrid,
     projectPixelToGeo,
     latToMercator,
-    mercatorToLat
+    mercatorToLat,
+    getAqiWeightBoost
 } from '../../src/utils/idwInterpolator.js';
 
 describe('idwInterpolator (Математическая модель IDW)', () => {
@@ -23,8 +24,8 @@ describe('idwInterpolator (Математическая модель IDW)', () =
                 { lat: 50.0, lon: 30.0, value: 20 },
                 { lat: 50.0, lon: 40.0, value: 60 }
             ];
-            // Ровно посередине между ними
-            const val = interpolatePoint(50.0, 35.0, points, { p: 2 });
+            // Ровно посередине между ними при равных весах (без буста)
+            const val = interpolatePoint(50.0, 35.0, points, { p: 2, boostPolluted: false });
             expect(val).toBeCloseTo(40, 4);
         });
 
@@ -36,7 +37,7 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             // Точка на расстоянии 1 от первой и 3 от второй:
             // w1 = 1 / 1^2 = 1, w2 = 1 / 3^2 = 1/9
             // expected = (10*1 + 50*(1/9)) / (1 + 1/9) = (10 + 5.555) / 1.111 = 14.0
-            const val = interpolatePoint(50.0, 1.0, points, { p: 2 });
+            const val = interpolatePoint(50.0, 1.0, points, { p: 2, boostPolluted: false });
             expect(val).toBeCloseTo(14.0, 2);
         });
 
@@ -46,7 +47,7 @@ describe('idwInterpolator (Математическая модель IDW)', () =
                 { lat: 50.0, lon: 4.0, value: 50 }
             ];
             // При p = 1: w1 = 1/1 = 1, w2 = 1/3 = 0.333 -> (10 + 16.666) / 1.333 = 20.0
-            const valP1 = interpolatePoint(50.0, 1.0, points, { p: 1 });
+            const valP1 = interpolatePoint(50.0, 1.0, points, { p: 1, boostPolluted: false });
             expect(valP1).toBeCloseTo(20.0, 2);
         });
     });
@@ -247,7 +248,8 @@ describe('idwInterpolator (Математическая модель IDW)', () =
 
             // В точке center расстояния до northPoint и eastPoint физически одинаковы
             const val = interpolatePoint(center.lat, center.lon, [northPoint, eastPoint], {
-                useMercator: true
+                useMercator: true,
+                boostPolluted: false
             });
 
             // Так как физические расстояния равны, вес точек одинаков -> значение ровно (80 + 40) / 2 = 60
@@ -271,7 +273,7 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             expect(nearVal).toBeGreaterThan(85);
 
             // Точка вдали от города (~60 км, > 0.5 градуса)
-            const farVal = interpolatePoint(55.6, 37.0, [city], { decayRadius: 0.30, bgVal: 20 });
+            const farVal = interpolatePoint(55.6, 37.0, [city], { decayRadius: 0.30, bgVal: 20, boostPolluted: false });
             expect(farVal).toBeLessThan(40);
         });
 
@@ -286,6 +288,46 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             // В точке промзоны значение 100
             const valAtIndustrial = interpolatePoint(industrial.lat, industrial.lon, [industrial, cleanReservoir]);
             expect(valAtIndustrial).toBe(100);
+        });
+    });
+
+    describe('5. Адаптивный весовой буст по шкале EAQI (повышенная значимость красных зон)', () => {
+        it('возвращает базовый вес 1.0 для чистых и умеренных значений (EAQI <= 40)', () => {
+            expect(getAqiWeightBoost(0)).toBe(1.0);
+            expect(getAqiWeightBoost(20)).toBe(1.0);
+            expect(getAqiWeightBoost(40)).toBe(1.0);
+            expect(getAqiWeightBoost(null)).toBe(1.0);
+            expect(getAqiWeightBoost(undefined)).toBe(1.0);
+        });
+
+        it('плавно увеличивает вес для загрязненных точек и достигает x2.5 при 110+', () => {
+            const boost60 = getAqiWeightBoost(60);
+            const boost75 = getAqiWeightBoost(75);
+            const boost110 = getAqiWeightBoost(110);
+            const boost150 = getAqiWeightBoost(150);
+
+            // При 60: 1 + 1.5 * (20/70) ≈ 1.43
+            expect(boost60).toBeGreaterThan(1.3);
+            expect(boost60).toBeLessThan(1.5);
+
+            // При 75: 1 + 1.5 * (35/70) = 1.75
+            expect(boost75).toBeCloseTo(1.75, 2);
+
+            // При 110 и выше: ровно 2.5
+            expect(boost110).toBeCloseTo(2.5, 2);
+            expect(boost150).toBeCloseTo(2.5, 2);
+        });
+
+        it('дает точке с высоким EAQI (красная зона) больший вес при интерполяции, чем точке чистого воздуха', () => {
+            // Две равноудаленные точки: чистая (20) и загрязненная (110)
+            const cleanPoint = { lat: 50.0, lon: 30.0, value: 20 };
+            const pollutedPoint = { lat: 50.0, lon: 40.0, value: 110 };
+
+            // Середина между ними: без буста было бы (20 + 110)/2 = 65
+            // С бустом точки 110 (вес 2.5 vs вес 1.0): (20*1 + 110*2.5) / (1 + 2.5) = (20 + 275) / 3.5 ≈ 84.3
+            const val = interpolatePoint(50.0, 35.0, [cleanPoint, pollutedPoint], { p: 2 });
+            expect(val).toBeGreaterThan(80);
+            expect(val).toBeCloseTo(84.3, 1);
         });
     });
 });
