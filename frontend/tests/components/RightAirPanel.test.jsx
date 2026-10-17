@@ -320,3 +320,62 @@ describe('RightAirPanel component (Закрытие по кнопке Escape и 
         expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
     });
 });
+
+describe('RightAirPanel — режим для дальтоников (isColorBlind)', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('1. Бейджи загрязнителей используют палитру Okabe-Ito при isColorBlind={true}', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        // PM2.5 = 15 -> Хорошо -> #56B4E9
+        const pm25Badge = container.querySelector('.pollutant-badge');
+        expect(pm25Badge.style.backgroundColor).toBe('rgb(86, 180, 233)');
+    });
+
+    it('2. Без isColorBlind бейджи остаются в стандартной палитре', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        // PM2.5 = 15 -> Хорошо -> #8BC34A
+        const pm25Badge = container.querySelector('.pollutant-badge');
+        expect(pm25Badge.style.backgroundColor).toBe('rgb(139, 195, 74)');
+    });
+
+    it('3. Индикатор AQI получает цвет из палитры дальтоника', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        // AQI = 35 -> хорошо -> #56B4E9
+        const indicator = container.querySelector('.aqi-indicator');
+        expect(indicator.getAttribute('data-level')).toBe('good');
+        expect(indicator.style.backgroundColor).toBe('rgb(86, 180, 233)');
+    });
+
+    it('4. Элементы шкалы AQI несут data-level для CSS-оверрайдов', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        const scaleItems = container.querySelectorAll('.scale-item');
+        expect(scaleItems.length).toBe(6);
+        const levels = Array.from(scaleItems).map((el) => el.getAttribute('data-level'));
+        expect(levels).toEqual(['excellent', 'good', 'fair', 'poor', 'very-poor', 'hazardous']);
+    });
+
+    it('5. Подписи бейджей и шкалы не меняются в режиме дальтоника', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        const badges = Array.from(container.querySelectorAll('.pollutant-badge')).map((b) => b.textContent);
+        expect(badges).toContain('Хорошо');
+        expect(badges).toContain('Отлично');
+        expect(container.querySelector('.scale-item').textContent).toBe('0–20');
+    });
+});

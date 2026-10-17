@@ -168,7 +168,8 @@ html[data-colorblind="true"] .map-marker {
 html[data-colorblind="true"] .map-marker.aqi-excellent,
 html[data-colorblind="true"] .aqi-indicator[data-level="excellent"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="excellent"],
-html[data-colorblind="true"] .aqi-modal-item__badge[data-level="excellent"] {
+html[data-colorblind="true"] .aqi-modal-item__badge[data-level="excellent"],
+html[data-colorblind="true"] .scale-item[data-level="excellent"] {
   background-color: #0072b2 !important;
   color: #ffffff !important;
 }
@@ -176,7 +177,8 @@ html[data-colorblind="true"] .aqi-modal-item__badge[data-level="excellent"] {
 html[data-colorblind="true"] .map-marker.aqi-good,
 html[data-colorblind="true"] .aqi-indicator[data-level="good"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="good"],
-html[data-colorblind="true"] .aqi-modal-item__badge[data-level="good"] {
+html[data-colorblind="true"] .aqi-modal-item__badge[data-level="good"],
+html[data-colorblind="true"] .scale-item[data-level="good"] {
   background-color: #56b4e9 !important;
   color: #000000 !important;
 }
@@ -184,7 +186,8 @@ html[data-colorblind="true"] .aqi-modal-item__badge[data-level="good"] {
 html[data-colorblind="true"] .map-marker.aqi-fair,
 html[data-colorblind="true"] .aqi-indicator[data-level="fair"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="fair"],
-html[data-colorblind="true"] .aqi-modal-item__badge[data-level="fair"] {
+html[data-colorblind="true"] .aqi-modal-item__badge[data-level="fair"],
+html[data-colorblind="true"] .scale-item[data-level="fair"] {
   background-color: #f0e442 !important;
   color: #000000 !important;
 }
@@ -192,7 +195,8 @@ html[data-colorblind="true"] .aqi-modal-item__badge[data-level="fair"] {
 html[data-colorblind="true"] .map-marker.aqi-poor,
 html[data-colorblind="true"] .aqi-indicator[data-level="poor"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="poor"],
-html[data-colorblind="true"] .aqi-modal-item__badge[data-level="poor"] {
+html[data-colorblind="true"] .aqi-modal-item__badge[data-level="poor"],
+html[data-colorblind="true"] .scale-item[data-level="poor"] {
   background-color: #e69f00 !important;
   color: #000000 !important;
 }
@@ -200,7 +204,8 @@ html[data-colorblind="true"] .aqi-modal-item__badge[data-level="poor"] {
 html[data-colorblind="true"] .map-marker.aqi-very-poor,
 html[data-colorblind="true"] .aqi-indicator[data-level="very-poor"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="very-poor"],
-html[data-colorblind="true"] .aqi-modal-item__badge[data-level="very-poor"] {
+html[data-colorblind="true"] .aqi-modal-item__badge[data-level="very-poor"],
+html[data-colorblind="true"] .scale-item[data-level="very-poor"] {
   background-color: #d55e00 !important;
   color: #ffffff !important;
 }
@@ -208,7 +213,8 @@ html[data-colorblind="true"] .aqi-modal-item__badge[data-level="very-poor"] {
 html[data-colorblind="true"] .map-marker.aqi-hazardous,
 html[data-colorblind="true"] .aqi-indicator[data-level="hazardous"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="hazardous"],
-html[data-colorblind="true"] .aqi-modal-item__badge[data-level="hazardous"] {
+html[data-colorblind="true"] .aqi-modal-item__badge[data-level="hazardous"],
+html[data-colorblind="true"] .scale-item[data-level="hazardous"] {
   background-color: #7b3294 !important;
   color: #ffffff !important;
 }

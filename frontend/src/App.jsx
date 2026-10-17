@@ -282,6 +282,7 @@ function App() {
                 isOpen={isRightPanelOpen}
                 onClose={() => setIsRightPanelOpen(false)}
                 onOpen={() => setIsRightPanelOpen(true)}
+                isColorBlind={isColorBlind}
             />
             {!isRightPanelOpen && (
                 <button

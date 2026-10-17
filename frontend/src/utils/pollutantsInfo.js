@@ -81,9 +81,30 @@ export function getPollutantMetadata(key) {
   return POLLUTANTS_METADATA[normalized] || null;
 }
 
-// оценка статуса вещества по европейским порогам
-export function getPollutantAssessment(key, value) {
+// оценка статуса вещества по европейским порогам.
+// Опция options.colorBlind=true возвращает цвета из доступной палитры Okabe-Ito,
+// совпадающей с палитрой types.js и CSS-оверрайдами index.css.
+export function getPollutantAssessment(key, value, options = {}) {
   const num = Number(value);
+
+  // цвета бейджей: стандартная палитра и палитра для дальтоников (Okabe-Ito)
+  const COLORS = options.colorBlind
+    ? {
+        excellent: '#0072B2',
+        good: '#56B4E9',
+        fair: '#F0E442',
+        poor: '#E69F00',
+        veryPoor: '#D55E00',
+        haz: '#7B3294'
+      }
+    : {
+        excellent: '#4CAF50',
+        good: '#8BC34A',
+        fair: '#FFC107',
+        poor: '#FF9800',
+        veryPoor: '#F44336',
+        haz: '#9C27B0'
+      };
 
   // обработка null, undefined, пустой строки, отрицательных чисел и NaN
   if (value === null || value === undefined || value === '' || isNaN(num) || num < 0) {
@@ -106,21 +127,21 @@ export function getPollutantAssessment(key, value) {
   const [t1, t2, t3, t4, t5] = meta.thresholds;
 
   if (num <= t1) {
-    return { label: 'Отлично', level: 'excellent', color: '#4CAF50' };
+    return { label: 'Отлично', level: 'excellent', color: COLORS.excellent };
   }
   if (num <= t2) {
-    return { label: 'Хорошо', level: 'good', color: '#8BC34A' };
+    return { label: 'Хорошо', level: 'good', color: COLORS.good };
   }
   if (num <= t3) {
-    return { label: 'Умеренно', level: 'fair', color: '#FFC107' };
+    return { label: 'Умеренно', level: 'fair', color: COLORS.fair };
   }
   if (num <= t4) {
-    return { label: 'Повышено', level: 'poor', color: '#FF9800' };
+    return { label: 'Повышено', level: 'poor', color: COLORS.poor };
   }
   if (num <= t5) {
-    return { label: 'Плохо', level: 'veryPoor', color: '#F44336' };
+    return { label: 'Плохо', level: 'veryPoor', color: COLORS.veryPoor };
   }
-  return { label: 'Опасно', level: 'haz', color: '#9C27B0' };
+  return { label: 'Опасно', level: 'haz', color: COLORS.haz };
 }
 
 // текстовая рекомендация по уровню общего AQI

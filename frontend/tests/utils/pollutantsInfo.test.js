@@ -70,4 +70,29 @@ describe('pollutantsInfo utility', () => {
         const nanRes = getPollutantAssessment('pm2_5', NaN);
         expect(nanRes.label).toBe('нет данных');
     });
+
+    it('в режиме дальтоника (colorBlind: true) возвращает цвета палитры Okabe-Ito', () => {
+        const opts = { colorBlind: true };
+        expect(getPollutantAssessment('pm2_5', 8, opts).color).toBe('#0072B2');   // Отлично
+        expect(getPollutantAssessment('pm2_5', 18, opts).color).toBe('#56B4E9');  // Хорошо
+        expect(getPollutantAssessment('pm2_5', 24, opts).color).toBe('#F0E442');  // Умеренно
+        expect(getPollutantAssessment('pm2_5', 35, opts).color).toBe('#E69F00');  // Повышено
+        expect(getPollutantAssessment('pm2_5', 60, opts).color).toBe('#D55E00');  // Плохо
+        expect(getPollutantAssessment('pm2_5', 120, opts).color).toBe('#7B3294'); // Опасно
+    });
+
+    it('в режиме дальтоника label и level остаются прежними', () => {
+        const res = getPollutantAssessment('pm2_5', 18, { colorBlind: true });
+        expect(res.label).toBe('Хорошо');
+        expect(res.level).toBe('good');
+    });
+
+    it('без опции colorBlind (или при false) возвращает стандартные цвета', () => {
+        expect(getPollutantAssessment('pm2_5', 8).color).toBe('#4CAF50');
+        expect(getPollutantAssessment('pm2_5', 8, { colorBlind: false }).color).toBe('#4CAF50');
+    });
+
+    it('в режиме дальтоника «нет данных» остается нейтрально-серым', () => {
+        expect(getPollutantAssessment('pm2_5', null, { colorBlind: true }).color).toBe('#9E9E9E');
+    });
 });
