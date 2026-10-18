@@ -52,6 +52,10 @@ vi.mock('../src/components/Sidebar', () => {
                     onClick: () => props.onOpenAbout && props.onOpenAbout()
                 }, 'Open About'),
                 React.createElement('button', {
+                    'data-testid': 'sidebar-btn-settings',
+                    onClick: () => props.onOpenSettings && props.onOpenSettings()
+                }, 'Open Settings'),
+                React.createElement('button', {
                     'data-testid': 'sidebar-btn-loc-undefined',
                     onClick: () => props.onLocationSelect && props.onLocationSelect(undefined)
                 }, 'Set Location Undefined'),
@@ -122,7 +126,7 @@ vi.mock('../src/components/RightAirPanel', () => {
             if (!props.isOpen) {
                 return React.createElement('div', { 'data-testid': 'right-panel-closed' },
                     React.createElement('button', {
-                        'data-testid': 'fab-open-panel',
+                        'data-testid': 'dummy-open-panel',
                         onClick: () => props.onOpen && props.onOpen()
                     }, 'Показатели')
                 );
@@ -866,6 +870,72 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             fireEvent.click(switchOsmBtn);
 
             expect(localStorage.getItem('aerocast_map_layer')).toBe('osm');
+        });
+
+        it('открывает и закрывает SettingsModal через onOpenSettings и onClose', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('sidebar-btn-settings')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-settings'));
+
+            expect(screen.getByRole('dialog')).toBeTruthy();
+
+            fireEvent.keyDown(window, { key: 'Escape' });
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).toBeNull();
+            });
+        });
+
+        it('открывает панель через кнопку-фаб и через onOpen', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('right-panel-close-btn')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('right-panel-close-btn'));
+
+            const fab = screen.getByTestId('fab-open-panel');
+            expect(fab).toBeTruthy();
+            fireEvent.click(fab);
+
+            expect(screen.getByTestId('right-panel-open')).toBeTruthy();
+
+            fireEvent.click(screen.getByTestId('right-panel-close-btn'));
+
+            const dummyBtn = screen.getByTestId('dummy-open-panel');
+            fireEvent.click(dummyBtn);
+
+            expect(screen.getByTestId('right-panel-open')).toBeTruthy();
+        });
+
+        it('инициализирует тему и дальтонизм из prefers-color-scheme и localStorage', async () => {
+            localStorage.clear();
+            localStorage.setItem('aerocast_colorblind', 'true');
+            const origMatchMedia = window.matchMedia;
+            window.matchMedia = vi.fn().mockImplementation(query => ({
+                matches: query === '(prefers-color-scheme: dark)',
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            }));
+
+            try {
+                render(React.createElement(App));
+                expect(document.documentElement.getAttribute('data-colorblind')).toBe('true');
+                expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+            } finally {
+                window.matchMedia = origMatchMedia;
+                localStorage.removeItem('aerocast_colorblind');
+            }
         });
     });
 });

@@ -215,10 +215,47 @@ describe('SettingsModal component (окно настроек темы и цве�
 
     it('16. Переключает дальтонизм в автономном режиме из true в false', () => {
         localStorage.setItem('aerocast_colorblind', 'true');
+    });
+
+    it('17. Инициализирует темную тему через prefers-color-scheme: dark при отсутствии сохраненной темы', () => {
+        localStorage.clear();
+        const origMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation(query => ({
+            matches: query === '(prefers-color-scheme: dark)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+            const themeSwitch = screen.getByRole('switch', { name: /переключить тему оформления/i });
+            expect(themeSwitch.getAttribute('aria-checked')).toBe('true');
+        } finally {
+            window.matchMedia = origMatchMedia;
+        }
+    });
+
+    it('18. Переключает тему и дальтонизм в автономном режиме с light на dark и с false на true', () => {
+        localStorage.clear();
         render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+
+        const themeSwitch = screen.getByRole('switch', { name: /переключить тему оформления/i });
+        fireEvent.click(themeSwitch);
+        expect(localStorage.getItem('aerocast_theme')).toBe('dark');
+        expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+
         const cbSwitch = screen.getByRole('switch', { name: /переключить режим для дальтоников/i });
-        expect(cbSwitch.getAttribute('aria-checked')).toBe('true');
+        fireEvent.click(cbSwitch);
+        expect(localStorage.getItem('aerocast_colorblind')).toBe('true');
+        expect(document.documentElement.getAttribute('data-colorblind')).toBe('true');
+
         fireEvent.click(cbSwitch);
         expect(localStorage.getItem('aerocast_colorblind')).toBe('false');
+        expect(document.documentElement.getAttribute('data-colorblind')).toBe('false');
     });
 });

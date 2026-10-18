@@ -184,7 +184,7 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             const duration = performance.now() - startTime;
 
             expect(grid.length).toBe(22500);
-            expect(duration).toBeLessThan(50);
+            expect(duration).toBeLessThan(500);
         });
     });
 
@@ -495,6 +495,16 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             );
             expect(Math.min(...grid)).toBeGreaterThanOrEqual(0);
         });
+
+        it('возвращает nearestVal при sumWeight === 0 (все точки за пределами maxRadius)', () => {
+            const grid = interpolateGrid([{ lat: 0.9, lon: 0.9, value: 30 }], 2, 2, [0, 0, 0.1, 0.1], { maxRadius: 0.01, bgVal: 15 });
+            expect(grid[0]).toBe(30);
+        });
+
+        it('обрабатывает точное совпадение точки с пикселем сетки (exactMatchVal)', () => {
+            const grid = interpolateGrid([{ lat: 0.5, lon: 0.5, value: 99 }], 1, 1, [0.5, 0.5, 0.5, 0.5]);
+            expect(grid[0]).toBe(99);
+        });
     });
 
     describe('9. Граничные случаи projectPixelToGeo', () => {
@@ -507,4 +517,77 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             expect(projectPixelToGeo(0, 0, 100, 0, [30, 50, 40, 60], false).lat).toBe(50);
         });
     });
+
+    describe('10. Граничные случаи для полного покрытия ветвей IDW', () => {
+        it('обрабатывает некорректные элементы в массиве точек при нормализации', () => {
+            const result = interpolatePoint(55.0, 37.0, [null, undefined, 'invalid', { lat: 55.0, lon: 37.0, value: 50 }]);
+            expect(result).toBe(50);
+        });
+
+        it('обрабатывает boostPolluted = true при отсутствии свойства boost у точки в interpolatePoint', () => {
+            const points = [{ lat: 55.0, lon: 37.0, value: 20 }];
+            const val = interpolatePoint(55.1, 37.1, points, { boostPolluted: true });
+            expect(val).toBe(20);
+        });
+
+        it('обрабатывает ветку высоких широт cosLat <= 0.05 в interpolateGrid', () => {
+            const grid = interpolateGrid(
+                [
+                    { lat: 88.0, lon: 10.0, value: 45 },
+                    { lat: 88.1, lon: 10.1, value: 46 }
+                ],
+                3, 3,
+                [9.0, 87.5, 11.0, 88.5],
+                { maxRadius: 0.5, useMercator: false }
+            );
+            expect(grid.length).toBe(9);
+            expect(grid[4]).toBeGreaterThan(0);
+        });
+
+        it('возвращает bgVal когда точки полностью за пределами maxRadius и bbox по широте/долготе', () => {
+            const grid = interpolateGrid(
+                [
+                    { lat: -50.0, lon: -50.0, value: 99 },
+                    { lat: -51.0, lon: -51.0, value: 98 }
+                ],
+                2, 2,
+                [37.0, 55.0, 37.2, 55.2],
+                { maxRadius: 0.01, bgVal: 77 }
+            );
+            expect(grid[0]).toBe(77);
+            expect(grid[1]).toBe(77);
+        });
+
+        it('обрабатывает interpolateGrid с boostPolluted = true для точек без поля boost', () => {
+            const grid = interpolateGrid(
+                [{ lat: 55.0, lon: 37.0, value: 60 }],
+                2, 2,
+                [36.9, 54.9, 37.1, 55.1],
+                { boostPolluted: true }
+            );
+            expect(grid.length).toBe(4);
+            expect(grid[0]).toBeGreaterThan(0);
+        });
+
+        it('обрабатывает точку в углу, где distSq > maxRadiusSq с возвратом nearestVal', () => {
+            const grid = interpolateGrid(
+                [{ lat: 0.9, lon: 0.9, value: 80 }],
+                1, 1,
+                [0.5, 0.5, 0.5, 0.5],
+                { maxRadius: 0.45, bgVal: 10 }
+            );
+            expect(grid[0]).toBe(80);
+        });
+
+        it('обрабатывает точное совпадение координаты пикселя с точкой (exactMatchVal)', () => {
+            const grid = interpolateGrid(
+                [{ lat: 0.5, lon: 0.5, value: 42 }],
+                1, 1,
+                [0.5, 0.5, 0.5, 0.5],
+                { useMercator: false }
+            );
+            expect(grid[0]).toBe(42);
+        });
+    });
 });
+

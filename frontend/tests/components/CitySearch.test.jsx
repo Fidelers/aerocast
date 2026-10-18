@@ -595,5 +595,34 @@ describe('CitySearch component', () => {
         fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
         expect(handleCitySelect).toHaveBeenCalledTimes(2);
     });
+
+    it('25. Игнорирует другие клавиши (Tab, ArrowDown) в handleKeyDown', () => {
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.keyDown(input, { key: 'Tab' });
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+    });
+
+    it('26. Рендерит выпадающий список для элементов без id, используя lat/lon', async () => {
+        global.fetch.mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { display_name: 'Казань', lat: 55.7887, lon: 49.1221 },
+                { display_name: 'Уфа' }
+            ]
+        });
+
+        render(<CitySearch onLocationSelect={vi.fn()} />);
+        const input = screen.getByPlaceholderText('Город');
+
+        fireEvent.change(input, { target: { value: 'Казань' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+
+        expect(screen.getByText('Казань')).toBeDefined();
+        expect(screen.getByText('Уфа')).toBeDefined();
+    });
 });
 

@@ -1,4 +1,3 @@
-// MapComponent.jsx - карта и отрисовка данных
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -102,7 +101,7 @@ const MICRO_POLLUTION_SOURCE_ID = 'air-grid-micro-pollution-source';
 const MICRO_POLLUTION_LAYER_ID = 'air-grid-micro-pollution-layer';
 
 // Преобразование bbox [minLon, minLat, maxLon, maxLat] в 4 координаты углов MapLibre image source
-function bboxToImageCoordinates(bbox) {
+export function bboxToImageCoordinates(bbox) {
     if (!bbox || bbox.length !== 4) return null;
     const [minLon, minLat, maxLon, maxLat] = bbox;
     return [
@@ -118,7 +117,7 @@ export const RUSSIA_MACRO_BBOX = [19.5, 41.0, 190.5, 82.0];
 export const MACRO_GRID_CANVAS_SIZE = 600;
 
 // Нормализация долгот маски государственной границы: Чукотка к востоку
-function normalizeBoundaryLongitudes(polygons) {
+export function normalizeBoundaryLongitudes(polygons) {
     if (!Array.isArray(polygons)) return polygons;
     return polygons.map((ring) => {
         if (!Array.isArray(ring)) return ring;
@@ -134,7 +133,7 @@ function normalizeBoundaryLongitudes(polygons) {
 const RUSSIA_BOUNDARIES_NORMALIZED = normalizeBoundaryLongitudes(russiaBoundaries);
 
 // Расчет приближенного расстояния в километрах между двумя географическими координатами
-function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     const R = 6371; // Радиус Земли в км
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -165,7 +164,7 @@ export function resolveGridTimeIndex(grid, selectedIsoTime, fallbackIndex) {
 }
 
 // Надежное ожидание готовности стиля MapLibre с поддержкой styledata
-function runWhenStyleReady(mapInstance, callback) {
+export function runWhenStyleReady(mapInstance, callback) {
     if (!mapInstance) return;
     if ((mapInstance.style && typeof mapInstance.getStyle === 'function' && mapInstance.getStyle()) ||
         (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded())) {

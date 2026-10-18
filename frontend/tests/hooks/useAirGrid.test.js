@@ -52,6 +52,11 @@ describe('Hook: useAirGrid (Управление жизненным циклом
             expect(key).toBe('grid_micro_55.80_37.60');
         });
 
+        it('обрабатывает отрицательный ноль (-0) как 0.00', () => {
+            const key = getMicroGridCacheKey(-0, -0);
+            expect(key).toBe('grid_micro_0.00_0.00');
+        });
+
         it('выбрасывает ошибку при невалидных координатах', () => {
             expect(() => getMicroGridCacheKey(null, 37.61)).toThrow();
             expect(() => getMicroGridCacheKey('abc', 37.61)).toThrow();
@@ -355,6 +360,92 @@ describe('Hook: useAirGrid (Управление жизненным циклом
 
             expect(result.current.gridError).toBeTruthy();
             expect(result.current.gridError).toContain('lat');
+        });
+    });
+
+    describe('11. Защита от обновления размонтированного состояния', () => {
+        it('не обновляет макро-сетку если компонент размонтирован до ответа', async () => {
+            let resolveFn;
+            globalThis.fetch.mockReturnValueOnce(new Promise((resolve) => {
+                resolveFn = () => resolve({ ok: true, json: async () => mockMacroData });
+            }));
+
+            const { unmount } = renderHook(() => useAirGrid({ autoLoadMacro: true }));
+            unmount();
+            if (resolveFn) await act(async () => { resolveFn(); });
+        });
+
+        it('не обновляет ошибку макро-сетки если компонент размонтирован при сбое', async () => {
+            let rejectFn;
+            globalThis.fetch.mockReturnValueOnce(new Promise((_, reject) => {
+                rejectFn = () => reject(new Error('Network failure'));
+            }));
+
+            const { unmount } = renderHook(() => useAirGrid({ autoLoadMacro: true }));
+            unmount();
+            if (rejectFn) await act(async () => { rejectFn(); });
+        });
+
+        it('не обновляет состояние микро-сетки при ошибке если компонент размонтирован', async () => {
+            let rejectFn;
+            globalThis.fetch.mockReturnValueOnce(new Promise((_, reject) => {
+                rejectFn = () => reject(new Error('Fetch failed'));
+            }));
+
+            const { result, unmount } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+            act(() => {
+                result.current.loadMicroGrid(55.75, 37.61);
+            });
+            unmount();
+            if (rejectFn) await act(async () => { rejectFn(); });
+        });
+    });
+
+    describe('12. Вытеснение записей из LRU-кэша', () => {
+        it('вытесняет старые записи из кэша при превышении LRU_MAX_SIZE (10)', async () => {
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockMicroData
+            });
+
+            const { result } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+
+            for (let i = 0; i < 12; i++) {
+                await act(async () => {
+                    await result.current.loadMicroGrid(50 + i * 0.5, 30 + i * 0.5);
+                });
+            }
+
+            expect(result.current.microGrid).toBeTruthy();
+        });
+    });
+
+    describe('13. Обработка микро-сетки при размонтированном компоненте', () => {
+        it('обрабатывает размонтированный компонент при ошибке, попадании в кэш и инициации запроса', async () => {
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockMicroData
+            });
+
+            const { result, unmount } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+
+            await act(async () => {
+                await result.current.loadMicroGrid(55.75, 37.61);
+            });
+
+            unmount();
+
+            await act(async () => {
+                await result.current.loadMicroGrid(null, null);
+            });
+
+            await act(async () => {
+                await result.current.loadMicroGrid(55.75, 37.61);
+            });
+
+            await act(async () => {
+                await result.current.loadMicroGrid(59.93, 30.33);
+            });
         });
     });
 });

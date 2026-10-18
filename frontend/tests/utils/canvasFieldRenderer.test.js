@@ -508,6 +508,84 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             });
             expect(ctx.save).toHaveBeenCalled();
         });
+
+        it('создает OffscreenCanvas или объект с размерами при отсутствии document', () => {
+            const origDoc = globalThis.document;
+            try {
+                delete globalThis.document;
+
+                const origOffscreen = globalThis.OffscreenCanvas;
+                globalThis.OffscreenCanvas = class MockOffscreen {
+                    constructor(w, h) { this.width = w; this.height = h; }
+                };
+
+                const c1 = createFieldCanvas(100, 200);
+                expect(c1.width).toBe(100);
+                expect(c1.height).toBe(200);
+
+                delete globalThis.OffscreenCanvas;
+                const c2 = createFieldCanvas(150, 250);
+                expect(c2).toEqual({ width: 150, height: 250 });
+
+                if (origOffscreen) globalThis.OffscreenCanvas = origOffscreen;
+            } finally {
+                globalThis.document = origDoc;
+            }
+        });
+
+        it('использует opts.bbox при передаче точек и параметров без отдельного bbox аргумента', () => {
+            const ctx = makeCtx();
+            const canvas = makeCanvas(ctx);
+            const points = [{ lat: 0.5, lon: 0.5, value: 45 }];
+            const result = renderFieldToCanvas(canvas, points, {
+                width: 2,
+                height: 2,
+                bbox: [0, 0, 1, 1]
+            });
+            expect(result.grid.length).toBe(4);
+        });
+
+        it('обрабатывает null gridOrPoints созданием пустой сетки', () => {
+            const ctx = makeCtx();
+            const canvas = makeCanvas(ctx);
+            const result = renderFieldToCanvas(canvas, null, [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.grid.length).toBe(4);
+        });
+
+        it('использует DEFAULT_CANVAS_WIDTH и DEFAULT_CANVAS_HEIGHT при нулевых размерах canvas и отсутствии opts', () => {
+            const ctx = makeCtx();
+            const canvas = { width: 0, height: 0, getContext: vi.fn(() => ctx) };
+            const result = renderFieldToCanvas(canvas, [{ lat: 0.5, lon: 0.5, value: 50 }], [0, 0, 1, 1]);
+            expect(result.width).toBe(DEFAULT_CANVAS_WIDTH);
+            expect(result.height).toBe(DEFAULT_CANVAS_HEIGHT);
+        });
+
+        it('использует дефолтный bbox [0, 0, 1, 1] при null bbox и наличии maskPolygons', () => {
+            const ctx = {
+                createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(16) })),
+                putImageData: vi.fn(),
+                save: vi.fn(),
+                beginPath: vi.fn(),
+                moveTo: vi.fn(),
+                lineTo: vi.fn(),
+                closePath: vi.fn(),
+                fill: vi.fn(),
+                restore: vi.fn()
+            };
+            const canvas = { width: 2, height: 2, getContext: vi.fn(() => ctx) };
+            const result = renderFieldToCanvas(
+                canvas,
+                [{ lat: 0.5, lon: 0.5, value: 30 }],
+                null,
+                {
+                    width: 2,
+                    height: 2,
+                    maskPolygons: [[[0.1, 0.1], [0.9, 0.1], [0.5, 0.9]]]
+                }
+            );
+            expect(result.grid.length).toBe(4);
+            expect(ctx.fill).toHaveBeenCalled();
+        });
     });
 });
 
