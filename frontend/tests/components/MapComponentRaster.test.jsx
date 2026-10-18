@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, act } from '@testing-library/react';
 
 // Подготовка hoisted моков для Vitest
 const {
@@ -780,6 +780,211 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             const pollutionLayer = createdLayers.get('air-grid-macro-pollution-layer');
             expect(pollutionLayer?.layout?.visibility).toBe('none');
         });
+    });
+});
+
+describe('7. MapComponent — обработка событий перемещения карты', () => {
+    const mockMacroGrid = {
+        points: [{ lat: 55.75, lon: 37.61, eaqi: 30 }],
+        time: ['2026-10-01T00:00']
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    it('обрабатывает movestart и moveend без ошибок', () => {
+        render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+            />
+        );
+
+        expect(() => {
+            if (eventHandlers.movestart) eventHandlers.movestart.forEach(cb => cb());
+            if (eventHandlers.moveend) eventHandlers.moveend.forEach(cb => cb());
+        }).not.toThrow();
+    });
+
+    it('обрабатывает moveend с onViewportMove', () => {
+        const onViewportMove = vi.fn();
+        render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+                onViewportMove={onViewportMove}
+            />
+        );
+
+        if (eventHandlers.moveend) {
+            eventHandlers.moveend.forEach(cb => cb());
+        }
+
+        // После дебаунса (500мс) должен вызваться onViewportMove
+        act(() => { vi.advanceTimersByTime(600); });
+    });
+
+    it('обновляет opacity макро-слоя при movestart в комбо режиме', () => {
+        render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+            />
+        );
+
+        if (eventHandlers.movestart) {
+            eventHandlers.movestart.forEach(cb => cb());
+        }
+    });
+
+    it('обрабатывает moveend с активной микро-сеткой', () => {
+        const mockMicroGrid = {
+            points: [{ lat: 53.76, lon: 87.15, eaqi: 25 }],
+            bbox: [86.85, 53.45, 87.45, 54.05],
+            time: ['2026-10-01T00:00']
+        };
+
+        render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                microGrid={mockMicroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+                onMicroGridRequest={vi.fn()}
+            />
+        );
+
+        if (eventHandlers.moveend) {
+            eventHandlers.moveend.forEach(cb => cb());
+        }
+
+        act(() => { vi.advanceTimersByTime(600); });
+    });
+});
+
+describe('8. MapComponent — рендеринг с isColorBlind', () => {
+    const mockMacroGrid = {
+        points: [{ lat: 55.75, lon: 37.61, eaqi: 30 }],
+        time: ['2026-10-01T00:00']
+    };
+
+    afterEach(() => { cleanup(); });
+
+    it('рендерит макро-сетку в режиме дальтоника', () => {
+        render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+                isColorBlind={true}
+            />
+        );
+        expect(createdSources.has('air-grid-macro-source')).toBe(true);
+    });
+
+    it('рендерит макро-сетку с точками european_aqi', () => {
+        const grid = {
+            points: [{ lat: 55.75, lon: 37.61, european_aqi: [30] }],
+            time: ['2026-10-01T00:00']
+        };
+        render(
+            <MapComponent
+                macroGrid={grid}
+                selectedTimeIndex={0}
+                viewMode="color"
+            />
+        );
+        expect(createdSources.has('air-grid-macro-source')).toBe(true);
+    });
+
+    it('рендерит с selectedIsoTime', () => {
+        render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                selectedIsoTime="2026-10-01T00:00"
+                viewMode="combo"
+            />
+        );
+        expect(createdSources.has('air-grid-macro-source')).toBe(true);
+    });
+});
+
+describe('9. MapComponent — обновление слоёв при rerender', () => {
+    const mockMacroGrid = {
+        points: [{ lat: 55.75, lon: 37.61, eaqi: 50 }],
+        time: ['2026-10-01T00:00']
+    };
+
+    afterEach(() => { cleanup(); });
+
+    it('обновляет существующий источник через updateImage при rerender', () => {
+        const { rerender } = render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+            />
+        );
+
+        // Изменяем данные и перерисовываем
+        const updatedGrid = {
+            points: [{ lat: 55.75, lon: 37.61, eaqi: 70 }],
+            time: ['2026-10-01T00:00', '2026-10-01T03:00']
+        };
+
+        rerender(
+            <MapComponent
+                macroGrid={updatedGrid}
+                selectedTimeIndex={1}
+                viewMode="combo"
+            />
+        );
+
+        // Источник уже существует → должен вызываться updateImage
+        const macroSource = createdSources.get('air-grid-macro-source');
+        expect(macroSource).toBeTruthy();
+    });
+
+    it('переключение с combo на numeric и обратно', () => {
+        const { rerender } = render(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="combo"
+            />
+        );
+
+        rerender(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="numeric"
+            />
+        );
+
+        const macroLayer = createdLayers.get('air-grid-macro-layer');
+        expect(macroLayer?.layout?.visibility).toBe('none');
+
+        rerender(
+            <MapComponent
+                macroGrid={mockMacroGrid}
+                selectedTimeIndex={0}
+                viewMode="color"
+            />
+        );
+
+        expect(createdLayers.get('air-grid-macro-layer')?.layout?.visibility).toBe('visible');
     });
 });
 

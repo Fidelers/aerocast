@@ -175,4 +175,50 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(localStorage.getItem('aerocast_colorblind')).toBe('true');
         expect(document.documentElement.getAttribute('data-colorblind')).toBe('true');
     });
+
+    it('12. Не закрывается при нажатии других клавиш (не Escape)', () => {
+        const handleClose = vi.fn();
+        render(<SettingsModal isOpen={true} onClose={handleClose} />);
+        fireEvent.keyDown(window, { key: 'Enter', code: 'Enter' });
+        fireEvent.keyDown(window, { key: 'Tab', code: 'Tab' });
+        expect(handleClose).not.toHaveBeenCalled();
+    });
+
+    it('13. Удаляет слушатель keydown при закрытии', () => {
+        const removeSpy = vi.spyOn(window, 'removeEventListener');
+        const { rerender } = render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+        rerender(<SettingsModal isOpen={false} onClose={vi.fn()} />);
+        expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+    });
+
+    it('14. Использует светлую тему по умолчанию без saved и без matchMedia', () => {
+        localStorage.clear();
+        const original = window.matchMedia;
+        delete window.matchMedia;
+        try {
+            const { container } = render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+            const themeSwitch = screen.getByRole('switch', { name: /переключить тему оформления/i });
+            expect(themeSwitch.getAttribute('aria-checked')).toBe('false');
+        } finally {
+            window.matchMedia = original;
+        }
+    });
+
+    it('15. Переключает тему в автономном режиме с dark на light', () => {
+        localStorage.setItem('aerocast_theme', 'dark');
+        render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+        const themeSwitch = screen.getByRole('switch', { name: /переключить тему оформления/i });
+        expect(themeSwitch.getAttribute('aria-checked')).toBe('true');
+        fireEvent.click(themeSwitch);
+        expect(localStorage.getItem('aerocast_theme')).toBe('light');
+    });
+
+    it('16. Переключает дальтонизм в автономном режиме из true в false', () => {
+        localStorage.setItem('aerocast_colorblind', 'true');
+        render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+        const cbSwitch = screen.getByRole('switch', { name: /переключить режим для дальтоников/i });
+        expect(cbSwitch.getAttribute('aria-checked')).toBe('true');
+        fireEvent.click(cbSwitch);
+        expect(localStorage.getItem('aerocast_colorblind')).toBe('false');
+    });
 });

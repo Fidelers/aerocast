@@ -300,34 +300,211 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             expect(getAqiWeightBoost(undefined)).toBe(1.0);
         });
 
-        it('плавно увеличивает вес для загрязненных точек и достигает x2.5 при 110+', () => {
+        it('плавно увеличивает вес для загрязненных точек и насыщается при 110+', () => {
             const boost60 = getAqiWeightBoost(60);
             const boost75 = getAqiWeightBoost(75);
             const boost110 = getAqiWeightBoost(110);
             const boost150 = getAqiWeightBoost(150);
 
-            // При 60: 1 + 1.5 * (20/70) ≈ 1.43
-            expect(boost60).toBeGreaterThan(1.3);
-            expect(boost60).toBeLessThan(1.5);
+            // Формула: 1 + (3 * t)^2, где t = min(1, (val - 40) / 70)
+            // При 60: t = 20/70, boost = 1 + (60/70)^2 ≈ 1.7347
+            expect(boost60).toBeGreaterThan(1.5);
+            expect(boost60).toBeLessThan(2.0);
 
-            // При 75: 1 + 1.5 * (35/70) = 1.75
-            expect(boost75).toBeCloseTo(1.75, 2);
+            // При 75: t = 35/70 = 0.5, boost = 1 + (1.5)^2 = 3.25
+            expect(boost75).toBeCloseTo(3.25, 2);
 
-            // При 110 и выше: ровно 2.5
-            expect(boost110).toBeCloseTo(2.5, 2);
-            expect(boost150).toBeCloseTo(2.5, 2);
+            // При 110 и выше: t = 1, boost = 1 + 9 = 10
+            expect(boost110).toBeCloseTo(10.0, 2);
+            expect(boost150).toBeCloseTo(10.0, 2);
         });
 
-        it('дает точке с высоким EAQI (красная зона) больший вес при интерполяции, чем точке чистого воздуха', () => {
-            // Две равноудаленные точки: чистая (20) и загрязненная (110)
+        it('дает точке с высоким EAQI больший вес при интерполяции', () => {
             const cleanPoint = { lat: 50.0, lon: 30.0, value: 20 };
             const pollutedPoint = { lat: 50.0, lon: 40.0, value: 110 };
-
-            // Середина между ними: без буста было бы (20 + 110)/2 = 65
-            // С бустом точки 110 (вес 2.5 vs вес 1.0): (20*1 + 110*2.5) / (1 + 2.5) = (20 + 275) / 3.5 ≈ 84.3
+            // С бустом точки 110 (вес 10 vs 1): (20*1 + 110*10) / 11 ≈ 101.82
             const val = interpolatePoint(50.0, 35.0, [cleanPoint, pollutedPoint], { p: 2 });
             expect(val).toBeGreaterThan(80);
-            expect(val).toBeCloseTo(84.3, 1);
+            expect(val).toBeCloseTo(101.82, 1);
+        });
+
+        it('возвращает 1.0 для невалидных и нечисловых значений', () => {
+            expect(getAqiWeightBoost('abc')).toBe(1.0);
+            expect(getAqiWeightBoost(NaN)).toBe(1.0);
+        });
+
+        it('монотонно не убывает при росте EAQI', () => {
+            let prev = getAqiWeightBoost(41);
+            for (let v = 45; v <= 120; v += 5) {
+                expect(getAqiWeightBoost(v)).toBeGreaterThanOrEqual(prev);
+                prev = getAqiWeightBoost(v);
+            }
+        });
+    });
+
+    describe('6. Граничные случаи extractPointValue и sanitizePoints', () => {
+        it('возвращает null для точки без value и european_aqi', () => {
+            expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0 }])).toBeNull();
+        });
+
+        it('использует european_aqi[0] при отсутствии timeIndex и value', () => {
+            expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [42] }], { timeIndex: null })).toBe(42);
+        });
+
+        it('возвращает null для пустого массива european_aqi', () => {
+            expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [] }])).toBeNull();
+        });
+
+        it('возвращает null если european_aqi[0] — NaN', () => {
+            expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [NaN] }])).toBeNull();
+        });
+
+        it('возвращает null если european_aqi[timeIndex] — NaN', () => {
+            expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [10, NaN, 30] }], { timeIndex: 1 })).toBeNull();
+        });
+
+        it('игнорирует value если это не число', () => {
+            expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, value: 'abc' }])).toBeNull();
+        });
+
+        it('пропускает null-элементы в массиве точек', () => {
+            expect(interpolatePoint(55.0, 37.0, [null, { lat: 55.0, lon: 37.0, value: 25 }, undefined])).toBe(25);
+        });
+
+        it('пропускает точки с невалидным val', () => {
+            expect(interpolatePoint(55.5, 37.5, [{ lat: 55.0, lon: 37.0 }, { lat: 56.0, lon: 38.0, value: 50 }], { boostPolluted: false })).toBe(50);
+        });
+    });
+
+    describe('7. Граничные случаи interpolatePoint', () => {
+        it('возвращает ближайшее значение при всех точках вне maxRadius', () => {
+            const points = [
+                { lat: 70.0, lon: 70.0, value: 80 },
+                { lat: 80.0, lon: 80.0, value: 90 }
+            ];
+            const val = interpolatePoint(55.0, 37.0, points, { maxRadius: 0.5, bgVal: 20 });
+            // Все точки вне радиуса → sumWeight=0 → возвращается ближайшее значение (80)
+            expect(val).toBe(80);
+        });
+
+        it('clamp ограничивает результат снизу minVal', () => {
+            const val = interpolatePoint(60.0, 42.0, [{ lat: 55.0, lon: 37.0, value: -100 }], { minVal: 0, decayRadius: 1.0, bgVal: -50 });
+            expect(val).toBeGreaterThanOrEqual(0);
+        });
+
+        it('использует useMercator=false', () => {
+            const pts = [{ lat: 50.0, lon: 30.0, value: 20 }, { lat: 50.0, lon: 40.0, value: 80 }];
+            expect(interpolatePoint(50.0, 35.0, pts, { useMercator: false, boostPolluted: false })).toBeCloseTo(50, 1);
+        });
+
+        it('поддерживает произвольную степень p (не 2)', () => {
+            const pts = [{ lat: 50.0, lon: 0.0, value: 10 }, { lat: 50.0, lon: 4.0, value: 50 }];
+            expect(interpolatePoint(50.0, 1.0, pts, { p: 3, boostPolluted: false })).toBeCloseTo(11.43, 1);
+        });
+    });
+
+    describe('8. Граничные случаи interpolateGrid', () => {
+        it('возвращает пустую сетку для пустого массива точек', () => {
+            const grid = interpolateGrid([], 5, 5, [30, 50, 40, 60]);
+            expect(grid.length).toBe(25);
+            expect(grid.every(v => v === 0)).toBe(true);
+        });
+
+        it('заполняет одним значением для единственной точки без decayRadius', () => {
+            const grid = interpolateGrid([{ lat: 53.5, lon: 87.0, value: 42 }], 3, 3, [86, 53, 88, 54]);
+            expect(grid.every(v => v === 42)).toBe(true);
+        });
+
+        it('поддерживает useMercator=false', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.2, lon: 86.5, value: 20 }, { lat: 53.8, lon: 87.5, value: 80 }],
+                10, 10, [86, 53, 88, 54], { useMercator: false }
+            );
+            expect(Math.max(...grid)).toBeGreaterThan(20);
+        });
+
+        it('учитывает maxRadius (cutoff)', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 87.0, value: 80 }, { lat: 60.0, lon: 95.0, value: 20 }],
+                10, 10, [86, 53, 88, 54], { maxRadius: 1.0, bgVal: 10 }
+            );
+            expect(grid.length).toBe(100);
+        });
+
+        it('применяет clamp по minVal/maxVal', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 87.0, value: 300 }],
+                3, 3, [86, 53, 88, 54], { maxVal: 150, decayRadius: 0.5, bgVal: 200 }
+            );
+            expect(Math.max(...grid)).toBeLessThanOrEqual(150);
+            expect(Math.min(...grid)).toBeGreaterThanOrEqual(0);
+        });
+
+        it('поддерживает boostPolluted=false', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 87.0, value: 20 }, { lat: 53.8, lon: 87.5, value: 80 }],
+                5, 5, [86, 53, 88, 54], { boostPolluted: false }
+            );
+            expect(grid.length).toBe(25);
+        });
+
+        it('поддерживает произвольную степень p', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 87.0, value: 20 }, { lat: 53.8, lon: 87.5, value: 80 }],
+                5, 5, [86, 53, 88, 54], { p: 3, boostPolluted: false }
+            );
+            expect(Math.max(...grid)).toBeGreaterThan(20);
+        });
+
+        it('точное совпадение пикселя с точкой', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.75, lon: 86.5, value: 99 }],
+                2, 2, [86.0, 53.0, 88.0, 54.0], { useMercator: false, boostPolluted: false }
+            );
+            expect(grid[0]).toBe(99);
+        });
+
+        it('точное совпадение с простыми координатами', () => {
+            const grid = interpolateGrid(
+                [{ lat: 0.5, lon: 0.5, value: 77 }],
+                1, 1, [0, 0, 1, 1], { useMercator: false, boostPolluted: false }
+            );
+            expect(grid[0]).toBe(77);
+        });
+
+        it('исключает точки по dLon при cutoff', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 95.0, value: 80 }, { lat: 53.5, lon: 87.0, value: 20 }],
+                10, 10, [86, 53, 88, 54], { maxRadius: 1.0, bgVal: 10 }
+            );
+            expect(grid.length).toBe(100);
+        });
+
+        it('clamp ограничивает интерполированное значение сверху maxVal', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 87.0, value: 300 }, { lat: 53.6, lon: 87.1, value: 280 }],
+                5, 5, [86, 53, 88, 54], { maxVal: 150, boostPolluted: false }
+            );
+            expect(Math.max(...grid)).toBeLessThanOrEqual(150);
+        });
+
+        it('clamp ограничивает интерполированное значение снизу minVal', () => {
+            const grid = interpolateGrid(
+                [{ lat: 53.5, lon: 87.0, value: -50 }, { lat: 53.6, lon: 87.1, value: -30 }],
+                5, 5, [86, 53, 88, 54], { minVal: 0, boostPolluted: false }
+            );
+            expect(Math.min(...grid)).toBeGreaterThanOrEqual(0);
+        });
+    });
+
+    describe('9. Граничные случаи projectPixelToGeo', () => {
+        it('возвращает lon=minLon при width=0 (защита деления)', () => {
+            // width=0 → lonRatio=0 → lon = minLon
+            expect(projectPixelToGeo(0, 0, 0, 100, [30, 50, 40, 60], false).lon).toBe(30);
+        });
+
+        it('возвращает lat=minLat при height=0', () => {
+            expect(projectPixelToGeo(0, 0, 100, 0, [30, 50, 40, 60], false).lat).toBe(50);
         });
     });
 });

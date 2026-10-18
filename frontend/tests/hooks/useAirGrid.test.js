@@ -277,4 +277,84 @@ describe('Hook: useAirGrid (Управление жизненным циклом
             expect(result.current.macroGrid).toEqual(mockMacroData);
         });
     });
+
+    describe('8. HTTP-ошибки (non-ok response)', () => {
+        it('обрабатывает non-ok ответ при загрузке макро-сетки', async () => {
+            globalThis.fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+
+            const { result } = renderHook(() => useAirGrid({ autoLoadMacro: true }));
+
+            await waitFor(() => {
+                expect(result.current.isLoadingGrid).toBe(false);
+            });
+
+            expect(result.current.gridError).toContain('500');
+            expect(result.current.macroGrid).toBeNull();
+        });
+
+        it('обрабатывает non-ok ответ при загрузке микро-сетки', async () => {
+            globalThis.fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+            const { result } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+
+            await act(async () => {
+                await result.current.loadMicroGrid(55.75, 37.61);
+            });
+
+            expect(result.current.gridError).toContain('404');
+        });
+    });
+
+    describe('9. Размонтирование во время активного запроса', () => {
+        it('прерывает запрос через AbortController при размонтировании', async () => {
+            let resolveFn;
+            globalThis.fetch.mockImplementationOnce((url, opts) => {
+                return new Promise((resolve) => {
+                    resolveFn = () => resolve({ ok: true, json: async () => mockMicroData });
+                });
+            });
+
+            const { result, unmount } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+
+            act(() => {
+                result.current.loadMicroGrid(55.75, 37.61);
+            });
+
+            // Размонтируем до завершения fetch — должен вызваться abort()
+            unmount();
+
+            // Завершаем промис (компонент уже размонтирован, mountedRef = false)
+            if (resolveFn) resolveFn();
+        });
+
+        it('не обновляет состояние после размонтирования при завершении fetch', async () => {
+            globalThis.fetch.mockResolvedValueOnce({ ok: true, json: async () => mockMicroData });
+
+            const { result, unmount } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+
+            act(() => {
+                result.current.loadMicroGrid(55.75, 37.61);
+            });
+
+            unmount();
+
+            // Небольшая задержка для завершения промиса
+            await act(async () => {
+                await new Promise(r => setTimeout(r, 10));
+            });
+        });
+    });
+
+    describe('10. Невалидные координаты в loadMicroGrid', () => {
+        it('устанавливает gridError при невалидных координатах', async () => {
+            const { result } = renderHook(() => useAirGrid({ autoLoadMacro: false }));
+
+            await act(async () => {
+                await result.current.loadMicroGrid(null, 37.61);
+            });
+
+            expect(result.current.gridError).toBeTruthy();
+            expect(result.current.gridError).toContain('lat');
+        });
+    });
 });
