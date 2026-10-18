@@ -366,5 +366,168 @@ describe('Controller: gridAirController', () => {
                 deleted_entries: 5
             }));
         });
+
+        it('clearGridCache возвращает 500 при ошибке очистки кэша', async () => {
+            spatialCacheService.clearSpatialCache.mockRejectedValue(new Error('cache clear failed'));
+            req.query = { pattern: 'grid_%' };
+
+            await gridAirController.clearGridCache(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Failed to clear grid cache' });
+        });
+    });
+
+    describe('6. Обработка ошибок кэша и сетевых сбоев', () => {
+        it('логирует предупреждение и продолжает работу, если не удалось записать в кэш', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValue(null);
+            batchAirService.fetchBatchAirQuality.mockResolvedValue([
+                { hourly: { time: ['2026-10-01T00:00'], european_aqi: [25] } }
+            ]);
+            batchAirService.normalizeBatchResponse.mockImplementation((raw, coords) => ({
+                time: ['2026-10-01T00:00'],
+                points: coords.map(c => ({ lat: c.lat, lon: c.lon, european_aqi: [25] }))
+            }));
+            spatialCacheService.setSpatialCache.mockRejectedValue(new Error('cache write failed'));
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(console.warn).toHaveBeenCalledWith('Не удалось записать в кэш:', expect.any(Error));
+        });
+
+        it('логирует ошибку чтения устаревшего кэша и возвращает 500, если нет свежих данных', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // свежий кэш пуст
+            batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('Open-Meteo down'));
+            spatialCacheService.getSpatialCache.mockRejectedValueOnce(new Error('stale cache read error')); // устаревший кэш тоже ошибка
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(console.error).toHaveBeenCalledWith('Ошибка чтения устаревшего кэша:', expect.any(Error));
+        });
+
+        it('возвращает 500 при непредвиденной ошибке в контроллере сетки', async () => {
+            spatialCacheService.getSpatialCache.mockImplementation(() => {
+                throw new Error('Unexpected controller error');
+            });
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+            expect(console.error).toHaveBeenCalledWith('Ошибка в контроллере сетки:', expect.any(Error));
+        });
+
+        it('автоопределение типа: zoom не является числом -> macro по умолчанию', async () => {
+            req.query = { zoom: 'not-a-number' };
+            const cachedMacro = { type: 'macro', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(cachedMacro);
+
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(cachedMacro);
+        });
+
+        it('автоопределение типа: zoom >= 9 без координат -> 400 для micro', async () => {
+            req.query = { zoom: '9' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('req.query отсутствует — дефолтный объект через || {}', async () => {
+            req = {};
+            const cachedMacro = { type: 'macro', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(cachedMacro);
+
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(cachedMacro);
+        });
+
+        it('при сбое fetchBatchAirQuality и отсутствии устаревшего кэша возвращает 500', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
+            batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('API down'));
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                error: expect.stringMatching(/failed to fetch grid data/i)
+            }));
+        });
+
+        it('getMacroGrid с отсутствующим req.query использует дефолтный объект', async () => {
+            const cachedMacro = { type: 'macro', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(cachedMacro);
+            delete req.query;
+
+            await gridAirController.getMacroGrid(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(cachedMacro);
+        });
+
+        it('clearGridCache без pattern использует дефолтный grid_%', async () => {
+            spatialCacheService.clearSpatialCache.mockResolvedValue(3);
+            delete req.query;
+
+            await gridAirController.clearGridCache(req, res);
+
+            expect(spatialCacheService.clearSpatialCache).toHaveBeenCalledWith('grid_%');
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                deleted_entries: 3
+            }));
+        });
+
+        it('clearGridCache возвращает deleted_entries = 0 когда clearSpatialCache вернет undefined', async () => {
+            spatialCacheService.clearSpatialCache.mockResolvedValue(undefined);
+            req.query = { pattern: 'grid_%' };
+
+            await gridAirController.clearGridCache(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                deleted_entries: 0
+            }));
+        });
+
+        it('getMicroGrid с отсутствующим req.query использует дефолтный объект', async () => {
+            delete req.query;
+
+            await gridAirController.getMicroGrid(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('микро-сетка с промахом кэша и успешным фетчем проходит через полный путь payload', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValue(null);
+            batchAirService.generateMicroGridCoordinates.mockReturnValue({
+                points: [{ lat: 53.75, lon: 87.15 }],
+                bbox: [87.05, 53.65, 87.35, 53.95]
+            });
+            batchAirService.fetchBatchAirQuality.mockResolvedValue([
+                { hourly: { time: ['2026-10-01T00:00'], european_aqi: [25] } }
+            ]);
+            batchAirService.normalizeBatchResponse.mockImplementation((raw, coords) => ({
+                time: ['2026-10-01T00:00'],
+                points: coords.map(c => ({ lat: c.lat, lon: c.lon, european_aqi: [25] }))
+            }));
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'micro',
+                bbox: [87.05, 53.65, 87.35, 53.95],
+                points_count: 1
+            }));
+        });
+
     });
 });

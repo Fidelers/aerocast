@@ -1,5 +1,3 @@
-// tests/server.test.js — тесты верхнеуровневой конфигурации сервера (CORS, 404, ошибки, запуск, остановка и сигналы)
-
 const { EventEmitter } = require('events');
 const Module = require('module');
 const request = require('supertest');

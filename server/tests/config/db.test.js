@@ -1,5 +1,3 @@
-// tests/config/db.test.js — тесты конфигурации и миграции базы данных SQLite
-
 describe('Config: db', () => {
     let dbConfig;
     const originalEnv = process.env;

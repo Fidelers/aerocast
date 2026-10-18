@@ -1,7 +1,3 @@
-// tests/routes/api.test.js — интеграционные тесты маршрутов API
-
-// Контроллеры тестируются отдельно (tests/controllers/*), поэтому здесь их поведение заменяется моками
-
 const express = require('express');
 const request = require('supertest');
 
@@ -290,5 +286,31 @@ describe('Routes: API', () => {
             expect(res.status).toBe(200);
             expect(res.body).toEqual({ message: 'custom air handler' });
         });
+
+        it('должен логировать предупреждение и продолжать работу, если gridAirController недоступен', async () => {
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            let appWithGridFail;
+            jest.isolateModules(() => {
+                // Мокаем gridAirController так, чтобы require бросал ошибку
+                jest.mock('../../controllers/gridAirController', () => {
+                    throw new Error('Module not found');
+                });
+                const freshApiRoutes = require('../../routes/api');
+                const testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+                appWithGridFail = testApp;
+            });
+
+            expect(warnSpy).toHaveBeenCalledWith(
+                'gridAirController is not yet available:',
+                'Module not found'
+            );
+            // Сервер должен продолжать работать, даже без grid-маршрутов
+            const res = await request(appWithGridFail).get('/api/non-existent-grid');
+            expect(res.status).toBe(404);
+            warnSpy.mockRestore();
+        });
+
     });
 });

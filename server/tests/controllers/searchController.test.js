@@ -1,5 +1,3 @@
-// tests/controllers/searchController.test.js — тесты контроллера searchController
-
 const searchController = require('../../controllers/searchController');
 const cacheService = require('../../services/cacheService');
 const geocodingService = require('../../services/geocodingService');

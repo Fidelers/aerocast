@@ -1,5 +1,6 @@
 const spatialCacheService = require('../../services/spatialCacheService');
 const dbConfig = require('../../config/db');
+const timeUtils = require('../../services/timeUtils');
 
 // Мокаем модуль базы данных SQLite
 jest.mock('../../config/db', () => ({
@@ -335,6 +336,135 @@ describe('Service: spatialCacheService (Пространственное кэш�
             const result = await spatialCacheService.getTodayMacroGrid(key);
             expect(result).toBeNull();
             expect(await spatialCacheService.isMacroGridSavedToday(key)).toBe(false);
+        });
+
+        it('возвращает сетку, если TTL истёк, но запись сохранена сегодня (fallback на cached_date)', async () => {
+            const sampleMacro = {
+                type: 'macro',
+                points_count: 550,
+                points: [{ lat: 55.75, lon: 37.61, european_aqi: [20] }]
+            };
+            // TTL истек, но cached_date = сегодня, isRecordSavedToday вернёт true
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-09' }),
+                expires_at: Date.now() - 1000, // TTL истек
+                updated_at: Date.now()
+            });
+
+            const result = await spatialCacheService.getTodayMacroGrid(key);
+            expect(result).not.toBeNull();
+            expect(result.type).toBe('macro');
+        });
+    });
+
+    describe('7. Обработка ошибок и граничные случаи', () => {
+        const key = 'grid_error_key';
+
+        it('getSpatialCache деградирует во in-memory, если db.get выбрасывает ошибку', async () => {
+            // Сначала сохраняем в память (db = null)
+            dbConfig.getDB.mockReturnValue(null);
+            await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 5 }, 3600);
+
+            dbConfig.getDB.mockImplementation(() => {
+                throw new Error('DB read error');
+            });
+
+            const result = await spatialCacheService.getSpatialCache(key);
+            expect(result).toEqual({ type: 'macro', count: 5 });
+        });
+
+        it('getSpatialCacheEntry внутренний catch: битый JSON в row.data возвращает null', async () => {
+            mockDb.get.mockResolvedValue({
+                data: '{not valid json}',
+                expires_at: Date.now() + 10000,
+                updated_at: Date.now()
+            });
+
+            const result = await spatialCacheService.getSpatialCacheEntry(key);
+            expect(result).toBeNull();
+        });
+
+        it('getSpatialCacheEntry внешний catch: db.get выбрасывает ошибку, деградация во in-memory', async () => {
+            // Сначала сохраняем в память
+            dbConfig.getDB.mockReturnValue(null);
+            await spatialCacheService.setSpatialCache(key, { type: 'micro', count: 10 }, 3600);
+
+            // Затем db.get выбрасывает ошибку
+            dbConfig.getDB.mockImplementation(() => {
+                throw new Error('DB connection lost');
+            });
+
+            const result = await spatialCacheService.getSpatialCacheEntry(key);
+            expect(result).not.toBeNull();
+            expect(result.data).toEqual({ type: 'micro', count: 10 });
+        });
+
+        it('getSpatialCacheEntry !db путь: возвращает запись из _memCache когда БД недоступна', async () => {
+            dbConfig.getDB.mockReturnValue(null);
+            await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 42 }, 3600);
+
+            const result = await spatialCacheService.getSpatialCacheEntry(key);
+            expect(result).not.toBeNull();
+            expect(result.data).toEqual({ type: 'macro', count: 42 });
+        });
+
+        it('getSpatialCache catch блок: истекшая запись в памяти удаляется и возвращает null', async () => {
+            // Режим in-memory (db = null)
+            dbConfig.getDB.mockReturnValue(null);
+            // Сохраняем данные с TTL 1 секунда
+            await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 5 }, 1);
+            // Продвигаем время на 2 секунды — запись истекает
+            jest.advanceTimersByTime(2000);
+            // Теперь getDB выбрасывает ошибку — попадаем в catch блок
+            dbConfig.getDB.mockImplementation(() => {
+                throw new Error('DB error');
+            });
+
+            const result = await spatialCacheService.getSpatialCache(key);
+            expect(result).toBeNull();
+        });
+
+        it('getSpatialCache catch блок: неистекшая запись в памяти возвращается при ошибке БД', async () => {
+            // Режим in-memory (db = null)
+            dbConfig.getDB.mockReturnValue(null);
+            await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 5 }, 3600);
+            // getDB выбрасывает ошибку — попадаем в catch блок, запись не истекла
+            dbConfig.getDB.mockImplementation(() => {
+                throw new Error('DB error');
+            });
+
+            const result = await spatialCacheService.getSpatialCache(key);
+            expect(result).toEqual({ type: 'macro', count: 5 });
+        });
+    });
+
+    describe('8. isRecordSavedToday граничные случаи', () => {
+        it('возвращает true когда getTodayMacroGrid возвращает не-null запись', async () => {
+            const record = { type: 'macro', cached_at: Date.now() };
+            const spy = jest.spyOn(spatialCacheService, 'getTodayMacroGrid').mockResolvedValue(record);
+
+            const result = await spatialCacheService.isRecordSavedToday('grid_macro_russia');
+            expect(result).toBe(true);
+            spy.mockRestore();
+        });
+
+        it('getTodayMacroGrid с записью без cached_date и вчерашним timestamp возвращает null (ветка isToday)', async () => {
+            const yesterday = Date.now() - 24 * 60 * 60 * 1000;
+            const recordYesterday = {
+                type: 'macro',
+                points_count: 550,
+                points: [{ lat: 55.75, lon: 37.61, european_aqi: [20] }],
+                cached_at: yesterday,
+                updated_at: yesterday
+            };
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify(recordYesterday),
+                expires_at: Date.now() - 1000, // TTL истек
+                updated_at: yesterday
+            });
+
+            const result = await spatialCacheService.getTodayMacroGrid('grid_macro_russia');
+            expect(result).toBeNull();
         });
     });
 });

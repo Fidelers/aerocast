@@ -60,6 +60,11 @@ describe('Service: timeUtils', () => {
             // 1789855200 -> 2026-09-19T22:00 UTC -> 2026-09-20T01:00 Europe/Moscow
             expect(timeUtils.getTodayDateString(1789855200 * 1000)).toBe('2026-09-20');
         });
+
+        it('принимает объект Date в качестве временной метки', () => {
+            const date = new Date('2026-09-20T12:00:00Z');
+            expect(timeUtils.getTodayDateString(date)).toBe('2026-09-20');
+        });
     });
 
     describe('isToday(timestampOrDate, referenceDate)', () => {
@@ -83,6 +88,15 @@ describe('Service: timeUtils', () => {
             expect(timeUtils.isToday(null)).toBe(false);
             expect(timeUtils.isToday(undefined)).toBe(false);
             expect(timeUtils.isToday('invalid-date')).toBe(false);
+        });
+
+        it('корректно обрабатывает объект Date как временную метку', () => {
+            const ref = 1789862400 * 1000; // 2026-09-20
+            const sameDay = new Date(ref + 3600 * 1000); // на 1 час позже
+            expect(timeUtils.isToday(sameDay, ref)).toBe(true);
+
+            const otherDay = new Date(ref - 24 * 3600 * 1000); // вчера
+            expect(timeUtils.isToday(otherDay, ref)).toBe(false);
         });
     });
 });

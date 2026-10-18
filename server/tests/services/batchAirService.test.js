@@ -182,6 +182,91 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             await expect(batchAirService.fetchBatchAirQuality(sampleCoords))
                 .rejects.toThrow('timeout of 2000ms exceeded');
         });
+
+        it('выполняет чанкированные запросы при большом количестве координат (>250)', async () => {
+            // Создаём 300 координат — больше CHUNK_SIZE (250), чтобы вызвать чанкирование
+            const manyCoords = Array.from({ length: 300 }, (_, i) => ({
+                lat: 55 + i * 0.001,
+                lon: 37 + i * 0.001
+            }));
+
+            const chunk1Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } }];
+            const chunk2Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t2'], european_aqi: [20] } }];
+
+            // Первый вызов для первого чанка (250 координат), второй для второго (50 координат)
+            axios.get.mockResolvedValueOnce({ data: chunk1Data });
+            axios.get.mockResolvedValueOnce({ data: chunk2Data });
+
+            const result = await batchAirService.fetchBatchAirQuality(manyCoords);
+
+            expect(axios.get).toHaveBeenCalledTimes(2);
+            expect(result).toEqual([...chunk1Data, ...chunk2Data]);
+        });
+
+        it('повторяет запрос после 429 Too Many Requests с задержкой (чанкированный путь)', async () => {
+            const rateLimitError = new Error('Rate limited');
+            rateLimitError.response = { status: 429 };
+
+            // Создаём 300 координат — больше CHUNK_SIZE (250) — чтобы попасть в чанкированный путь
+            const manyCoords = Array.from({ length: 300 }, (_, i) => ({
+                lat: 55 + i * 0.001,
+                lon: 37 + i * 0.001
+            }));
+
+            const chunk1Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } }];
+            const chunk2Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t2'], european_aqi: [20] } }];
+
+            // Первый чанк: 429 ошибка, второй чанк: успех
+            axios.get.mockRejectedValueOnce(rateLimitError);
+            axios.get.mockResolvedValueOnce({ data: chunk1Data });
+            axios.get.mockResolvedValueOnce({ data: chunk2Data });
+
+            const start = Date.now();
+            const result = await batchAirService.fetchBatchAirQuality(manyCoords);
+            const elapsed = Date.now() - start;
+
+            expect(axios.get).toHaveBeenCalledTimes(3); // 1st chunk fail + 1st chunk retry + 2nd chunk
+            expect(elapsed).toBeGreaterThanOrEqual(1500);
+            expect(result).toEqual([...chunk1Data, ...chunk2Data]);
+        });
+
+        it('пробрасывает ошибку, если 429 повторяется и второй запрос тоже падает', async () => {
+            const rateLimitError = new Error('Rate limited');
+            rateLimitError.response = { status: 429 };
+
+            axios.get.mockRejectedValue(rateLimitError);
+
+            await expect(batchAirService.fetchBatchAirQuality(sampleCoords))
+                .rejects.toThrow('Rate limited');
+        });
+
+        it('пробрасывает не-429 ошибки без повторов', async () => {
+            const networkError = new Error('Network error');
+
+            axios.get.mockRejectedValue(networkError);
+
+            await expect(batchAirService.fetchBatchAirQuality(sampleCoords))
+                .rejects.toThrow('Network error');
+            expect(axios.get).toHaveBeenCalledTimes(1);
+        });
+
+        it('обрабатывает не-массив ответ данных (else if ветка) в чанкированном режиме', async () => {
+            const manyCoords = Array.from({ length: 300 }, (_, i) => ({
+                lat: 55 + i * 0.001,
+                lon: 37 + i * 0.001
+            }));
+
+            // Первый чанк возвращает объект (не массив), второй — массив
+            axios.get.mockResolvedValueOnce({ data: { latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } } });
+            axios.get.mockResolvedValueOnce({ data: [{ latitude: 56, longitude: 38, hourly: { time: ['t2'], european_aqi: [20] } }] });
+
+            const result = await batchAirService.fetchBatchAirQuality(manyCoords);
+
+            expect(axios.get).toHaveBeenCalledTimes(2);
+            expect(result).toHaveLength(2);
+            expect(result[0]).toEqual({ latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } });
+            expect(result[1]).toEqual({ latitude: 56, longitude: 38, hourly: { time: ['t2'], european_aqi: [20] } });
+        });
     });
 
     describe('4. normalizeBatchResponse(rawArray, coordinates)', () => {
