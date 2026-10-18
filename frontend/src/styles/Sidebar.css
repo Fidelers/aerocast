@@ -98,6 +98,33 @@ h2 {
   color: var(--text-h);
 }
 
+.sidebar__settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, transform 0.25s ease;
+}
+
+.sidebar__settings-btn:hover {
+  background-color: var(--accent-bg);
+  color: var(--text-h);
+  transform: rotate(30deg);
+}
+
+.sidebar__settings-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
 .sidebar__info-btn {
   display: flex;
   align-items: center;
@@ -492,6 +519,7 @@ h2 {
 .segmented__btn:focus-visible,
 .day-card:focus-visible,
 .time:focus-visible,
+.sidebar__settings-btn:focus-visible,
 .sidebar__info-btn:focus-visible {
   box-shadow: 0 0 0 3px var(--accent-bg);
   outline: none;
@@ -590,11 +618,13 @@ h2 {
     font-size: 22px;
   }
 
+  .sidebar__settings-btn,
   .sidebar__info-btn {
     width: 42px;
     height: 42px;
   }
 
+  .sidebar__settings-icon,
   .sidebar__info-icon {
     width: 24px;
     height: 24px;

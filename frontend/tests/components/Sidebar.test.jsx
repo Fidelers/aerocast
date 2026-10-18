@@ -300,6 +300,43 @@ describe('Sidebar component (вызов информационного мода�
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    it('4. Рендерит значок настроек слева от значка «О проекте» в шапке сайдбара', () => {
+        render(<Sidebar />);
+
+        const settingsBtn = screen.getByRole('button', { name: /настройки/i });
+        const infoBtn = screen.getByLabelText(/информация о проекте/i);
+
+        expect(settingsBtn).toBeTruthy();
+        expect(infoBtn).toBeTruthy();
+        // Проверяем, что значок настроек предшествует значку информации в DOM
+        expect(settingsBtn.compareDocumentPosition(infoBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('5. При клике на значок настроек вызывает onOpenSettings, если передан в пропсы', () => {
+        const handleOpenSettings = vi.fn();
+        render(<Sidebar onOpenSettings={handleOpenSettings} />);
+
+        const settingsBtn = screen.getByRole('button', { name: /настройки/i });
+        fireEvent.click(settingsBtn);
+
+        expect(handleOpenSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('6. Открывает и закрывает внутренний SettingsModal, если onOpenSettings не передан в пропсы', () => {
+        render(<Sidebar />);
+
+        const settingsBtn = screen.getByRole('button', { name: /настройки/i });
+        fireEvent.click(settingsBtn);
+
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: /настройки/i })).toBeTruthy();
+
+        const closeBtn = screen.getByRole('button', { name: /закрыть настройки/i });
+        fireEvent.click(closeBtn);
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('вызывает onLocateMe при нажатии кнопки "Моё местоположение", если передан коллбэк', () => {
         const handleLocateMe = vi.fn();
         render(<Sidebar onLocateMe={handleLocateMe} />);
@@ -824,6 +861,138 @@ describe('Sidebar component (вызов информационного мода�
 
         clearTimeoutSpy.mockRestore();
         vi.unstubAllGlobals();
+    });
+});
+
+describe('Sidebar — drag/touch/pointer события', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T10:00:00'));
+    });
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    it('pointer drag за handle: native PointerEvent', () => {
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={vi.fn()} />);
+        const aside = container.querySelector('aside');
+        const handle = container.querySelector('.sidebar__drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 200, clientY: 100, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 50, clientY: 100, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        expect(() => {
+            handle.dispatchEvent(ev1);
+            aside.dispatchEvent(ev2);
+            aside.dispatchEvent(ev3);
+        }).not.toThrow();
+    });
+
+    it('pointer drag за handle вызывает onClose при достаточном смещении', () => {
+        const onClose = vi.fn();
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={onClose} />);
+        const aside = container.querySelector('aside');
+        const handle = container.querySelector('.sidebar__drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 300, clientY: 100, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 50, clientY: 100, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        handle.dispatchEvent(ev1);
+        aside.dispatchEvent(ev2);
+        aside.dispatchEvent(ev3);
+        act(() => { vi.advanceTimersByTime(350); });
+    });
+
+    it('snap back при недостаточном смещении', () => {
+        const onClose = vi.fn();
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={onClose} />);
+        const aside = container.querySelector('aside');
+        const handle = container.querySelector('.sidebar__drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 200, clientY: 100, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 190, clientY: 100, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        handle.dispatchEvent(ev1);
+        aside.dispatchEvent(ev2);
+        aside.dispatchEvent(ev3);
+        act(() => { vi.advanceTimersByTime(350); });
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('не начинает drag при mouse pointer не на handle', () => {
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={vi.fn()} />);
+        const aside = container.querySelector('aside');
+        expect(() => {
+            fireEvent.pointerDown(aside, { clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1, target: aside });
+            fireEvent.pointerMove(aside, { clientX: 50, clientY: 200, pointerType: 'mouse', target: aside });
+            fireEvent.pointerUp(aside, { pointerId: 1, target: aside });
+        }).not.toThrow();
+    });
+
+    it('onPointerCancel без ошибок', () => {
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={vi.fn()} />);
+        expect(() => fireEvent.pointerCancel(container.querySelector('aside'), { pointerId: 1 })).not.toThrow();
+    });
+
+    it('touch drag выполняется без ошибок', () => {
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={vi.fn()} />);
+        const aside = container.querySelector('aside');
+        const handle = container.querySelector('.sidebar__drag-handle');
+        expect(() => {
+            fireEvent.touchStart(handle, { touches: [{ clientX: 100, clientY: 200, target: handle }] });
+            fireEvent.touchMove(aside, { touches: [{ clientX: 50, clientY: 200, target: aside }], cancelable: true });
+            fireEvent.touchEnd(aside, {});
+        }).not.toThrow();
+    });
+
+    it('onTouchCancel без ошибок', () => {
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={vi.fn()} />);
+        expect(() => fireEvent.touchCancel(container.querySelector('aside'), {})).not.toThrow();
+    });
+
+    it('правый клик (button=2) не начинает drag', () => {
+        const { container } = render(<Sidebar airData={mockAirData} isOpen={true} onClose={vi.fn()} />);
+        const handle = container.querySelector('.sidebar__drag-handle');
+        expect(() => fireEvent.pointerDown(handle, { button: 2, pointerType: 'mouse', target: handle })).not.toThrow();
+    });
+});
+
+describe('Sidebar — интерактивные элементы', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T10:00:00'));
+    });
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    it('клик по кнопке закрытия вызывает onClose', () => {
+        const onClose = vi.fn();
+        render(<Sidebar airData={mockAirData} isOpen={true} onClose={onClose} />);
+        const closeBtn = screen.getByLabelText('Закрыть меню');
+        fireEvent.click(closeBtn);
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('клик по часу вызывает onSelectTime с индексом', () => {
+        const onSelectTime = vi.fn();
+        const { container } = render(<Sidebar airData={mockAirData} selectedTimeIndex={4} onSelectTime={onSelectTime} />);
+        const hours = container.querySelectorAll('.time');
+        if (hours.length > 0) {
+            fireEvent.click(hours[0]);
+            expect(onSelectTime).toHaveBeenCalled();
+        }
+    });
+
+    it('неконтролируемый режим: клик по часу обновляет внутренний индекс', () => {
+        const { container } = render(<Sidebar airData={mockAirData} />);
+        const hours = container.querySelectorAll('.time');
+        if (hours.length > 0) {
+            fireEvent.click(hours[0]);
+            expect(hours[0].className).toContain('time--active');
+        }
+    });
+
+    it('клик по дню переключает активный день', () => {
+        const { container } = render(<Sidebar airData={mockAirData} selectedTimeIndex={4} />);
+        const dayCards = container.querySelectorAll('.day-card');
+        if (dayCards.length > 1) {
+            fireEvent.click(dayCards[0]);
+            expect(dayCards[0].className).toContain('day-card--active');
+        }
     });
 });
 

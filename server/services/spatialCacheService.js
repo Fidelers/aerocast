@@ -1,4 +1,5 @@
 const dbConfig = require('../config/db');
+const timeUtils = require('./timeUtils');
 
 // In-memory fallback хранилище
 const _memCache = new Map();
@@ -80,7 +81,7 @@ async function setSpatialCache(cacheKey, gridData, ttlSeconds = 3600) {
     const serialized = JSON.stringify(gridData);
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-    _memCache.set(cacheKey, { data: gridData, expiresAt });
+    _memCache.set(cacheKey, { data: gridData, expiresAt, updatedAt: now });
 
     try {
         const db = dbConfig.getDB();
@@ -123,9 +124,102 @@ async function clearSpatialCache(pattern = 'grid_%') {
     }
 }
 
+// Извлекает запись кэша вместе с метаданными времени обновления
+async function getSpatialCacheEntry(cacheKey) {
+    try {
+        const db = dbConfig.getDB();
+
+        if (!db) {
+            const entry = _memCache.get(cacheKey);
+            if (!entry) return null;
+            return {
+                data: entry.data,
+                expiresAt: entry.expiresAt,
+                updatedAt: entry.updatedAt || entry.expiresAt
+            };
+        }
+
+        const row = await db.get(
+            'SELECT data, expires_at, updated_at FROM api_cache WHERE key = ?',
+            [cacheKey]
+        );
+
+        if (!row) return null;
+
+        try {
+            return {
+                data: JSON.parse(row.data),
+                expiresAt: row.expires_at,
+                updatedAt: row.updated_at
+            };
+        } catch (_) {
+            return null;
+        }
+    } catch {
+        const entry = _memCache.get(cacheKey);
+        if (!entry) return null;
+        return {
+            data: entry.data,
+            expiresAt: entry.expiresAt,
+            updatedAt: entry.updatedAt || entry.expiresAt
+        };
+    }
+}
+
+// Проверяет, была ли запись кэша сохранена сегодня в Europe/Moscow
+function isRecordSavedToday(record, updatedAt) {
+    if (!record) return false;
+    const todayStr = timeUtils.getTodayDateString();
+
+    if (record.cached_date) {
+        return record.cached_date === todayStr;
+    }
+
+    const timestamp = updatedAt || record.cached_at || record.updated_at;
+    if (timestamp !== undefined && timestamp !== null) {
+        return timeUtils.isToday(timestamp);
+    }
+
+    return true;
+}
+
+// Возвращает макросетку, если она ещё свежая по TTL или сохранена за сегодня.
+// Проверка TTL имеет приоритет над календарным днём: сетка, загруженная перед
+// полночью, не считается устаревшей только из-за смены даты. Это предотвращает
+// лишний запрос к Open-Meteo ровно в 00:00, когда API часто недоступно.
+async function getTodayMacroGrid(cacheKey = 'grid_macro_russia') {
+    const entry = await getSpatialCacheEntry(cacheKey);
+    if (!entry || !entry.data) return null;
+
+    const now = Date.now();
+
+    // Если TTL ещё не истёк, данные свежие — отдаём их независимо от смены календарного дня
+    if (entry.expiresAt && now < entry.expiresAt) {
+        return entry.data;
+    }
+
+    // Иначе — только если запись сохранена именно сегодня (принудительное обновление со сменой суток)
+    if (!isRecordSavedToday(entry.data, entry.updatedAt)) {
+        return null;
+    }
+
+    return entry.data;
+}
+
+// Проверяет факт наличия сохраненной макросетки за сегодня (в этот день)
+async function isMacroGridSavedToday(cacheKey = 'grid_macro_russia') {
+    const grid = await getTodayMacroGrid(cacheKey);
+    return grid !== null;
+}
+
 module.exports = {
     quantizeCoordinates,
     getSpatialCache,
     setSpatialCache,
-    clearSpatialCache
+    clearSpatialCache,
+    getSpatialCacheEntry,
+    isRecordSavedToday,
+    getTodayMacroGrid,
+    isMacroGridSavedToday
 };
+

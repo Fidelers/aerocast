@@ -1,3 +1,4 @@
-import russiaBoundaries from './russiaBoundary2026.json';
+import boundaries from './russiaBoundary2026.json';
 
+const russiaBoundaries = boundaries;
 export default russiaBoundaries;

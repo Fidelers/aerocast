@@ -151,4 +151,15 @@ describe('LayerSwitcher component', () => {
 
         expect(keydownRemoved || mousedownRemoved).toBe(true);
     });
+
+    it('11. Игнорирует нажатие клавиш кроме Escape при открытом меню', () => {
+        const { container } = render(<LayerSwitcher activeLayer="osm" onLayerChange={() => { }} />);
+        const toggleBtn = container.querySelector('.layer-switcher__toggle');
+        const menu = container.querySelector('.layer-switcher__menu');
+        fireEvent.click(toggleBtn);
+        expect(menu.className).toContain('layer-switcher__menu--visible');
+
+        fireEvent.keyDown(window, { key: 'Enter' });
+        expect(menu.className).toContain('layer-switcher__menu--visible');
+    });
 });

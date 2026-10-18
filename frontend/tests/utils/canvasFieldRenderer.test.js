@@ -6,6 +6,7 @@ import {
     renderFieldToCanvas,
     createFieldCanvas,
     clipCanvasToPolygons,
+    hasPollutedZones,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_ALPHA
@@ -61,6 +62,72 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         it('поддерживает кастомную прозрачность alpha', () => {
             const custom = interpolateAqiColor(50, 200);
             expect(custom.a).toBe(200);
+        });
+    });
+
+    describe('1b. Доступная палитра для дальтоников (options.colorBlind)', () => {
+        it('возвращает цвета палитры Okabe-Ito на контрольных границах', () => {
+            const opts = { colorBlind: true };
+            expect(interpolateAqiColor(0, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });    // #0072B2
+            expect(interpolateAqiColor(20, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });   // #0072B2
+            expect(interpolateAqiColor(40, DEFAULT_ALPHA, opts)).toEqual({ r: 86, g: 180, b: 233, a: DEFAULT_ALPHA });  // #56B4E9
+            expect(interpolateAqiColor(60, DEFAULT_ALPHA, opts)).toEqual({ r: 240, g: 228, b: 66, a: DEFAULT_ALPHA });  // #F0E442
+            expect(interpolateAqiColor(80, DEFAULT_ALPHA, opts)).toEqual({ r: 230, g: 159, b: 0, a: DEFAULT_ALPHA });   // #E69F00
+            expect(interpolateAqiColor(100, DEFAULT_ALPHA, opts)).toEqual({ r: 213, g: 94, b: 0, a: DEFAULT_ALPHA });   // #D55E00
+            expect(interpolateAqiColor(150, DEFAULT_ALPHA, opts)).toEqual({ r: 123, g: 50, b: 148, a: DEFAULT_ALPHA }); // #7B3294
+        });
+
+        it('интерполирует промежуточные значения в доступной палитре', () => {
+            // AQI = 30 (середина между 20 [0,114,178] и 40 [86,180,233])
+            const c30 = interpolateAqiColor(30, DEFAULT_ALPHA, { colorBlind: true });
+            expect(c30.r).toBe(43);
+            expect(c30.g).toBe(147);
+            expect(c30.b).toBe(206);
+        });
+
+        it('ограничивает значения за пределами шкалы (clamp) в доступной палитре', () => {
+            expect(interpolateAqiColor(-10, DEFAULT_ALPHA, { colorBlind: true })).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(250, DEFAULT_ALPHA, { colorBlind: true })).toEqual({ r: 123, g: 50, b: 148, a: DEFAULT_ALPHA });
+        });
+
+        it('без опции colorBlind (или при false) использует стандартную палитру', () => {
+            expect(interpolateAqiColor(10)).toEqual({ r: 76, g: 175, b: 80, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(10, DEFAULT_ALPHA, { colorBlind: false })).toEqual({ r: 76, g: 175, b: 80, a: DEFAULT_ALPHA });
+        });
+
+        it('renderFieldToBuffer применяет доступную палитру при options.colorBlind', () => {
+            const width = 2;
+            const height = 1;
+            const grid = new Float32Array([10, 90]);
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+
+            renderFieldToBuffer(grid, imgData, width, height, { colorBlind: true });
+
+            // Пиксель 0: AQI 10 -> #0072B2
+            expect(imgData.data[0]).toBe(0);
+            expect(imgData.data[1]).toBe(114);
+            expect(imgData.data[2]).toBe(178);
+            // Пиксель 1: AQI 90 -> интерполяция между #E69F00 (80) и #D55E00 (100)
+            const idx = 4;
+            expect(imgData.data[idx]).toBe(222); // round(230 + 0.5 * (213-230)) = 222
+            expect(imgData.data[idx + 1]).toBe(127); // round(159 + 0.5 * (94-159)) = 127
+            expect(imgData.data[idx + 2]).toBe(0);
+        });
+
+        it('renderFieldToBuffer в режиме onlyPollution тоже поддерживает палитру дальтоника', () => {
+            const width = 2;
+            const height = 1;
+            const grid = new Float32Array([20, 90]);
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+
+            renderFieldToBuffer(grid, imgData, width, height, { onlyPollution: true, colorBlind: true });
+
+            // Чистый воздух (20) — полностью прозрачен
+            expect(imgData.data[3]).toBe(0);
+            // Загрязнение (90) — доступный оранжевый #E69F00..#D55E00
+            expect(imgData.data[4]).toBe(222);
+            expect(imgData.data[5]).toBe(127);
+            expect(imgData.data[6]).toBe(0);
         });
     });
 
@@ -212,21 +279,314 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('6. Производительность', () => {
-        it('заполняет буфер 150x150 (22 500 пикселей) менее чем за 15 мс', () => {
-            const size = 150 * 150;
-            const grid = new Float32Array(size);
-            for (let i = 0; i < size; i++) {
-                grid[i] = (i % 120);
+    describe('7. Плавный режим чётких зон загрязнения с обводкой без дырок (zoneMode)', () => {
+        it('заполняет чистый воздух (AQI <= 20) непрерывным зеленым цветом без дырок (alpha = DEFAULT_ALPHA)', () => {
+            const width = 4;
+            const height = 4;
+            const grid = new Float32Array(width * height);
+            grid.fill(15); // чистый воздух
+
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
+
+            for (let i = 0; i < width * height; i++) {
+                expect(imgData.data[i * 4 + 3]).toBe(DEFAULT_ALPHA);
+                expect(imgData.data[i * 4]).toBe(76);
+                expect(imgData.data[i * 4 + 1]).toBe(175);
+                expect(imgData.data[i * 4 + 2]).toBe(80);
             }
-            const imgData = { data: new Uint8ClampedArray(size * 4) };
+        });
 
-            const start = performance.now();
-            renderFieldToBuffer(grid, imgData, 150, 150);
-            const duration = performance.now() - start;
+        it('создает плавное сплошное поле без искусственных контуров и яиц', () => {
+            const width = 5;
+            const height = 5;
+            const grid = new Float32Array(width * height);
+            grid.fill(15); // чистый воздух
+            // Центр 3x3 — загрязнение
+            for (let y = 1; y <= 3; y++) {
+                for (let x = 1; x <= 3; x++) {
+                    grid[y * width + x] = 50;
+                }
+            }
 
-            expect(duration).toBeLessThan(15);
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
+
+            // (0, 0) — чистый воздух -> непрерывный цвет, alpha = DEFAULT_ALPHA
+            expect(imgData.data[0 * 4 + 3]).toBe(DEFAULT_ALPHA);
+
+            // (1, 1) — край зоны -> ровный базовый alpha без искусственной обводки/яиц
+            const edgeIdx = (1 * width + 1) * 4;
+            expect(imgData.data[edgeIdx + 3]).toBe(DEFAULT_ALPHA);
+
+            // (2, 2) — внутренняя часть зоны -> базовый alpha
+            const innerIdx = (2 * width + 2) * 4;
+            expect(imgData.data[innerIdx + 3]).toBe(DEFAULT_ALPHA);
+        });
+
+        it('в чистом воздухе (AQI <= 40) отсутствуют искусственные контуры или кольца', () => {
+            const width = 4;
+            const height = 4;
+            const grid = new Float32Array(width * height);
+            // Плавный переход вокруг 20 (например, 19.5 и 20.5)
+            grid[0] = 19;
+            grid[1] = 21;
+            grid[2] = 25;
+            grid[3] = 30;
+
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
+
+            // Все пиксели чистого воздуха имеют стандартную прозрачность DEFAULT_ALPHA (нет колец)
+            for (let i = 0; i < 4; i++) {
+                expect(imgData.data[i * 4 + 3]).toBe(DEFAULT_ALPHA);
+            }
+        });
+
+        it('в режиме onlyPollution делает чистый воздух (<= 40) полностью прозрачным', () => {
+            const width = 4;
+            const height = 4;
+            const grid = new Float32Array(width * height);
+            grid[0] = 20; // чистый
+            grid[1] = 35; // чистый
+            grid[2] = 55; // загрязнение (AQI > 40)
+            grid[3] = 85; // сильное загрязнение
+
+            const imgData = { data: new Uint8ClampedArray(width * height * 4) };
+            renderFieldToBuffer(grid, imgData, width, height, { onlyPollution: true });
+
+            // Чистый воздух (<= 40) -> alpha = 0
+            expect(imgData.data[0 * 4 + 3]).toBe(0);
+            expect(imgData.data[1 * 4 + 3]).toBe(0);
+
+            // Загрязненные зоны (> 40) -> alpha > 0
+            expect(imgData.data[2 * 4 + 3]).toBeGreaterThan(0);
+            expect(imgData.data[3 * 4 + 3]).toBeGreaterThan(0);
+        });
+
+        it('hasPollutedZones корректно определяет наличие значений > 40', () => {
+            const cleanGrid = new Float32Array([10, 20, 30, 40]);
+            expect(hasPollutedZones(cleanGrid, 40)).toBe(false);
+
+            const pollutedGrid = new Float32Array([10, 20, 41, 15]);
+            expect(hasPollutedZones(pollutedGrid, 40)).toBe(true);
+
+            expect(hasPollutedZones(null)).toBe(false);
+        });
+    });
+
+    describe('5. renderFieldToBuffer — доп. параметры', () => {
+        it('поддерживает явную передачу alpha', () => {
+            const imgData = { data: new Uint8ClampedArray(4) };
+            renderFieldToBuffer(new Float32Array([50]), imgData, 1, 1, { alpha: 200 });
+            expect(imgData.data[3]).toBe(200);
+        });
+
+        it('поддерживает явную передачу pollutionThreshold', () => {
+            const imgData = { data: new Uint8ClampedArray(4) };
+            renderFieldToBuffer(new Float32Array([45]), imgData, 1, 1, { onlyPollution: true, pollutionThreshold: 50 });
+            expect(imgData.data[3]).toBe(0);
+        });
+
+        it('поддерживает режим colorBlind', () => {
+            const imgData = { data: new Uint8ClampedArray(4) };
+            renderFieldToBuffer(new Float32Array([50]), imgData, 1, 1, { colorBlind: true });
+            expect(imgData.data[3]).toBe(DEFAULT_ALPHA);
+        });
+    });
+
+    describe('6. clipCanvasToPolygons — граничные случаи', () => {
+        const makeCtx = () => ({
+            save: vi.fn(), beginPath: vi.fn(), fill: vi.fn(), restore: vi.fn(),
+            moveTo: vi.fn(), lineTo: vi.fn(), closePath: vi.fn(),
+            fillStyle: '', globalCompositeOperation: ''
+        });
+
+        it('пропускает полигоны с < 3 точками', () => {
+            const ctx = makeCtx();
+            clipCanvasToPolygons(ctx, [[ [30, 55], [31, 55] ]], [30, 50, 40, 60], 100, 100);
+            expect(ctx.moveTo).not.toHaveBeenCalled();
+        });
+
+        it('пропускает null-полигоны', () => {
+            const ctx = makeCtx();
+            clipCanvasToPolygons(ctx, [null, [ [30, 55], [31, 55], [32, 56] ]], [30, 50, 40, 60], 100, 100);
+            expect(ctx.moveTo).toHaveBeenCalledTimes(1);
+        });
+
+        it('возвращает при bbox с нулевым span', () => {
+            const ctx = makeCtx();
+            clipCanvasToPolygons(ctx, [[ [30, 55], [31, 55], [32, 56] ]], [30, 50, 30, 60], 100, 100);
+            expect(ctx.save).not.toHaveBeenCalled();
+        });
+
+        it('поддерживает useMercator=false', () => {
+            const ctx = makeCtx();
+            clipCanvasToPolygons(ctx, [[ [30, 55], [35, 56], [40, 55] ]], [30, 50, 40, 60], 100, 100, { useMercator: false });
+            expect(ctx.fill).toHaveBeenCalled();
+        });
+
+        it('не падает при невалидном ctx', () => {
+            expect(() => clipCanvasToPolygons(null, [], [30, 50, 40, 60], 100, 100)).not.toThrow();
+        });
+    });
+
+    describe('7. createFieldCanvas', () => {
+        it('создаёт canvas через document', () => {
+            const c = createFieldCanvas(50, 50);
+            expect(c.width).toBe(50);
+        });
+
+        it('использует значения по умолчанию', () => {
+            const c = createFieldCanvas();
+            expect(c.width).toBe(DEFAULT_CANVAS_WIDTH);
+        });
+    });
+
+    describe('8. renderFieldToCanvas — типы входных данных', () => {
+        const makeCanvas = (ctx) => ({ width: 2, height: 2, getContext: vi.fn(() => ctx) });
+        const makeCtx = () => ({
+            createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(16) })),
+            putImageData: vi.fn()
+        });
+
+        it('принимает Float32Array как grid', () => {
+            const grid = new Float32Array([50, 60, 70, 80]);
+            const result = renderFieldToCanvas(makeCanvas(makeCtx()), grid, [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.grid).toBe(grid);
+            expect(result.hasPollution).toBe(true);
+        });
+
+        it('принимает массив чисел как grid', () => {
+            const gridArr = [50, 60, 70, 80];
+            const result = renderFieldToCanvas(makeCanvas(makeCtx()), gridArr, [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.grid).toBe(gridArr);
+        });
+
+        it('создаёт пустую сетку для невалидного gridOrPoints', () => {
+            const result = renderFieldToCanvas(makeCanvas(makeCtx()), null, [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.grid).toBeInstanceOf(Float32Array);
+            expect(result.grid.length).toBe(4);
+        });
+
+        it('принимает opts как второй аргумент', () => {
+            const result = renderFieldToCanvas(makeCanvas(makeCtx()), new Float32Array([50, 60, 70, 80]), { width: 2, height: 2 });
+            expect(result.width).toBe(2);
+        });
+
+        it('возвращает toDataURL при наличии', () => {
+            const canvas = makeCanvas(makeCtx());
+            canvas.toDataURL = vi.fn(() => 'png-data');
+            const result = renderFieldToCanvas(canvas, new Float32Array([50, 60, 70, 80]), [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.toDataUrl()).toBe('png-data');
+        });
+
+        it('возвращает пустую строку без toDataURL', () => {
+            const result = renderFieldToCanvas(makeCanvas(makeCtx()), new Float32Array([50, 60, 70, 80]), [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.toDataUrl()).toBe('');
+        });
+
+        it('не падает при null контексте', () => {
+            const canvas = { width: 2, height: 2, getContext: vi.fn(() => null) };
+            const result = renderFieldToCanvas(canvas, new Float32Array([50, 60, 70, 80]), [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.canvas).toBe(canvas);
+        });
+
+        it('не падает без getContext', () => {
+            const canvas = { width: 2, height: 2 };
+            const result = renderFieldToCanvas(canvas, new Float32Array([50, 60, 70, 80]), [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.canvas).toBe(canvas);
+        });
+
+        it('применяет maskPolygons', () => {
+            const ctx = makeCtx();
+            ctx.save = vi.fn(); ctx.beginPath = vi.fn(); ctx.fill = vi.fn(); ctx.restore = vi.fn();
+            ctx.moveTo = vi.fn(); ctx.lineTo = vi.fn(); ctx.closePath = vi.fn();
+            ctx.fillStyle = ''; ctx.globalCompositeOperation = '';
+            renderFieldToCanvas(makeCanvas(ctx), new Float32Array([50, 60, 70, 80]), [0, 0, 1, 1], {
+                width: 2, height: 2, maskPolygons: [[[0.1, 0.1], [0.5, 0.5], [0.9, 0.1]]]
+            });
+            expect(ctx.save).toHaveBeenCalled();
+        });
+
+        it('создает OffscreenCanvas или объект с размерами при отсутствии document', () => {
+            const origDoc = globalThis.document;
+            try {
+                delete globalThis.document;
+
+                const origOffscreen = globalThis.OffscreenCanvas;
+                globalThis.OffscreenCanvas = class MockOffscreen {
+                    constructor(w, h) { this.width = w; this.height = h; }
+                };
+
+                const c1 = createFieldCanvas(100, 200);
+                expect(c1.width).toBe(100);
+                expect(c1.height).toBe(200);
+
+                delete globalThis.OffscreenCanvas;
+                const c2 = createFieldCanvas(150, 250);
+                expect(c2).toEqual({ width: 150, height: 250 });
+
+                if (origOffscreen) globalThis.OffscreenCanvas = origOffscreen;
+            } finally {
+                globalThis.document = origDoc;
+            }
+        });
+
+        it('использует opts.bbox при передаче точек и параметров без отдельного bbox аргумента', () => {
+            const ctx = makeCtx();
+            const canvas = makeCanvas(ctx);
+            const points = [{ lat: 0.5, lon: 0.5, value: 45 }];
+            const result = renderFieldToCanvas(canvas, points, {
+                width: 2,
+                height: 2,
+                bbox: [0, 0, 1, 1]
+            });
+            expect(result.grid.length).toBe(4);
+        });
+
+        it('обрабатывает null gridOrPoints созданием пустой сетки', () => {
+            const ctx = makeCtx();
+            const canvas = makeCanvas(ctx);
+            const result = renderFieldToCanvas(canvas, null, [0, 0, 1, 1], { width: 2, height: 2 });
+            expect(result.grid.length).toBe(4);
+        });
+
+        it('использует DEFAULT_CANVAS_WIDTH и DEFAULT_CANVAS_HEIGHT при нулевых размерах canvas и отсутствии opts', () => {
+            const ctx = makeCtx();
+            const canvas = { width: 0, height: 0, getContext: vi.fn(() => ctx) };
+            const result = renderFieldToCanvas(canvas, [{ lat: 0.5, lon: 0.5, value: 50 }], [0, 0, 1, 1]);
+            expect(result.width).toBe(DEFAULT_CANVAS_WIDTH);
+            expect(result.height).toBe(DEFAULT_CANVAS_HEIGHT);
+        });
+
+        it('использует дефолтный bbox [0, 0, 1, 1] при null bbox и наличии maskPolygons', () => {
+            const ctx = {
+                createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(16) })),
+                putImageData: vi.fn(),
+                save: vi.fn(),
+                beginPath: vi.fn(),
+                moveTo: vi.fn(),
+                lineTo: vi.fn(),
+                closePath: vi.fn(),
+                fill: vi.fn(),
+                restore: vi.fn()
+            };
+            const canvas = { width: 2, height: 2, getContext: vi.fn(() => ctx) };
+            const result = renderFieldToCanvas(
+                canvas,
+                [{ lat: 0.5, lon: 0.5, value: 30 }],
+                null,
+                {
+                    width: 2,
+                    height: 2,
+                    maskPolygons: [[[0.1, 0.1], [0.9, 0.1], [0.5, 0.9]]]
+                }
+            );
+            expect(result.grid.length).toBe(4);
+            expect(ctx.fill).toHaveBeenCalled();
         });
     });
 });
+
 

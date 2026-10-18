@@ -3,6 +3,7 @@ import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
 import AboutModal from './components/AboutModal';
+import SettingsModal from './components/SettingsModal';
 import RightAirPanel from './components/RightAirPanel';
 import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
@@ -24,28 +25,42 @@ function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-    // подключаем сетку качества воздуха
-    const { macroGrid, microGrid, loadMicroGrid } = useAirGrid({ baseUrl: API_BASE });
 
-    // загружаем микро-сетку при смене города
+    // Управление темой сайта (тёмная / светлая)
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return 'light';
+        const saved = localStorage.getItem('aerocast_theme');
+        if (saved === 'dark' || saved === 'light') return saved;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    });
+
+    // Режим для людей с цветовой слепотой (дальтоников)
+    const [isColorBlind, setIsColorBlind] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('aerocast_colorblind') === 'true';
+    });
+
     useEffect(() => {
-        const lat = Number(coords?.lat);
-        const lon = Number(coords?.lon);
-        if (!Number.isNaN(lat) && !Number.isNaN(lon) && coords?.lat != null && coords?.lon != null) {
-            loadMicroGrid(lat, lon);
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('aerocast_theme', theme);
         }
-    }, [coords.lat, coords.lon, loadMicroGrid]);
+    }, [theme]);
 
-    // подгрузка микро-сетки при перемещении области видимости карты
-    const handleViewportMove = useCallback((newCoords) => {
-        const lat = Number(newCoords?.lat);
-        const lon = Number(newCoords?.lon);
-        if (!Number.isNaN(lat) && !Number.isNaN(lon) && newCoords?.lat != null && newCoords?.lon != null) {
-            loadMicroGrid(lat, lon);
+    useEffect(() => {
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-colorblind', isColorBlind ? 'true' : 'false');
+            localStorage.setItem('aerocast_colorblind', isColorBlind ? 'true' : 'false');
         }
-    }, [loadMicroGrid]);
+    }, [isColorBlind]);
+
+    // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
+    const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
 
     // точная ISO-метка времени для синхронизации
     const selectedIsoTime =
@@ -193,6 +208,10 @@ function App() {
                     setIsMobileSidebarOpen(false);
                     setIsAboutOpen(true);
                 }}
+                onOpenSettings={() => {
+                    setIsMobileSidebarOpen(false);
+                    setIsSettingsOpen(true);
+                }}
                 isLoading={isLoading}
                 loadError={loadError}
                 isOpen={isMobileSidebarOpen}
@@ -233,14 +252,12 @@ function App() {
                     selectedTimeIndex={selectedTimeIndex}
                     selectedIsoTime={selectedIsoTime}
                     macroGrid={macroGrid}
-                    microGrid={microGrid}
                     viewMode={viewMode}
                     onMapClick={handleLocationSelect}
-                    onLocationSelect={handleLocationSelect}
                     onMarkerClick={() => setIsRightPanelOpen(true)}
                     activeBaseLayer={activeBaseLayer}
                     recenterTrigger={recenterTrigger}
-                    onViewportMove={handleViewportMove}
+                    isColorBlind={isColorBlind}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}
@@ -251,12 +268,21 @@ function App() {
                 isOpen={isAboutOpen}
                 onClose={() => setIsAboutOpen(false)}
             />
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                theme={theme}
+                onThemeChange={setTheme}
+                isColorBlind={isColorBlind}
+                onColorBlindChange={setIsColorBlind}
+            />
             <RightAirPanel
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
                 isOpen={isRightPanelOpen}
                 onClose={() => setIsRightPanelOpen(false)}
                 onOpen={() => setIsRightPanelOpen(true)}
+                isColorBlind={isColorBlind}
             />
             {!isRightPanelOpen && (
                 <button

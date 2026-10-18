@@ -1,5 +1,3 @@
-// tests/controllers/airController.test.js — тесты контроллера airController
-
 const airController = require('../../controllers/airController');
 const cacheService = require('../../services/cacheService');
 const historyService = require('../../services/historyService');
@@ -20,6 +18,10 @@ jest.mock('../../services/primaryAirService', () => ({
 }));
 jest.mock('../../services/backupAirService', () => ({
     fetchAirQuality: jest.fn()
+}));
+
+jest.mock('axios', () => ({
+    get: jest.fn()
 }));
 
 describe('Controller: airController.getAirQuality', () => {
@@ -409,6 +411,155 @@ describe('Controller: airController.getAirQuality', () => {
 
             expect(res.status).toHaveBeenCalledWith(500);
             expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        });
+    });
+
+    describe('Controller: airController.locateByIp', () => {
+        const axios = require('axios');
+
+        let req;
+        let res;
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+
+            req = {};
+            res = {
+                status: jest.fn().mockReturnThis(),
+                json: jest.fn().mockReturnThis()
+            };
+
+            jest.spyOn(console, 'error').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('должен вернуть данные от ipwho.is при успешном первом запросе', async () => {
+            const mockData = {
+                success: true,
+                latitude: 55.7558,
+                longitude: 37.6173,
+                city: 'Москва'
+            };
+            axios.get.mockResolvedValueOnce({ data: mockData });
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/', { timeout: 3500 });
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 55.7558,
+                longitude: 37.6173,
+                city: 'Москва'
+            });
+        });
+
+        it('должен делать fallback на ipapi.co, если ipwho.is вернул success=false', async () => {
+            axios.get.mockResolvedValueOnce({ data: { success: false } });
+            axios.get.mockResolvedValueOnce({ data: { latitude: 48.8566, longitude: 2.3522, city: 'Париж' } });
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenCalledTimes(2);
+            expect(axios.get).toHaveBeenNthCalledWith(2, 'https://ipapi.co/json/', { timeout: 3500 });
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 48.8566,
+                longitude: 2.3522,
+                city: 'Париж'
+            });
+        });
+
+        it('должен делать fallback на ipapi.co, если ipwho.is бросил ошибку', async () => {
+            axios.get.mockRejectedValueOnce(new Error('network error'));
+            axios.get.mockResolvedValueOnce({ data: { latitude: 40.7128, longitude: -74.006, city: 'Нью-Йорк' } });
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenCalledTimes(2);
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 40.7128,
+                longitude: -74.006,
+                city: 'Нью-Йорк'
+            });
+        });
+
+        it('должен использовать фолбэк по умолчанию (Новокузнецк), если оба источника недоступны', async () => {
+            axios.get.mockRejectedValue(new Error('both services down'));
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenCalledTimes(2);
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 53.7596,
+                longitude: 87.1467,
+                city: 'Новокузнецк'
+            });
+        });
+
+        it('должен использовать фолбэк по умолчанию, если ipwho.is вернул данные без координат', async () => {
+            axios.get.mockResolvedValueOnce({ data: { success: true, latitude: undefined, longitude: undefined } });
+            axios.get.mockRejectedValueOnce(new Error('ipapi also down'));
+
+            await airController.locateByIp(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 53.7596,
+                longitude: 87.1467,
+                city: 'Новокузнецк'
+            });
+        });
+
+        it('должен использовать пустую строку для города, если ipwho.is не вернул город', async () => {
+            axios.get.mockResolvedValueOnce({ data: { success: true, latitude: 55.7558, longitude: 37.6173 } });
+
+            await airController.locateByIp(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 55.7558,
+                longitude: 37.6173,
+                city: ''
+            });
+        });
+
+        it('должен использовать пустую строку для города, если ipapi.co не вернул город', async () => {
+            axios.get.mockRejectedValueOnce(new Error('ipwho.is down'));
+            axios.get.mockResolvedValueOnce({ data: { latitude: 48.8566, longitude: 2.3522 } });
+
+            await airController.locateByIp(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 48.8566,
+                longitude: 2.3522,
+                city: ''
+            });
+        });
+
+        it('должен использовать фолбэк по умолчанию, если ipapi.co вернул некорректные координаты', async () => {
+            axios.get.mockRejectedValueOnce(new Error('ipwho.is down'));
+            axios.get.mockResolvedValueOnce({ data: { latitude: 'not-a-number', longitude: 2.3522 } });
+
+            await airController.locateByIp(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 53.7596,
+                longitude: 87.1467,
+                city: 'Новокузнецк'
+            });
+        });
+
+        it('должен возвращать 500 при непредвиденной ошибке, если сбой происходит вне внутренних try/catch', async () => {
+            axios.get.mockRejectedValue(new Error('both services down'));
+            // Первый вызов res.json (фолбэк по умолчанию) выбрасывает ошибку,
+            // что приводит во внешний catch блок
+            res.json.mockImplementationOnce(() => {
+                throw new Error('json failure');
+            });
+
+            await airController.locateByIp(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({ error: 'Failed to determine location' });
         });
     });
 });

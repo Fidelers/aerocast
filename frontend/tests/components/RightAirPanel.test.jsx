@@ -1,6 +1,6 @@
 // frontend/tests/components/RightAirPanel.test.jsx
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import RightAirPanel from '../../src/components/RightAirPanel';
 
 const mockAirData = {
@@ -318,5 +318,219 @@ describe('RightAirPanel component (Закрытие по кнопке Escape и 
         unmount();
 
         expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+    });
+});
+
+describe('RightAirPanel — режим для дальтоников (isColorBlind)', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('1. Бейджи загрязнителей используют палитру Okabe-Ito при isColorBlind={true}', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        // PM2.5 = 15 -> Хорошо -> #56B4E9
+        const pm25Badge = container.querySelector('.pollutant-badge');
+        expect(pm25Badge.style.backgroundColor).toBe('rgb(86, 180, 233)');
+    });
+
+    it('2. Без isColorBlind бейджи остаются в стандартной палитре', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        // PM2.5 = 15 -> Хорошо -> #8BC34A
+        const pm25Badge = container.querySelector('.pollutant-badge');
+        expect(pm25Badge.style.backgroundColor).toBe('rgb(139, 195, 74)');
+    });
+
+    it('3. Индикатор AQI получает цвет из палитры дальтоника', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        // AQI = 35 -> хорошо -> #56B4E9
+        const indicator = container.querySelector('.aqi-indicator');
+        expect(indicator.getAttribute('data-level')).toBe('good');
+        expect(indicator.style.backgroundColor).toBe('rgb(86, 180, 233)');
+    });
+
+    it('4. Элементы шкалы AQI несут data-level для CSS-оверрайдов', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        const scaleItems = container.querySelectorAll('.scale-item');
+        expect(scaleItems.length).toBe(6);
+        const levels = Array.from(scaleItems).map((el) => el.getAttribute('data-level'));
+        expect(levels).toEqual(['excellent', 'good', 'fair', 'poor', 'very-poor', 'hazardous']);
+    });
+
+    it('5. Подписи бейджей и шкалы не меняются в режиме дальтоника', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />);
+        const badges = Array.from(container.querySelectorAll('.pollutant-badge')).map((b) => b.textContent);
+        expect(badges).toContain('Хорошо');
+        expect(container.querySelector('.scale-item').textContent).toBe('0–20');
+    });
+});
+
+describe('RightAirPanel — touch/drag события', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-01T12:00:00')); });
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    it('touch drag: выполняется без ошибок', () => {
+        const onClose = vi.fn();
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onClose} />);
+        const panel = container.querySelector('.right-air-panel');
+        const header = container.querySelector('.panel-header');
+        expect(() => {
+            fireEvent.touchStart(header, { touches: [{ clientX: 100, clientY: 200, target: header }] });
+            fireEvent.touchMove(panel, { touches: [{ clientX: 100, clientY: 400, target: panel }], cancelable: true });
+            fireEvent.touchEnd(panel, {});
+        }).not.toThrow();
+    });
+
+    it('touch drag на кнопке закрытия: выполняется без ошибок', () => {
+        const onClose = vi.fn();
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onClose} />);
+        const btn = container.querySelector('.panel-header__close-btn');
+        expect(() => {
+            fireEvent.touchStart(btn, { touches: [{ clientX: 100, clientY: 200, target: btn }] });
+            fireEvent.touchMove(btn, { touches: [{ clientX: 100, clientY: 400, target: btn }] });
+            fireEvent.touchEnd(btn, {});
+        }).not.toThrow();
+    });
+
+    it('onTouchCancel без ошибок', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        expect(() => fireEvent.touchCancel(container.querySelector('.right-air-panel'), {})).not.toThrow();
+    });
+});
+
+describe('RightAirPanel — pointer события', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-01T12:00:00')); });
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    it('drag за handle при native PointerEvent', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        const panel = container.querySelector('.right-air-panel');
+        const handle = container.querySelector('.panel-drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 300, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        act(() => { handle.dispatchEvent(ev1); });
+        act(() => { panel.dispatchEvent(ev2); });
+        act(() => { panel.dispatchEvent(ev3); });
+        expect(panel.style.transform).toBeDefined();
+    });
+
+    it('drag вниз за handle вызывает onClose', () => {
+        const onClose = vi.fn();
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onClose} />);
+        const panel = container.querySelector('.right-air-panel');
+        const handle = container.querySelector('.panel-drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 500, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        act(() => { handle.dispatchEvent(ev1); });
+        act(() => { panel.dispatchEvent(ev2); });
+        act(() => { panel.dispatchEvent(ev3); });
+        act(() => { vi.advanceTimersByTime(100); });
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('snap back при недостаточном drag', () => {
+        const onClose = vi.fn();
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={onClose} />);
+        const panel = container.querySelector('.right-air-panel');
+        const handle = container.querySelector('.panel-drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 210, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        act(() => { handle.dispatchEvent(ev1); });
+        act(() => { panel.dispatchEvent(ev2); });
+        act(() => { panel.dispatchEvent(ev3); });
+        act(() => { vi.advanceTimersByTime(350); });
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('drag вверх (rubber band) выполняется без ошибок', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        const panel = container.querySelector('.right-air-panel');
+        const handle = container.querySelector('.panel-drag-handle');
+        const ev1 = new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1 });
+        const ev2 = new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 100, pointerType: 'mouse' });
+        const ev3 = new PointerEvent('pointerup', { bubbles: true, pointerId: 1 });
+        act(() => { handle.dispatchEvent(ev1); });
+        act(() => { panel.dispatchEvent(ev2); });
+        act(() => { panel.dispatchEvent(ev3); });
+    });
+
+    it('не начинает drag при mouse pointer не на handle', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        const panel = container.querySelector('.right-air-panel');
+        fireEvent.pointerDown(panel, { clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1, target: panel });
+        fireEvent.pointerMove(panel, { clientX: 100, clientY: 400, pointerType: 'mouse', target: panel });
+        fireEvent.pointerUp(panel, { pointerId: 1, target: panel });
+        expect(panel.style.transform).not.toContain('translateY(');
+    });
+
+    it('onPointerCancel без ошибок', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        expect(() => fireEvent.pointerCancel(container.querySelector('.right-air-panel'), { pointerId: 1 })).not.toThrow();
+    });
+
+    it('блокирует клик после drag', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        const panel = container.querySelector('.right-air-panel');
+        const handle = container.querySelector('.panel-drag-handle');
+        fireEvent.pointerDown(handle, { clientX: 100, clientY: 200, pointerType: 'mouse', button: 0, pointerId: 1, target: handle });
+        fireEvent.pointerMove(panel, { clientX: 100, clientY: 300, pointerType: 'mouse', target: panel, cancelable: true });
+        const ce = new MouseEvent('click', { bubbles: true });
+        const sp = vi.spyOn(ce, 'stopPropagation');
+        panel.dispatchEvent(ce);
+        expect(sp).toHaveBeenCalled();
+    });
+
+    it('правый клик (button=2) не начинает drag', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} onClose={vi.fn()} />);
+        expect(() => fireEvent.pointerDown(container.querySelector('.panel-drag-handle'), { button: 2, pointerType: 'mouse' })).not.toThrow();
+    });
+});
+
+describe('RightAirPanel — граничные случаи данных', () => {
+    afterEach(() => { cleanup(); });
+
+    it('отображает «—» при отсутствии координат', () => {
+        const data = { used_source: 'test', hourly: { time: ['2026-10-01T12:00'], european_aqi: [35] } };
+        const { container } = render(<RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />);
+        expect(container.textContent).toContain('—');
+    });
+
+    it('отображает «—» при невалидном AQI', () => {
+        const data = { latitude: 53.7596, longitude: 87.1467, used_source: 'test', hourly: { time: ['2026-10-01T12:00'], european_aqi: [null] } };
+        const { container } = render(<RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />);
+        const indicator = container.querySelector('.aqi-indicator__number');
+        expect(indicator.textContent).toBe('—');
+    });
+
+    it('отображает «—» при отсутствии времени', () => {
+        const data = { latitude: 53.7596, longitude: 87.1467, used_source: 'test', hourly: { european_aqi: [35] } };
+        const { container } = render(<RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />);
+        expect(container.textContent).toContain('—');
+    });
+
+    it('не рендерится при отсутствии airData', () => {
+        const { container } = render(<RightAirPanel airData={null} isOpen={true} />);
+        expect(container.querySelector('.right-air-panel')).toBeNull();
+    });
+
+    it('переключает загрязнитель при наведении', () => {
+        const { container } = render(<RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />);
+        const rows = container.querySelectorAll('.pollutant-row');
+        fireEvent.mouseEnter(rows[1]);
+        expect(rows[1].className).toContain('pollutant-row--selected');
     });
 });

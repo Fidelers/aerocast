@@ -1,7 +1,3 @@
-// tests/routes/api.test.js — интеграционные тесты маршрутов API
-
-// Контроллеры тестируются отдельно (tests/controllers/*), поэтому здесь их поведение заменяется моками
-
 const express = require('express');
 const request = require('supertest');
 
@@ -289,6 +285,82 @@ describe('Routes: API', () => {
             const res = await request(appWithAirData).get('/api/air');
             expect(res.status).toBe(200);
             expect(res.body).toEqual({ message: 'custom air handler' });
+        });
+
+        it('должен логировать предупреждение и продолжать работу, если gridAirController недоступен', async () => {
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            let appWithGridFail;
+            jest.isolateModules(() => {
+                // Мокаем gridAirController так, чтобы require бросал ошибку
+                jest.mock('../../controllers/gridAirController', () => {
+                    throw new Error('Module not found');
+                });
+                const freshApiRoutes = require('../../routes/api');
+                const testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+                appWithGridFail = testApp;
+            });
+
+            expect(warnSpy).toHaveBeenCalledWith(
+                'gridAirController is not yet available:',
+                'Module not found'
+            );
+            // Сервер должен продолжать работать, даже без grid-маршрутов
+            const res = await request(appWithGridFail).get('/api/non-existent-grid');
+            expect(res.status).toBe(404);
+            warnSpy.mockRestore();
+        });
+
+        it('должен монтировать locateByIp на GET /locate-me, если метод реализован в контроллере', async () => {
+            let appWithLocate;
+            jest.isolateModules(() => {
+                const airCtrl = require('../../controllers/airController');
+                airCtrl.locateByIp = jest.fn((req, res) => res.json({ latitude: 55.75, longitude: 37.61, city: 'Москва' }));
+                const freshApiRoutes = require('../../routes/api');
+                const testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+                appWithLocate = testApp;
+            });
+
+            const res = await request(appWithLocate).get('/api/locate-me');
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ latitude: 55.75, longitude: 37.61, city: 'Москва' });
+        });
+
+        it('должен корректно инициализироваться, если gridAirController возвращает null', async () => {
+            let testApp;
+            jest.isolateModules(() => {
+                jest.mock('../../controllers/gridAirController', () => null);
+                const freshApiRoutes = require('../../routes/api');
+                testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+            });
+
+            const res = await request(testApp).get('/api/air-quality/grid');
+            expect(res.status).toBe(404);
+        });
+
+        it('должен пропускать регистрацию grid маршрутов, если функции не реализованы в gridAirController', async () => {
+            let testApp;
+            jest.isolateModules(() => {
+                jest.mock('../../controllers/gridAirController', () => ({}));
+                const freshApiRoutes = require('../../routes/api');
+                testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+            });
+
+            const resMacro = await request(testApp).get('/api/air-quality/grid/macro');
+            expect(resMacro.status).toBe(404);
+            const resMicro = await request(testApp).get('/api/air-quality/grid/micro');
+            expect(resMicro.status).toBe(404);
+            const resGrid = await request(testApp).get('/api/air-quality/grid');
+            expect(resGrid.status).toBe(404);
+            const resDel = await request(testApp).delete('/api/cache/grid');
+            expect(resDel.status).toBe(404);
         });
     });
 });

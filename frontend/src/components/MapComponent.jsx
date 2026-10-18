@@ -1,4 +1,3 @@
-// MapComponent.jsx - карта и отрисовка данных
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -94,11 +93,15 @@ function buildPopup(airData, selectedTimeIndex, lat, lon) {
 
 const MACRO_SOURCE_ID = 'air-grid-macro-source';
 const MACRO_LAYER_ID = 'air-grid-macro-layer';
+const MACRO_POLLUTION_SOURCE_ID = 'air-grid-macro-pollution-source';
+const MACRO_POLLUTION_LAYER_ID = 'air-grid-macro-pollution-layer';
 const MICRO_SOURCE_ID = 'air-grid-micro-source';
 const MICRO_LAYER_ID = 'air-grid-micro-layer';
+const MICRO_POLLUTION_SOURCE_ID = 'air-grid-micro-pollution-source';
+const MICRO_POLLUTION_LAYER_ID = 'air-grid-micro-pollution-layer';
 
 // Преобразование bbox [minLon, minLat, maxLon, maxLat] в 4 координаты углов MapLibre image source
-function bboxToImageCoordinates(bbox) {
+export function bboxToImageCoordinates(bbox) {
     if (!bbox || bbox.length !== 4) return null;
     const [minLon, minLat, maxLon, maxLat] = bbox;
     return [
@@ -110,10 +113,11 @@ function bboxToImageCoordinates(bbox) {
 }
 
 // Фиксированный bbox макро-слоя: покрывает ВСЮ территорию РФ
-const RUSSIA_MACRO_BBOX = [19.5, 41.0, 190.5, 82.0];
+export const RUSSIA_MACRO_BBOX = [19.5, 41.0, 190.5, 82.0];
+export const MACRO_GRID_CANVAS_SIZE = 600;
 
 // Нормализация долгот маски государственной границы: Чукотка к востоку
-function normalizeBoundaryLongitudes(polygons) {
+export function normalizeBoundaryLongitudes(polygons) {
     if (!Array.isArray(polygons)) return polygons;
     return polygons.map((ring) => {
         if (!Array.isArray(ring)) return ring;
@@ -129,7 +133,7 @@ function normalizeBoundaryLongitudes(polygons) {
 const RUSSIA_BOUNDARIES_NORMALIZED = normalizeBoundaryLongitudes(russiaBoundaries);
 
 // Расчет приближенного расстояния в километрах между двумя географическими координатами
-function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     const R = 6371; // Радиус Земли в км
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -160,7 +164,7 @@ export function resolveGridTimeIndex(grid, selectedIsoTime, fallbackIndex) {
 }
 
 // Надежное ожидание готовности стиля MapLibre с поддержкой styledata
-function runWhenStyleReady(mapInstance, callback) {
+export function runWhenStyleReady(mapInstance, callback) {
     if (!mapInstance) return;
     if ((mapInstance.style && typeof mapInstance.getStyle === 'function' && mapInstance.getStyle()) ||
         (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded())) {
@@ -194,12 +198,14 @@ export default function MapComponent({
     recenterTrigger,
     macroGrid = null,
     microGrid = null,
-    onViewportMove = null
+    onViewportMove = null,
+    isColorBlind = false
 }) {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const isFirstMount = useRef(true);
     const isMapClick = useRef(false);
+    const clickedCoordsRef = useRef(null);
     const markerRef = useRef(null);
     // const popupRef = useRef(null); // POPUP DISABLED — используется RightAirPanel
     const markerElementRef = useRef(null);
@@ -209,7 +215,9 @@ export default function MapComponent({
     const onViewportMoveRef = useRef(onViewportMove);
 
     const macroCanvasRef = useRef(null);
+    const macroPollutionCanvasRef = useRef(null);
     const microCanvasRef = useRef(null);
+    const microPollutionCanvasRef = useRef(null);
     const moveDebounceTimerRef = useRef(null);
     const activeMicroCenterRef = useRef(null);
     const macroGridRef = useRef(macroGrid);
@@ -297,14 +305,15 @@ export default function MapComponent({
             }
 
             const { lng, lat: clickLat } = e.lngLat;
+            clickedCoordsRef.current = { lat: clickLat, lon: lng };
+            isMapClick.current = true;
             if (markerRef.current) {
                 markerRef.current.setLngLat([lng, clickLat]);
             }
-            isMapClick.current = true;
             if (onMapClickRef.current) {
                 onMapClickRef.current(clickLat, lng);
             }
-            if (onLocationSelectRef.current) {
+            if (onLocationSelectRef.current && onLocationSelectRef.current !== onMapClickRef.current) {
                 onLocationSelectRef.current({ lat: clickLat, lon: lng });
             }
         };
@@ -318,8 +327,14 @@ export default function MapComponent({
                 if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
                     map.current.setLayoutProperty(MACRO_LAYER_ID, 'visibility', 'none');
                 }
+                if (map.current.getLayer && map.current.getLayer(MACRO_POLLUTION_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                    map.current.setLayoutProperty(MACRO_POLLUTION_LAYER_ID, 'visibility', 'none');
+                }
                 if (map.current.getLayer && map.current.getLayer(MICRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
                     map.current.setLayoutProperty(MICRO_LAYER_ID, 'visibility', 'none');
+                }
+                if (map.current.getLayer && map.current.getLayer(MICRO_POLLUTION_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                    map.current.setLayoutProperty(MICRO_POLLUTION_LAYER_ID, 'visibility', 'none');
                 }
                 return;
             }
@@ -328,8 +343,14 @@ export default function MapComponent({
             if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
                 map.current.setLayoutProperty(MACRO_LAYER_ID, 'visibility', 'visible');
             }
+            if (map.current.getLayer && map.current.getLayer(MACRO_POLLUTION_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                map.current.setLayoutProperty(MACRO_POLLUTION_LAYER_ID, 'visibility', 'visible');
+            }
             if (map.current.getLayer && map.current.getLayer(MICRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
                 map.current.setLayoutProperty(MICRO_LAYER_ID, 'visibility', 'visible');
+            }
+            if (map.current.getLayer && map.current.getLayer(MICRO_POLLUTION_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
+                map.current.setLayoutProperty(MICRO_POLLUTION_LAYER_ID, 'visibility', 'visible');
             }
 
             const currentZoom = map.current.getZoom();
@@ -341,14 +362,13 @@ export default function MapComponent({
                 macroOpacity = 0.70;
                 microOpacity = 0.0;
             } else if (currentZoom >= 9.0) {
-                macroOpacity = microGridRef.current ? 0.0 : 0.50;
-                microOpacity = 0.70;
+                // Макросетка всегда видна при близком приближении
+                macroOpacity = 0.70;
+                microOpacity = microGridRef.current ? 0.70 : 0.0;
             } else {
-                // Плавный линейный кроссфейд на интервале [8.5 .. 9.0]
                 const t = (currentZoom - 8.5) / (9.0 - 8.5);
-                const targetMacro = microGridRef.current ? 0.0 : 0.50;
-                macroOpacity = 0.70 * (1 - t) + targetMacro * t;
-                microOpacity = 0.70 * t;
+                macroOpacity = 0.70;
+                microOpacity = microGridRef.current ? 0.70 * t : 0.0;
             }
 
             if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
@@ -373,7 +393,7 @@ export default function MapComponent({
 
             // При zoom > 9 фоном отображается макро-слой (только в цветовом и комбо режимах)
             if (viewModeRef.current !== 'numeric' && currentZoom > 9 && map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
-                map.current.setPaintProperty(MACRO_LAYER_ID, 'raster-opacity', 0.50);
+                map.current.setPaintProperty(MACRO_LAYER_ID, 'raster-opacity', microGridRef.current ? 0.50 : 0.70);
             }
         };
 
@@ -447,14 +467,19 @@ export default function MapComponent({
             return;
         }
 
-        if (isMapClick.current) {
-            isMapClick.current = false;
-            return;
-        }
-
         const numLat = Number(lat);
         const numLon = Number(lon);
         if (lat == null || lon == null || Number.isNaN(numLat) || Number.isNaN(numLon) || !map.current) return;
+
+        // Если это клик по карте — не дергаем камеру flyTo, оставляем стабильный фокус
+        if (isMapClick.current || (clickedCoordsRef.current && Math.abs(clickedCoordsRef.current.lat - numLat) < 0.0001 && Math.abs(clickedCoordsRef.current.lon - numLon) < 0.0001)) {
+            isMapClick.current = false;
+            clickedCoordsRef.current = null;
+            if (markerRef.current) {
+                markerRef.current.setLngLat([numLon, numLat]);
+            }
+            return;
+        }
 
         map.current.flyTo({
             center: [numLon, numLat],
@@ -561,7 +586,7 @@ export default function MapComponent({
             return;
         }
 
-        const aqiInfo = getAqiInfo(aqi);
+        const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind });
 
         // Создаем или обновляем DOM-элемент маркера
         let el = markerElementRef.current;
@@ -575,20 +600,22 @@ export default function MapComponent({
                 }
             };
         const mode = viewMode || 'combo';
+        const isPolluted = aqi > 40;
+        const pulseClass = isPolluted ? 'map-marker--polluted-pulse' : '';
         if (mode === 'color') {
             el.textContent = '';
-            el.className = `map-marker map-marker--color ${aqiInfo.cssClass}`;
+            el.className = `map-marker map-marker--color ${aqiInfo.cssClass} ${pulseClass}`.trim();
             el.style.backgroundColor = aqiInfo.hex;
             el.style.color = '#ffffff';
         } else if (mode === 'numeric') {
             el.textContent = String(aqi);
-            el.className = 'map-marker map-marker--numeric';
+            el.className = `map-marker map-marker--numeric ${pulseClass}`.trim();
             el.style.backgroundColor = '#ffffff';
             el.style.color = '#1f2937';
         } else {
             // combo
             el.textContent = String(aqi);
-            el.className = `map-marker map-marker--combo ${aqiInfo.cssClass}`;
+            el.className = `map-marker map-marker--combo ${aqiInfo.cssClass} ${pulseClass}`.trim();
             el.style.backgroundColor = aqiInfo.hex;
             el.style.color = '#000000';
         }
@@ -635,9 +662,9 @@ export default function MapComponent({
             //     popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
             // }
         }
-    }, [airData, selectedTimeIndex, viewMode, lat, lon]);
+    }, [airData, selectedTimeIndex, viewMode, lat, lon, isColorBlind]);
 
-    // Эффект отрисовки и обновления макро-слоя (macroGrid)
+    // Эффект отрисовки и обновления макро-слоя (macroGrid) + пульсирующего слоя загрязнения (41-100+)
     useEffect(() => {
         if (!map.current || !macroGrid || !macroGrid.points) {
             return;
@@ -650,20 +677,41 @@ export default function MapComponent({
         const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
-        // Инициализация рабочего Canvas буфера для макро-сетки
+        // 1. Инициализация рабочего Canvas буфера для базовой макро-сетки
         if (!macroCanvasRef.current) {
-            macroCanvasRef.current = createFieldCanvas(150, 150);
+            macroCanvasRef.current = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
         }
 
         const canvas = macroCanvasRef.current;
         const timeIndex = resolveGridTimeIndex(macroGrid, selectedIsoTime, selectedTimeIndex);
+
+        // Макро-сетка статична и рассчитывается строго по калиброванным опорным станциям
         const result = renderFieldToCanvas(canvas, macroGrid.points, gridBbox, {
             timeIndex,
             maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
-            useMercator: true
+            useMercator: true,
+            zoneMode: true,
+            maxRadius: 10,
+            decayRadius: 0.30,
+            bgVal: 20,
+            colorBlind: isColorBlind
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
+
+        // 2. Инициализация и рендер отдельного пульсирующего слоя загрязнения (41-100+)
+        if (!macroPollutionCanvasRef.current) {
+            macroPollutionCanvasRef.current = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
+        }
+        const pollutionCanvas = macroPollutionCanvasRef.current;
+        const pollutionResult = renderFieldToCanvas(pollutionCanvas, result.grid, gridBbox, {
+            timeIndex,
+            maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
+            useMercator: true,
+            onlyPollution: true,
+            colorBlind: isColorBlind
+        });
+        const pollutionDataUrl = (pollutionResult?.hasPollution !== false) ? pollutionResult?.toDataUrl() : null;
 
         const applyMacroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
@@ -709,16 +757,6 @@ export default function MapComponent({
                     coordinates: coords
                 });
 
-                const currentZoom = typeof mapInstance.getZoom === 'function' ? mapInstance.getZoom() : 11;
-                let initialOpacity = 0.70;
-                if (currentZoom > 9.0) {
-                    initialOpacity = microGridRef.current ? 0.0 : 0.50;
-                } else if (currentZoom > 8.5) {
-                    const t = (currentZoom - 8.5) / 0.5;
-                    const targetMacro = microGridRef.current ? 0.0 : 0.50;
-                    initialOpacity = 0.70 * (1 - t) + targetMacro * t;
-                }
-
                 mapInstance.addLayer({
                     id: MACRO_LAYER_ID,
                     type: 'raster',
@@ -727,10 +765,65 @@ export default function MapComponent({
                         visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
                     },
                     paint: {
-                        'raster-opacity': initialOpacity,
+                        'raster-opacity': 0.70,
                         'raster-fade-duration': 300
                     }
                 }, beforeLayerId);
+            }
+
+            // Управление пульсирующим слоем загрязнения макро-сетки (41-100+)
+            if (pollutionDataUrl) {
+                const existingPollutionSource = mapInstance.getSource(MACRO_POLLUTION_SOURCE_ID);
+                if (existingPollutionSource) {
+                    if (typeof existingPollutionSource.updateImage === 'function') {
+                        existingPollutionSource.updateImage({
+                            url: pollutionDataUrl,
+                            coordinates: coords
+                        });
+                    } else if (mapInstance.removeLayer && mapInstance.removeSource) {
+                        if (mapInstance.getLayer && mapInstance.getLayer(MACRO_POLLUTION_LAYER_ID)) {
+                            mapInstance.removeLayer(MACRO_POLLUTION_LAYER_ID);
+                        }
+                        mapInstance.removeSource(MACRO_POLLUTION_SOURCE_ID);
+                        mapInstance.addSource(MACRO_POLLUTION_SOURCE_ID, {
+                            type: 'image',
+                            url: pollutionDataUrl,
+                            coordinates: coords
+                        });
+                        mapInstance.addLayer({
+                            id: MACRO_POLLUTION_LAYER_ID,
+                            type: 'raster',
+                            source: MACRO_POLLUTION_SOURCE_ID,
+                            layout: {
+                                visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                            },
+                            paint: {
+                                'raster-opacity': 0.70,
+                                'raster-fade-duration': 200
+                            }
+                        }, beforeLayerId);
+                    }
+                } else {
+                    mapInstance.addSource(MACRO_POLLUTION_SOURCE_ID, {
+                        type: 'image',
+                        url: pollutionDataUrl,
+                        coordinates: coords
+                    });
+                    mapInstance.addLayer({
+                        id: MACRO_POLLUTION_LAYER_ID,
+                        type: 'raster',
+                        source: MACRO_POLLUTION_SOURCE_ID,
+                        layout: {
+                            visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                        },
+                        paint: {
+                            'raster-opacity': 0.70,
+                            'raster-fade-duration': 200
+                        }
+                    }, beforeLayerId);
+                }
+            } else if (mapInstance.getLayer && mapInstance.getLayer(MACRO_POLLUTION_LAYER_ID) && typeof mapInstance.setLayoutProperty === 'function') {
+                mapInstance.setLayoutProperty(MACRO_POLLUTION_LAYER_ID, 'visibility', 'none');
             }
         };
 
@@ -738,7 +831,7 @@ export default function MapComponent({
             applyMacroLayer();
             if (updateLodOpacityRef.current) updateLodOpacityRef.current();
         });
-    }, [macroGrid, selectedTimeIndex, selectedIsoTime]);
+    }, [macroGrid, selectedTimeIndex, selectedIsoTime, isColorBlind]);
 
     // Эффект отрисовки и обновления микро-слоя (microGrid)
     useEffect(() => {
@@ -776,19 +869,34 @@ export default function MapComponent({
         const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
-        // Инициализация рабочего Canvas буфера для микро-сетки
+        // 1. Инициализация рабочего Canvas буфера для микро-сетки
         if (!microCanvasRef.current) {
-            microCanvasRef.current = createFieldCanvas(150, 150);
+            microCanvasRef.current = createFieldCanvas(250, 250);
         }
 
         const canvas = microCanvasRef.current;
         const timeIndex = resolveGridTimeIndex(microGrid, selectedIsoTime, selectedTimeIndex);
         const result = renderFieldToCanvas(canvas, microGrid.points, gridBbox, {
             timeIndex,
-            useMercator: true
+            useMercator: true,
+            zoneMode: true,
+            colorBlind: isColorBlind
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
+
+        // 2. Инициализация и рендер отдельного пульсирующего слоя загрязнения микро-сетки (41-100+)
+        if (!microPollutionCanvasRef.current) {
+            microPollutionCanvasRef.current = createFieldCanvas(250, 250);
+        }
+        const microPollutionCanvas = microPollutionCanvasRef.current;
+        const microPollutionResult = renderFieldToCanvas(microPollutionCanvas, microGrid.points, gridBbox, {
+            timeIndex,
+            useMercator: true,
+            onlyPollution: true,
+            colorBlind: isColorBlind
+        });
+        const microPollutionDataUrl = (microPollutionResult?.hasPollution !== false) ? microPollutionResult?.toDataUrl() : null;
 
         const applyMicroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
@@ -853,6 +961,61 @@ export default function MapComponent({
                 }, 'map-marker');
             }
 
+            // Управление пульсирующим слоем загрязнения микро-сетки (41-100+)
+            if (microPollutionDataUrl) {
+                const existingMicroPollutionSource = mapInstance.getSource(MICRO_POLLUTION_SOURCE_ID);
+                if (existingMicroPollutionSource) {
+                    if (typeof existingMicroPollutionSource.updateImage === 'function') {
+                        existingMicroPollutionSource.updateImage({
+                            url: microPollutionDataUrl,
+                            coordinates: coords
+                        });
+                    } else if (mapInstance.removeLayer && mapInstance.removeSource) {
+                        if (mapInstance.getLayer && mapInstance.getLayer(MICRO_POLLUTION_LAYER_ID)) {
+                            mapInstance.removeLayer(MICRO_POLLUTION_LAYER_ID);
+                        }
+                        mapInstance.removeSource(MICRO_POLLUTION_SOURCE_ID);
+                        mapInstance.addSource(MICRO_POLLUTION_SOURCE_ID, {
+                            type: 'image',
+                            url: microPollutionDataUrl,
+                            coordinates: coords
+                        });
+                        mapInstance.addLayer({
+                            id: MICRO_POLLUTION_LAYER_ID,
+                            type: 'raster',
+                            source: MICRO_POLLUTION_SOURCE_ID,
+                            layout: {
+                                visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                            },
+                            paint: {
+                                'raster-opacity': 0.70,
+                                'raster-fade-duration': 200
+                            }
+                        }, 'map-marker');
+                    }
+                } else {
+                    mapInstance.addSource(MICRO_POLLUTION_SOURCE_ID, {
+                        type: 'image',
+                        url: microPollutionDataUrl,
+                        coordinates: coords
+                    });
+                    mapInstance.addLayer({
+                        id: MICRO_POLLUTION_LAYER_ID,
+                        type: 'raster',
+                        source: MICRO_POLLUTION_SOURCE_ID,
+                        layout: {
+                            visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
+                        },
+                        paint: {
+                            'raster-opacity': 0.70,
+                            'raster-fade-duration': 200
+                        }
+                    }, 'map-marker');
+                }
+            } else if (mapInstance.getLayer && mapInstance.getLayer(MICRO_POLLUTION_LAYER_ID) && typeof mapInstance.setLayoutProperty === 'function') {
+                mapInstance.setLayoutProperty(MICRO_POLLUTION_LAYER_ID, 'visibility', 'none');
+            }
+
             // Гарантируем, что макро-слой всегда располагается СТРОГО ПОД микро-слоем
             if (mapInstance.getLayer && mapInstance.getLayer(MACRO_LAYER_ID) && mapInstance.getLayer(MICRO_LAYER_ID) && typeof mapInstance.moveLayer === 'function') {
                 try {
@@ -867,7 +1030,40 @@ export default function MapComponent({
             applyMicroLayer();
             if (updateLodOpacityRef.current) updateLodOpacityRef.current();
         });
-    }, [microGrid, selectedTimeIndex, selectedIsoTime]);
+    }, [microGrid, selectedTimeIndex, selectedIsoTime, isColorBlind]);
+
+    // Анимация пульсирования загрязненных зон (41-100+) на карте синхронно с маркером
+    useEffect(() => {
+        let animId = null;
+
+        const animate = (time) => {
+            if (map.current) {
+                // Пульсирование с периодом 2.2 секунды
+                const phase = (time % 2200) / 2200;
+                const sinVal = (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) / 2;
+                // Плавное мягкое дыхание загрязненных областей от 0.25 до 0.85 непрозрачности
+                const pulseOpacity = 0.25 + 0.60 * sinVal;
+
+                if (viewModeRef.current !== 'numeric') {
+                    if (map.current.getLayer && map.current.getLayer(MACRO_POLLUTION_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
+                        map.current.setPaintProperty(MACRO_POLLUTION_LAYER_ID, 'raster-opacity', pulseOpacity);
+                    }
+                    if (map.current.getLayer && map.current.getLayer(MICRO_POLLUTION_LAYER_ID) && typeof map.current.setPaintProperty === 'function') {
+                        map.current.setPaintProperty(MICRO_POLLUTION_LAYER_ID, 'raster-opacity', pulseOpacity);
+                    }
+                }
+            }
+            animId = requestAnimationFrame(animate);
+        };
+
+        animId = requestAnimationFrame(animate);
+
+        return () => {
+            if (animId) {
+                cancelAnimationFrame(animId);
+            }
+        };
+    }, []);
 
     return (
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />

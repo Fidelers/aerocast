@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { getAqiInfo } from '../../src/types';
+import { resolveGridTimeIndex } from '../../src/components/MapComponent';
 import React from 'react';
 
 // Подготовка hoisted моков для Vitest
@@ -1121,6 +1122,36 @@ describe('Повторное центрирование карты и марке
         );
 
         expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+});
+
+describe('resolveGridTimeIndex', () => {
+    it('находит точное совпадение времени', () => {
+        const grid = { time: ['2026-10-01T10:00', '2026-10-01T13:00'] };
+        expect(resolveGridTimeIndex(grid, '2026-10-01T13:00', 0)).toBe(1);
+    });
+
+    it('находит совпадение по дате и часу при отсутствии точного', () => {
+        const grid = { time: ['2026-10-01T10:00', '2026-10-01T13:00'] };
+        expect(resolveGridTimeIndex(grid, '2026-10-01T13:30', 0)).toBe(1);
+    });
+
+    it('возвращает fallback при отсутствии совпадения', () => {
+        const grid = { time: ['2026-10-01T10:00'] };
+        expect(resolveGridTimeIndex(grid, '2026-10-02T10:00', 5)).toBe(5);
+    });
+
+    it('возвращает fallback при отсутствии time в grid', () => {
+        expect(resolveGridTimeIndex({}, '2026-10-01T10:00', 3)).toBe(3);
+    });
+
+    it('возвращает 0 при отсутствии fallback и данных', () => {
+        expect(resolveGridTimeIndex(null, null)).toBe(0);
+        expect(resolveGridTimeIndex(undefined, undefined)).toBe(0);
+    });
+
+    it('возвращает fallback при grid без массива time', () => {
+        expect(resolveGridTimeIndex({ time: 'not-array' }, '2026-10-01T10:00', 2)).toBe(2);
     });
 });
 

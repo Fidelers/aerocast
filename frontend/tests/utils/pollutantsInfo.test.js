@@ -4,7 +4,8 @@ import {
     POLLUTANTS_METADATA,
     normalizePollutantKey,
     getPollutantMetadata,
-    getPollutantAssessment
+    getPollutantAssessment,
+    getAqiRecommendation
 } from '../../src/utils/pollutantsInfo';
 
 describe('pollutantsInfo utility', () => {
@@ -69,5 +70,121 @@ describe('pollutantsInfo utility', () => {
 
         const nanRes = getPollutantAssessment('pm2_5', NaN);
         expect(nanRes.label).toBe('нет данных');
+    });
+
+    it('в режиме дальтоника (colorBlind: true) возвращает цвета палитры Okabe-Ito', () => {
+        const opts = { colorBlind: true };
+        expect(getPollutantAssessment('pm2_5', 8, opts).color).toBe('#0072B2');   // Отлично
+        expect(getPollutantAssessment('pm2_5', 18, opts).color).toBe('#56B4E9');  // Хорошо
+        expect(getPollutantAssessment('pm2_5', 24, opts).color).toBe('#F0E442');  // Умеренно
+        expect(getPollutantAssessment('pm2_5', 35, opts).color).toBe('#E69F00');  // Повышено
+        expect(getPollutantAssessment('pm2_5', 60, opts).color).toBe('#D55E00');  // Плохо
+        expect(getPollutantAssessment('pm2_5', 120, opts).color).toBe('#7B3294'); // Опасно
+    });
+
+    it('в режиме дальтоника label и level остаются прежними', () => {
+        const res = getPollutantAssessment('pm2_5', 18, { colorBlind: true });
+        expect(res.label).toBe('Хорошо');
+        expect(res.level).toBe('good');
+    });
+
+    it('без опции colorBlind (или при false) возвращает стандартные цвета', () => {
+        expect(getPollutantAssessment('pm2_5', 8).color).toBe('#4CAF50');
+        expect(getPollutantAssessment('pm2_5', 8, { colorBlind: false }).color).toBe('#4CAF50');
+    });
+
+    it('в режиме дальтоника «нет данных» остается нейтрально-серым', () => {
+        expect(getPollutantAssessment('pm2_5', null, { colorBlind: true }).color).toBe('#9E9E9E');
+    });
+});
+
+describe('getAqiRecommendation', () => {
+    it('возвращает «отлично» для AQI <= 20', () => {
+        expect(getAqiRecommendation(0)).toBe('отлично');
+        expect(getAqiRecommendation(20)).toBe('отлично');
+    });
+
+    it('возвращает «хорошо» для AQI 21-40', () => {
+        expect(getAqiRecommendation(35)).toBe('хорошо');
+    });
+
+    it('возвращает «удовлетворительно» для AQI 41-60', () => {
+        expect(getAqiRecommendation(50)).toBe('удовлетворительно');
+    });
+
+    it('возвращает «плохо» для AQI 61-80', () => {
+        expect(getAqiRecommendation(75)).toBe('плохо');
+    });
+
+    it('возвращает «очень плохо» для AQI 81-100', () => {
+        expect(getAqiRecommendation(90)).toBe('очень плохо');
+    });
+
+    it('возвращает «опасно» для AQI > 100', () => {
+        expect(getAqiRecommendation(150)).toBe('опасно');
+    });
+
+    it('возвращает «нет данных» для null, undefined, NaN и отрицательных', () => {
+        expect(getAqiRecommendation(null)).toBe('нет данных');
+        expect(getAqiRecommendation(undefined)).toBe('нет данных');
+        expect(getAqiRecommendation(NaN)).toBe('нет данных');
+        expect(getAqiRecommendation(-5)).toBe('нет данных');
+    });
+
+    it('приводит строковые числа к числу', () => {
+        expect(getAqiRecommendation('35')).toBe('хорошо');
+        expect(getAqiRecommendation('abc')).toBe('нет данных');
+    });
+});
+
+describe('pollutantsInfo — дополнительные граничные случаи', () => {
+    it('normalizePollutantKey возвращает null для невалидных типов', () => {
+        expect(normalizePollutantKey(null)).toBeNull();
+        expect(normalizePollutantKey(undefined)).toBeNull();
+        expect(normalizePollutantKey(123)).toBeNull();
+        expect(normalizePollutantKey({})).toBeNull();
+    });
+
+    it('normalizePollutantKey обрабатывает синонимы с точками и подчёркиваниями', () => {
+        expect(normalizePollutantKey('pm2.5')).toBe('pm2_5');
+        expect(normalizePollutantKey('pm_2_5')).toBe('pm2_5');
+        expect(normalizePollutantKey('PM2_5')).toBe('pm2_5');
+        expect(normalizePollutantKey('PM10')).toBe('pm10');
+        expect(normalizePollutantKey('NO2')).toBe('nitrogen_dioxide');
+        expect(normalizePollutantKey('SO2')).toBe('sulphur_dioxide');
+        expect(normalizePollutantKey('O3')).toBe('ozone');
+        expect(normalizePollutantKey('CO')).toBe('carbon_monoxide');
+    });
+
+    it('normalizePollutantKey обрезает пробелы', () => {
+        expect(normalizePollutantKey('  no2  ')).toBe('nitrogen_dioxide');
+    });
+
+    it('getPollutantAssessment возвращает «нет данных» для неизвестного загрязнителя', () => {
+        const res = getPollutantAssessment('unknown_pollutant', 50);
+        expect(res.label).toBe('нет данных');
+        expect(res.color).toBe('#9E9E9E');
+        expect(res.level).toBe('unknown');
+    });
+
+    it('getPollutantAssessment возвращает «нет данных» для пустой строки и отрицательных', () => {
+        expect(getPollutantAssessment('pm2_5', '').label).toBe('нет данных');
+        expect(getPollutantAssessment('pm2_5', -5).label).toBe('нет данных');
+        expect(getPollutantAssessment('pm2_5', undefined).label).toBe('нет данных');
+    });
+
+    it('getPollutantAssessment корректно оценивает все пороги для PM10', () => {
+        expect(getPollutantAssessment('pm10', 15).level).toBe('excellent');
+        expect(getPollutantAssessment('pm10', 30).level).toBe('good');
+        expect(getPollutantAssessment('pm10', 45).level).toBe('fair');
+        expect(getPollutantAssessment('pm10', 80).level).toBe('poor');
+        expect(getPollutantAssessment('pm10', 120).level).toBe('veryPoor');
+        expect(getPollutantAssessment('pm10', 200).level).toBe('haz');
+    });
+
+    it('getPollutantMetadata возвращает null для невалидного ключа', () => {
+        expect(getPollutantMetadata(null)).toBeNull();
+        expect(getPollutantMetadata(123)).toBeNull();
+        expect(getPollutantMetadata('')).toBeNull();
     });
 });

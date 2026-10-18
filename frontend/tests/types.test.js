@@ -101,6 +101,41 @@ describe('types.getAqiInfo', () => {
         });
     });
 
+    describe('Режим для дальтоников (options.colorBlind)', () => {
+        it('возвращает hex из палитры Okabe-Ito при colorBlind: true', () => {
+            expect(getAqiInfo(10, { colorBlind: true }).hex).toBe('#0072B2');  // отлично
+            expect(getAqiInfo(30, { colorBlind: true }).hex).toBe('#56B4E9');  // хорошо
+            expect(getAqiInfo(50, { colorBlind: true }).hex).toBe('#F0E442');  // удовлетворительно
+            expect(getAqiInfo(70, { colorBlind: true }).hex).toBe('#E69F00');  // плохо
+            expect(getAqiInfo(90, { colorBlind: true }).hex).toBe('#D55E00');  // очень плохо
+            expect(getAqiInfo(120, { colorBlind: true }).hex).toBe('#7B3294'); // опасно
+        });
+
+        it('не изменяет label, level и cssClass в режиме дальтоника', () => {
+            const info = getAqiInfo(30, { colorBlind: true });
+            expect(info.label).toBe('хорошо');
+            expect(info.level).toBe('good');
+            expect(info.cssClass).toBe('aqi-good');
+        });
+
+        it('без опции colorBlind (или при false) возвращает стандартную палитру', () => {
+            expect(getAqiInfo(30).hex).toBe('#8BC34A');
+            expect(getAqiInfo(30, { colorBlind: false }).hex).toBe('#8BC34A');
+        });
+
+        it('для «нет данных» возвращает нейтральный серый #9E9E9E', () => {
+            expect(getAqiInfo(null, { colorBlind: true }).hex).toBe('#9E9E9E');
+        });
+
+        it('палитра дальтоника не повторяет стандартные hex-коды', () => {
+            const standard = [0, 30, 50, 70, 90, 120].map(v => getAqiInfo(v).hex);
+            const colorBlind = [0, 30, 50, 70, 90, 120].map(v => getAqiInfo(v, { colorBlind: true }).hex);
+            for (const hex of colorBlind) {
+                expect(standard).not.toContain(hex);
+            }
+        });
+    });
+
     describe('types.getAqiRecommendation', () => {
         it('возвращает рекомендации для каждого уровня качества воздуха', () => {
             expect(getAqiRecommendation(10)).toContain('Воздух чистый');

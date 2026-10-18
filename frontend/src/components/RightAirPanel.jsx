@@ -16,15 +16,15 @@ const POLLUTANTS_LIST = [
 
 // Шкала уровней AQI
 const SCALE_RANGES = [
-  { range: '0–20', min: 0, max: 20 },
-  { range: '21–40', min: 21, max: 40 },
-  { range: '41–60', min: 41, max: 60 },
-  { range: '61–80', min: 61, max: 80 },
-  { range: '81–100', min: 81, max: 100 },
-  { range: '100+', min: 101, max: Infinity },
+  { range: '0–20', min: 0, max: 20, level: 'excellent' },
+  { range: '21–40', min: 21, max: 40, level: 'good' },
+  { range: '41–60', min: 41, max: 60, level: 'fair' },
+  { range: '61–80', min: 61, max: 80, level: 'poor' },
+  { range: '81–100', min: 81, max: 100, level: 'very-poor' },
+  { range: '100+', min: 101, max: Infinity, level: 'hazardous' },
 ];
 
-export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen = false, onClose }) {
+export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen = false, onClose, isColorBlind = false }) {
   const [selectedKey, setSelectedKey] = useState('pm2_5');
 
   const panelRef = useRef(null);
@@ -313,7 +313,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
   const source = airData.used_source || 'open-meteo';
   const aqiRaw = airData.hourly?.european_aqi?.[selectedTimeIndex];
   const aqi = aqiRaw !== undefined && aqiRaw !== null && !isNaN(Number(aqiRaw)) ? Number(aqiRaw) : null;
-  const aqiInfo = getAqiInfo(aqi);
+  const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind });
   const aqiRecommendationText = getAqiRecommendation(aqi);
 
   const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
@@ -372,7 +372,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
 
       {/* Показатель AQI: цветовой индикатор, оценка и рекомендация */}
       <div className="aqi-summary">
-        <div className="aqi-indicator" style={{ backgroundColor: aqiInfo.hex }}>
+        <div className="aqi-indicator" data-level={aqiInfo.level} style={{ backgroundColor: aqiInfo.hex }}>
           <span className="aqi-indicator__number">{aqi !== null ? aqi : '—'}</span>
           <span className="aqi-indicator__label">{aqiInfo.label}</span>
         </div>
@@ -390,6 +390,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
             return (
               <div
                 key={item.range}
+                data-level={item.level}
                 className={'scale-item' + (isActive ? ' scale-item--active' : '')}
               >
                 {item.range}
@@ -403,7 +404,7 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
       <div className="pollutants-list">
         {POLLUTANTS_LIST.map((item) => {
           const rawVal = airData.hourly?.[item.apiKey]?.[selectedTimeIndex];
-          const assessment = getPollutantAssessment(item.key, rawVal);
+          const assessment = getPollutantAssessment(item.key, rawVal, { colorBlind: isColorBlind });
           const hasVal = rawVal !== undefined && rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal));
 
           return (

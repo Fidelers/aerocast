@@ -10,6 +10,23 @@ const DEFAULT_MIN_VAL = 0;
 const DEFAULT_MAX_VAL = 150;
 
 /**
+ * Рассчитывает адаптивный весовой множитель значимости точки в зависимости от EAQI.
+ * Точки чистого воздуха (<= 40) имеют базовый вес 1.0.
+ * При росте EAQI вес плавно увеличивается, достигая ~2.5 при 110+ (опасный уровень).
+ *
+ * @param {number} val - значение EAQI
+ * @returns {number} множитель веса (от 1.0 до 2.5)
+ */
+export function getAqiWeightBoost(val) {
+    if (val == null || typeof val !== 'number' || Number.isNaN(val) || val <= 40) {
+        return 1.0;
+    }
+    // Линейно-плавный рост от 1.0 при 40 до 2.5 при 110+
+    const t = Math.min(1.0, (val - 40) / 70);
+    return 1.0 + (3.0 * t) ** 2;
+}
+
+/**
  * Прямое преобразование широты в проекцию Web Mercator (EPSG:3857).
  * @param {number} lat - широта в градусах
  * @returns {number} Y-координата Меркатора
@@ -104,7 +121,8 @@ function sanitizePoints(points, timeIndex) {
         const val = extractPointValue(pt, timeIndex);
         if (val === null) continue;
 
-        result.push({ lat, lon, val });
+        const boost = getAqiWeightBoost(val);
+        result.push({ lat, lon, val, boost });
     }
     return result;
 }
@@ -128,9 +146,13 @@ export function interpolatePoint(lat, lon, points, options = {}) {
     const {
         p = DEFAULT_P,
         maxRadius = Infinity,
+        decayRadius = 0,
+        bgVal = 20,
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
-        timeIndex = null
+        timeIndex = null,
+        useMercator = true,
+        boostPolluted = true
     } = options;
 
     const validPoints = sanitizePoints(points, timeIndex);
@@ -138,7 +160,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
         return null;
     }
 
-    if (validPoints.length === 1) {
+    if (validPoints.length === 1 && (!decayRadius || decayRadius <= 0)) {
         return Math.max(minVal, Math.min(maxVal, validPoints[0].val));
     }
 
@@ -148,11 +170,14 @@ export function interpolatePoint(lat, lon, points, options = {}) {
     let minDistanceSq = Infinity;
     const maxRadiusSq = maxRadius * maxRadius;
     const isP2 = p === DEFAULT_P;
+    const cosLat = useMercator ? Math.cos((lat * Math.PI) / 180) : 1;
+
+    const bgWeight = (Number.isFinite(decayRadius) && decayRadius > 0) ? 1 / (decayRadius * decayRadius) : 0;
 
     for (let i = 0; i < validPoints.length; i++) {
         const pt = validPoints[i];
         const dLat = lat - pt.lat;
-        const dLon = lon - pt.lon;
+        const dLon = (lon - pt.lon) * cosLat;
         const distSq = dLat * dLat + dLon * dLon;
 
         if (distSq < minDistanceSq) {
@@ -170,14 +195,20 @@ export function interpolatePoint(lat, lon, points, options = {}) {
             continue;
         }
 
-        const weight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
+        const baseWeight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
+        const weight = boostPolluted ? baseWeight * (pt.boost || 1.0) : baseWeight;
         sumWeightVal += weight * pt.val;
         sumWeight += weight;
     }
 
+    if (bgWeight > 0) {
+        sumWeightVal += bgWeight * bgVal;
+        sumWeight += bgWeight;
+    }
+
     if (sumWeight === 0) {
         // Все точки оказались за пределами maxRadius — возвращаем значение ближайшей
-        return nearestVal !== null ? Math.max(minVal, Math.min(maxVal, nearestVal)) : null;
+        return nearestVal !== null ? Math.max(minVal, Math.min(maxVal, nearestVal)) : bgVal;
     }
 
     const calculated = sumWeightVal / sumWeight;
@@ -199,10 +230,13 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
     const {
         p = DEFAULT_P,
         maxRadius = Infinity,
+        decayRadius = 0,
+        bgVal = 20,
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
-        useMercator = true
+        useMercator = true,
+        boostPolluted = true
     } = options;
 
     const totalPixels = width * height;
@@ -213,8 +247,8 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         return grid;
     }
 
-    // Если точка всего одна — мгновенно заполняем весь массив её значением
-    if (validPoints.length === 1) {
+    // Если точка всего одна и без затухания к фону — мгновенно заполняем весь массив её значением
+    if (validPoints.length === 1 && (!decayRadius || decayRadius <= 0)) {
         const clampedSingle = Math.max(minVal, Math.min(maxVal, validPoints[0].val));
         grid.fill(clampedSingle);
         return grid;
@@ -222,37 +256,59 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
 
     const [minLon, minLat, maxLon, maxLat] = bbox;
 
-    // Предрасчёт долгот по X
+    // Предрасчёт долгот по X (сэмплирование строго по центрам пикселей WebGL-текстуры)
     const lons = new Float64Array(width);
     for (let px = 0; px < width; px++) {
-        lons[px] = minLon + (px / width) * (maxLon - minLon);
+        lons[px] = minLon + ((px + 0.5) / width) * (maxLon - minLon);
     }
 
-    // Предрасчёт широт по Y (с учётом проекции)
+    // Предрасчёт широт по Y (сэмплирование строго по центрам пикселей WebGL-текстуры)
     const lats = new Float64Array(height);
     if (useMercator) {
         const minMercY = latToMercator(minLat);
         const maxMercY = latToMercator(maxLat);
         const mercDiff = maxMercY - minMercY;
         for (let py = 0; py < height; py++) {
-            const mercY = minMercY + (1 - py / height) * mercDiff;
+            const mercY = minMercY + (1 - (py + 0.5) / height) * mercDiff;
             lats[py] = mercatorToLat(mercY);
         }
     } else {
         const latDiff = maxLat - minLat;
         for (let py = 0; py < height; py++) {
-            lats[py] = minLat + (1 - py / height) * latDiff;
+            lats[py] = minLat + (1 - (py + 0.5) / height) * latDiff;
         }
     }
 
     const pointsCount = validPoints.length;
     const maxRadiusSq = maxRadius * maxRadius;
     const isP2 = p === DEFAULT_P;
+    const hasCutoff = Number.isFinite(maxRadius) && maxRadius > 0;
+    const rowPts = hasCutoff ? [] : null;
+    const bgWeight = (Number.isFinite(decayRadius) && decayRadius > 0) ? 1 / (decayRadius * decayRadius) : 0;
 
     // Оптимизированный цикл по всем строкам и колонкам без Math.hypot и Math.sqrt
     for (let py = 0; py < height; py++) {
         const curLat = lats[py];
+        const cosLat = useMercator ? Math.cos((curLat * Math.PI) / 180) : 1;
         const rowOffset = py * width;
+
+        let activePoints = validPoints;
+        let activeCount = pointsCount;
+
+        if (hasCutoff) {
+            rowPts.length = 0;
+            for (let i = 0; i < pointsCount; i++) {
+                const pt = validPoints[i];
+                const dLat = curLat - pt.lat;
+                if (dLat >= -maxRadius && dLat <= maxRadius) {
+                    rowPts.push(pt);
+                }
+            }
+            activePoints = rowPts;
+            activeCount = rowPts.length;
+        }
+
+        const maxLonDiff = hasCutoff ? (cosLat > 0.05 ? maxRadius / cosLat : maxRadius * 20) : Infinity;
 
         for (let px = 0; px < width; px++) {
             const curLon = lons[px];
@@ -263,10 +319,15 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
             let minDistanceSq = Infinity;
             let exactMatchVal = null;
 
-            for (let i = 0; i < pointsCount; i++) {
-                const pt = validPoints[i];
+            for (let i = 0; i < activeCount; i++) {
+                const pt = activePoints[i];
+                const dLonRaw = curLon - pt.lon;
+                if (hasCutoff && (dLonRaw < -maxLonDiff || dLonRaw > maxLonDiff)) {
+                    continue;
+                }
+
                 const dLat = curLat - pt.lat;
-                const dLon = curLon - pt.lon;
+                const dLon = dLonRaw * cosLat;
                 const distSq = dLat * dLat + dLon * dLon;
 
                 if (distSq < minDistanceSq) {
@@ -283,7 +344,8 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
                     continue;
                 }
 
-                const weight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
+                const baseWeight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
+                const weight = boostPolluted ? baseWeight * (pt.boost || 1.0) : baseWeight;
                 sumWeightVal += weight * pt.val;
                 sumWeight += weight;
             }
@@ -291,10 +353,16 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
             let finalValue;
             if (exactMatchVal !== null) {
                 finalValue = exactMatchVal;
-            } else if (sumWeight === 0) {
-                finalValue = nearestVal !== null ? nearestVal : 0;
             } else {
-                finalValue = sumWeightVal / sumWeight;
+                if (bgWeight > 0) {
+                    sumWeightVal += bgWeight * bgVal;
+                    sumWeight += bgWeight;
+                }
+                if (sumWeight === 0) {
+                    finalValue = nearestVal !== null ? nearestVal : bgVal;
+                } else {
+                    finalValue = sumWeightVal / sumWeight;
+                }
             }
 
             // Clamp

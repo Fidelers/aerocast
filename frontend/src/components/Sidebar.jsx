@@ -3,6 +3,7 @@ import Logo from '../assets/icons/logo.svg';
 import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
+import SettingsModal from './SettingsModal';
 import { groupTimesByDay } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
@@ -17,6 +18,7 @@ function Sidebar({
   onLocationSelect,
   onCitySelect,
   onOpenAbout,
+  onOpenSettings,
   onLocateMe,
   isOpen = false,
   onClose
@@ -24,6 +26,7 @@ function Sidebar({
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
   const [isGeoErrorVisible, setIsGeoErrorVisible] = useState(false);
 
@@ -326,7 +329,8 @@ function Sidebar({
       target?.closest?.('.days') ||
       target?.closest?.('input') ||
       target?.closest?.('.sidebar__close-btn') ||
-      target?.closest?.('.sidebar__info-btn')
+      target?.closest?.('.sidebar__info-btn') ||
+      target?.closest?.('.sidebar__settings-btn')
     ) {
       return;
     }
@@ -574,6 +578,37 @@ function Sidebar({
           <div className="sidebar__title">Aerocast</div>
         </div>
         <div className="sidebar__header-actions">
+          <button
+            type="button"
+            className="sidebar__settings-btn"
+            aria-label="Настройки"
+            title="Настройки"
+            data-testid="sidebar-settings-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof onOpenSettings === 'function') {
+                onOpenSettings();
+              } else {
+                setIsSettingsOpen(true);
+              }
+            }}
+          >
+            <svg
+              className="sidebar__settings-icon"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
           <a
             href="#"
             className="sidebar__info-btn"
@@ -729,6 +764,12 @@ function Sidebar({
         <AboutModal
           isOpen={isAboutOpen}
           onClose={() => setIsAboutOpen(false)}
+        />
+      )}
+      {!onOpenSettings && (
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
         />
       )}
     </aside>

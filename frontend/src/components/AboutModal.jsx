@@ -121,44 +121,44 @@ export default function AboutModal({ isOpen, onClose }) {
         <section className="modal-section">
           <h3 className="modal-section__title">Шкала оценки и рекомендации</h3>
           <ul className="aqi-modal-list">
-            <li className="aqi-modal-item" style={{ borderLeftColor: '#4CAF50' }}>
+            <li className="aqi-modal-item" data-level="excellent" style={{ borderLeftColor: '#4CAF50' }}>
               <div className="aqi-modal-item__left">
-                <span className="aqi-modal-item__badge" style={{ backgroundColor: '#4CAF50' }}>0–20</span>
+                <span className="aqi-modal-item__badge" data-level="excellent" style={{ backgroundColor: '#4CAF50' }}>0–20</span>
                 <span className="aqi-modal-item__label">Отлично</span>
               </div>
               <span className="aqi-modal-item__advice">Воздух чистый, идеальные условия для прогулок и спорта.</span>
             </li>
-            <li className="aqi-modal-item" style={{ borderLeftColor: '#8BC34A' }}>
+            <li className="aqi-modal-item" data-level="good" style={{ borderLeftColor: '#8BC34A' }}>
               <div className="aqi-modal-item__left">
-                <span className="aqi-modal-item__badge" style={{ backgroundColor: '#8BC34A' }}>21–40</span>
+                <span className="aqi-modal-item__badge" data-level="good" style={{ backgroundColor: '#8BC34A' }}>21–40</span>
                 <span className="aqi-modal-item__label">Хорошо</span>
               </div>
               <span className="aqi-modal-item__advice">Качество воздуха приемлемое. Загрязнение минимально.</span>
             </li>
-            <li className="aqi-modal-item" style={{ borderLeftColor: '#F7F21A' }}>
+            <li className="aqi-modal-item" data-level="fair" style={{ borderLeftColor: '#F7F21A' }}>
               <div className="aqi-modal-item__left">
-                <span className="aqi-modal-item__badge" style={{ backgroundColor: '#F7F21A', color: '#000' }}>41–60</span>
+                <span className="aqi-modal-item__badge" data-level="fair" style={{ backgroundColor: '#F7F21A', color: '#000' }}>41–60</span>
                 <span className="aqi-modal-item__label">Удовлетворительно</span>
               </div>
               <span className="aqi-modal-item__advice">Умеренное загрязнение. Чувствительным людям стоит быть осторожнее.</span>
             </li>
-            <li className="aqi-modal-item" style={{ borderLeftColor: '#FFA500' }}>
+            <li className="aqi-modal-item" data-level="poor" style={{ borderLeftColor: '#FFA500' }}>
               <div className="aqi-modal-item__left">
-                <span className="aqi-modal-item__badge" style={{ backgroundColor: '#FFA500' }}>61–80</span>
+                <span className="aqi-modal-item__badge" data-level="poor" style={{ backgroundColor: '#FFA500' }}>61–80</span>
                 <span className="aqi-modal-item__label">Плохо</span>
               </div>
               <span className="aqi-modal-item__advice">Неблагоприятные условия. Ограничьте физические нагрузки на улице.</span>
             </li>
-            <li className="aqi-modal-item" style={{ borderLeftColor: '#FF0000' }}>
+            <li className="aqi-modal-item" data-level="very-poor" style={{ borderLeftColor: '#FF0000' }}>
               <div className="aqi-modal-item__left">
-                <span className="aqi-modal-item__badge" style={{ backgroundColor: '#FF0000' }}>81–100</span>
+                <span className="aqi-modal-item__badge" data-level="very-poor" style={{ backgroundColor: '#FF0000' }}>81–100</span>
                 <span className="aqi-modal-item__label">Очень плохо</span>
               </div>
               <span className="aqi-modal-item__advice">Высокое загрязнение. Рекомендуется оставаться в помещении.</span>
             </li>
-            <li className="aqi-modal-item" style={{ borderLeftColor: '#C20000' }}>
+            <li className="aqi-modal-item" data-level="hazardous" style={{ borderLeftColor: '#C20000' }}>
               <div className="aqi-modal-item__left">
-                <span className="aqi-modal-item__badge" style={{ backgroundColor: '#C20000' }}>100+</span>
+                <span className="aqi-modal-item__badge" data-level="hazardous" style={{ backgroundColor: '#C20000' }}>100+</span>
                 <span className="aqi-modal-item__label">Опасно</span>
               </div>
               <span className="aqi-modal-item__advice">Опасный уровень! Закройте окна, используйте очистители воздуха.</span>
