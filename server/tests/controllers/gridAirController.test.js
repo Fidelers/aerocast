@@ -529,5 +529,161 @@ describe('Controller: gridAirController', () => {
             }));
         });
 
+        it('использует fallback вычисление cacheKey, если quantizeCoordinates не вернул cacheKey', async () => {
+            spatialCacheService.quantizeCoordinates.mockReturnValue(null);
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            const cachedMicro = { type: 'micro', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(cachedMicro);
+
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(spatialCacheService.getSpatialCache).toHaveBeenCalledWith('grid_micro_53.80_87.20', false);
+            expect(res.json).toHaveBeenCalledWith(cachedMicro);
+        });
+
+        it('ищет candidate в spatialCacheService.getSpatialCache, если getTodayMacroGrid не является функцией', async () => {
+            const originalGetToday = spatialCacheService.getTodayMacroGrid;
+            delete spatialCacheService.getTodayMacroGrid;
+            const candidate = { type: 'macro', cached_date: '2026-10-18', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(candidate);
+            spatialCacheService.isRecordSavedToday.mockReturnValue(true);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(candidate);
+            spatialCacheService.getTodayMacroGrid = originalGetToday;
+        });
+
+        it('проверяет candidate.cached_date вручную, если isRecordSavedToday не функция (дата совпадает)', async () => {
+            const originalGetToday = spatialCacheService.getTodayMacroGrid;
+            const originalIsSaved = spatialCacheService.isRecordSavedToday;
+            delete spatialCacheService.getTodayMacroGrid;
+            delete spatialCacheService.isRecordSavedToday;
+            const timeUtils = require('../../services/timeUtils');
+            const todayStr = timeUtils.getTodayDateString();
+            const candidate = { type: 'macro', cached_date: todayStr, points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(candidate);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(candidate);
+            spatialCacheService.getTodayMacroGrid = originalGetToday;
+            spatialCacheService.isRecordSavedToday = originalIsSaved;
+        });
+
+        it('не использует candidate, если isRecordSavedToday не функция и candidate.cached_date устарела', async () => {
+            const originalGetToday = spatialCacheService.getTodayMacroGrid;
+            const originalIsSaved = spatialCacheService.isRecordSavedToday;
+            delete spatialCacheService.getTodayMacroGrid;
+            delete spatialCacheService.isRecordSavedToday;
+            const candidate = { type: 'macro', cached_date: '2020-01-01', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(candidate);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalled();
+            spatialCacheService.getTodayMacroGrid = originalGetToday;
+            spatialCacheService.isRecordSavedToday = originalIsSaved;
+        });
+
+        it('считает candidate актуальным, если isRecordSavedToday не функция и cached_date отсутствует', async () => {
+            const originalGetToday = spatialCacheService.getTodayMacroGrid;
+            const originalIsSaved = spatialCacheService.isRecordSavedToday;
+            delete spatialCacheService.getTodayMacroGrid;
+            delete spatialCacheService.isRecordSavedToday;
+            const candidate = { type: 'macro', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(candidate);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.json).toHaveBeenCalledWith(candidate);
+            spatialCacheService.getTodayMacroGrid = originalGetToday;
+            spatialCacheService.isRecordSavedToday = originalIsSaved;
+        });
+
+        it('не использует candidate, если isRecordSavedToday вернул false', async () => {
+            spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
+            const candidate = { type: 'macro', cached_date: '2020-01-01', points: [] };
+            spatialCacheService.getSpatialCache.mockResolvedValue(candidate);
+            spatialCacheService.isRecordSavedToday.mockReturnValue(false);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalled();
+        });
+
+        it('обрабатывает случай, когда generateMicroGridCoordinates возвращает массив точек', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValue(null);
+            batchAirService.generateMicroGridCoordinates.mockReturnValue([
+                { lat: 53.75, lon: 87.15 }
+            ]);
+            batchAirService.normalizeBatchResponse.mockReturnValue({
+                time: ['2026-10-01T00:00'],
+                points: [{ lat: 53.75, lon: 87.15, european_aqi: [25] }]
+            });
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.not.objectContaining({ bbox: expect.anything() }));
+        });
+
+        it('обрабатывает случай, когда generateMicroGridCoordinates возвращает объект с полем coordinates и без bbox', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValue(null);
+            batchAirService.generateMicroGridCoordinates.mockReturnValue({
+                coordinates: [{ lat: 53.75, lon: 87.15 }]
+            });
+            batchAirService.normalizeBatchResponse.mockReturnValue({
+                time: ['2026-10-01T00:00'],
+                points: [{ lat: 53.75, lon: 87.15, european_aqi: [25] }]
+            });
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.not.objectContaining({ bbox: expect.anything() }));
+        });
+
+        it('обрабатывает случай, когда generateMicroGridCoordinates возвращает пустой объект и normalized = null', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValue(null);
+            batchAirService.generateMicroGridCoordinates.mockReturnValue({});
+            batchAirService.normalizeBatchResponse.mockReturnValue(null);
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                points_count: 0,
+                points: []
+            }));
+        });
+
+        it('рассчитывает points_count по coordinates.length, если normalized.points отсутствует', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValue(null);
+            batchAirService.generateMicroGridCoordinates.mockReturnValue([
+                { lat: 53.75, lon: 87.15 }
+            ]);
+            batchAirService.normalizeBatchResponse.mockReturnValue({
+                time: ['2026-10-01T00:00']
+            });
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                points_count: 1,
+                points: []
+            }));
+        });
+
     });
 });

@@ -343,5 +343,67 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
         it('выбрасывает ошибку при несоответствии количества ответов количеству координат', () => {
             expect(() => batchAirService.normalizeBatchResponse([rawOpenMeteoArray[0]], coordinates)).toThrow();
         });
+
+        it('обрабатывает одиночный объект rawArray (не массив)', () => {
+            const singleRaw = {
+                hourly: {
+                    time: ['2026-10-01T00:00'],
+                    european_aqi: [25]
+                }
+            };
+            const res = batchAirService.normalizeBatchResponse(singleRaw, [{ lat: 55.75, lon: 37.61 }]);
+            expect(res.points).toHaveLength(1);
+            expect(res.points[0].european_aqi).toEqual([25]);
+        });
+
+        it('выбрасывает ошибку при отсутствии coordinates (!coordinates)', () => {
+            expect(() => batchAirService.normalizeBatchResponse([], null)).toThrow(/expected 0/);
+        });
+
+        it('использует пустой массив для time, если hourly.time отсутствует в items[0]', () => {
+            const rawNoTime = [{
+                hourly: {
+                    european_aqi: [30]
+                }
+            }];
+            const res = batchAirService.normalizeBatchResponse(rawNoTime, [{ lat: 55.75, lon: 37.61 }]);
+            expect(res.time).toEqual([]);
+            expect(res.points[0].european_aqi).toEqual([30]);
+        });
+
+        it('использует пустой массив для rawAqi, если item.hourly.european_aqi отсутствует', () => {
+            const rawNoAqi = [{
+                hourly: {
+                    time: ['2026-10-01T00:00']
+                }
+            }];
+            const res = batchAirService.normalizeBatchResponse(rawNoAqi, [{ lat: 55.75, lon: 37.61 }]);
+            expect(res.points[0].european_aqi).toEqual([]);
+        });
+    });
+
+    describe('5. Дополнительные граничные случаи fetchBatchAirQuality', () => {
+        it('возвращает [] если coordinates не массив или null', async () => {
+            expect(await batchAirService.fetchBatchAirQuality(null)).toEqual([]);
+            expect(await batchAirService.fetchBatchAirQuality('invalid')).toEqual([]);
+        });
+
+        it('в чанкированном режиме пробрасывает не-429 ошибку сразу (500 Internal Server Error)', async () => {
+            const manyCoords = Array.from({ length: 300 }, (_, i) => ({ lat: 55 + i * 0.001, lon: 37 + i * 0.001 }));
+            const serverErr = new Error('500 Server Error');
+            serverErr.response = { status: 500 };
+            axios.get.mockRejectedValue(serverErr);
+
+            await expect(batchAirService.fetchBatchAirQuality(manyCoords)).rejects.toThrow('500 Server Error');
+        });
+
+        it('в чанкированном режиме корректно игнорирует null/пустые данные ответа', async () => {
+            const manyCoords = Array.from({ length: 300 }, (_, i) => ({ lat: 55 + i * 0.001, lon: 37 + i * 0.001 }));
+            axios.get.mockResolvedValueOnce({ data: null });
+            axios.get.mockResolvedValueOnce({ data: [{ latitude: 56, longitude: 38 }] });
+
+            const result = await batchAirService.fetchBatchAirQuality(manyCoords);
+            expect(result).toHaveLength(1);
+        });
     });
 });

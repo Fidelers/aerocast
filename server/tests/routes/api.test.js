@@ -312,5 +312,55 @@ describe('Routes: API', () => {
             warnSpy.mockRestore();
         });
 
+        it('должен монтировать locateByIp на GET /locate-me, если метод реализован в контроллере', async () => {
+            let appWithLocate;
+            jest.isolateModules(() => {
+                const airCtrl = require('../../controllers/airController');
+                airCtrl.locateByIp = jest.fn((req, res) => res.json({ latitude: 55.75, longitude: 37.61, city: 'Москва' }));
+                const freshApiRoutes = require('../../routes/api');
+                const testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+                appWithLocate = testApp;
+            });
+
+            const res = await request(appWithLocate).get('/api/locate-me');
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ latitude: 55.75, longitude: 37.61, city: 'Москва' });
+        });
+
+        it('должен корректно инициализироваться, если gridAirController возвращает null', async () => {
+            let testApp;
+            jest.isolateModules(() => {
+                jest.mock('../../controllers/gridAirController', () => null);
+                const freshApiRoutes = require('../../routes/api');
+                testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+            });
+
+            const res = await request(testApp).get('/api/air-quality/grid');
+            expect(res.status).toBe(404);
+        });
+
+        it('должен пропускать регистрацию grid маршрутов, если функции не реализованы в gridAirController', async () => {
+            let testApp;
+            jest.isolateModules(() => {
+                jest.mock('../../controllers/gridAirController', () => ({}));
+                const freshApiRoutes = require('../../routes/api');
+                testApp = express();
+                testApp.use(express.json());
+                testApp.use('/api', freshApiRoutes);
+            });
+
+            const resMacro = await request(testApp).get('/api/air-quality/grid/macro');
+            expect(resMacro.status).toBe(404);
+            const resMicro = await request(testApp).get('/api/air-quality/grid/micro');
+            expect(resMicro.status).toBe(404);
+            const resGrid = await request(testApp).get('/api/air-quality/grid');
+            expect(resGrid.status).toBe(404);
+            const resDel = await request(testApp).delete('/api/cache/grid');
+            expect(resDel.status).toBe(404);
+        });
     });
 });
