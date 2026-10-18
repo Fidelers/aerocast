@@ -297,11 +297,28 @@ describe('Service: spatialCacheService (Пространственное кэш�
             expect(isSaved).toBe(true);
         });
 
-        it('возвращает null, если макросетка сохранена во вчерашний день (требуется актуализация)', async () => {
+        it('возвращает сетку, если TTL ещё не истек, даже когда cached_date вчерашний (TTL приоритетнее смены дня)', async () => {
+            // Текущее время: 2026-10-09 15:00 Мск; кэш сохранён вчера (2026-10-08), но TTL ещё валиден
             const yesterdayMs = Date.now() - 24 * 3600 * 1000;
             mockDb.get.mockResolvedValue({
                 data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-08' }),
-                expires_at: Date.now() + 3600 * 1000,
+                expires_at: Date.now() + 3600 * 1000, // TTL ещё не истек
+                updated_at: yesterdayMs
+            });
+
+            const result = await spatialCacheService.getTodayMacroGrid(key);
+            expect(result).not.toBeNull();
+            expect(result.type).toBe('macro');
+
+            const isSaved = await spatialCacheService.isMacroGridSavedToday(key);
+            expect(isSaved).toBe(true);
+        });
+
+        it('возвращает null, если TTL истек и макросетка сохранена во вчерашний день (требуется актуализация)', async () => {
+            const yesterdayMs = Date.now() - 24 * 3600 * 1000;
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-08' }),
+                expires_at: Date.now() - 1000, // TTL уже истек
                 updated_at: yesterdayMs
             });
 

@@ -230,32 +230,29 @@ describe('Controller: gridAirController', () => {
             }));
         });
 
-        it('если в кэше сохранена макросетка за вчерашний день, запрашивает Open-Meteo для актуализации', async () => {
-            // Вчерашняя макросетка
-            const yesterdayMacro = {
+        it('если макросетка в кэше свежая по TTL (в т.ч. сохранённая перед полночью), не запрашивает Open-Meteo повторно', async () => {
+            // Свежая макросетка: cached_date вчерашний, но TTL ещё валиден -> отдаётся из кэша без вызова API
+            const freshMacro = {
                 type: 'macro',
                 points_count: 550,
                 used_source: 'open-meteo',
-                cached_date: '2026-10-15', // вчера
-                cached_at: Date.now() - 24 * 3600 * 1000,
+                cached_date: '2026-10-08', // вчера по календарю, но TTL ещё не истек
+                cached_at: Date.now(),
                 points: [{ lat: 55.75, lon: 37.61, european_aqi: [10] }]
             };
-            spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
-            spatialCacheService.getSpatialCache.mockResolvedValue(yesterdayMacro);
+            spatialCacheService.getTodayMacroGrid.mockResolvedValue(freshMacro);
 
             req.query = { type: 'macro' };
             await gridAirController.getGridAirQuality(req, res);
 
-            // Должен был пойти в Open-Meteo за актуализацией!
-            expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalled();
-            expect(spatialCacheService.setSpatialCache).toHaveBeenCalledWith(
-                'grid_macro_russia',
-                expect.objectContaining({
-                    type: 'macro',
-                    used_source: 'open-meteo'
-                }),
-                86400
-            );
+            // Кэш отдан напрямую, в Open-Meteо ходить не нужно
+            expect(batchAirService.fetchBatchAirQuality).not.toHaveBeenCalled();
+            expect(spatialCacheService.setSpatialCache).not.toHaveBeenCalled();
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'macro',
+                used_source: 'open-meteo',
+                points: expect.any(Array)
+            }));
         });
 
 

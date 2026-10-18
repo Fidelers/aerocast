@@ -183,11 +183,22 @@ function isRecordSavedToday(record, updatedAt) {
     return true;
 }
 
-// Возвращает макросетку ТОЛЬКО если она сохранена за сегодня (в этот день)
+// Возвращает макросетку, если она ещё свежая по TTL или сохранена за сегодня.
+// Проверка TTL имеет приоритет над календарным днём: сетка, загруженная перед
+// полночью, не считается устаревшей только из-за смены даты. Это предотвращает
+// лишний запрос к Open-Meteo ровно в 00:00, когда API часто недоступно.
 async function getTodayMacroGrid(cacheKey = 'grid_macro_russia') {
     const entry = await getSpatialCacheEntry(cacheKey);
     if (!entry || !entry.data) return null;
 
+    const now = Date.now();
+
+    // Если TTL ещё не истёк, данные свежие — отдаём их независимо от смены календарного дня
+    if (entry.expiresAt && now < entry.expiresAt) {
+        return entry.data;
+    }
+
+    // Иначе — только если запись сохранена именно сегодня (принудительное обновление со сменой суток)
     if (!isRecordSavedToday(entry.data, entry.updatedAt)) {
         return null;
     }
