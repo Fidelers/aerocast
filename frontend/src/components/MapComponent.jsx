@@ -699,19 +699,86 @@ export default function MapComponent({
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
 
-        // 2. Инициализация и рендер отдельного пульсирующего слоя загрязнения (41-100+)
-        if (!macroPollutionCanvasRef.current) {
-            macroPollutionCanvasRef.current = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
-        }
-        const pollutionCanvas = macroPollutionCanvasRef.current;
-        const pollutionResult = renderFieldToCanvas(pollutionCanvas, result.grid, gridBbox, {
-            timeIndex,
-            maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
-            useMercator: true,
-            onlyPollution: true,
-            colorBlind: isColorBlind
+        // 2. Инициализация и рендер пульсирующего слоя загрязнения
+// Разбиваем поле на 3 диапазона интенсивности — каждый диапазон идёт
+// отдельным raster-слоем со своей скоростью «дыхания»:
+//   ближе к 40  → медленно, ближе к 100+ → быстро.
+        const POLLUTION_BANDS = [
+            { id: 'slow',   min: 40, max: 60,   speed: 0.35, baseOpacity: 0.55, phase: 0.0 },
+            { id: 'medium', min: 60, max: 80,   speed: 0.75, baseOpacity: 0.65, phase: 1.2 },
+            { id: 'fast',   min: 80, max: 9999, speed: 1.50, baseOpacity: 0.85, phase: 2.4 }
+        ];
+
+// Оставляем только пиксели из [min, max], остальные → NaN.
+// interpolateAqiColor(NaN) возвращает alpha=0, поэтому «чужие» пиксели
+// автоматически становятся прозрачными без правок рендерера.
+        const sliceGridToBand = (grid, min, max) => {
+            const out = new Float32Array(grid.length);
+            for (let i = 0; i < grid.length; i++) {
+                const v = grid[i];
+                out[i] = (v > min && v <= max) ? v : NaN;
+            }
+            return out;
+        };
+
+        const bands = POLLUTION_BANDS.map(band => {
+            const bandGrid = sliceGridToBand(result.grid, band.min, band.max);
+            const bandCanvas = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
+            const bandResult = renderFieldToCanvas(bandCanvas, bandGrid, gridBbox, {
+                timeIndex,
+                maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
+                useMercator: true,
+                onlyPollution: true,
+                pollutionThreshold: band.min,
+                colorBlind: isColorBlind
+            });
+            return {
+                ...band,
+                layerId:  `${MACRO_POLLUTION_LAYER_ID}-${band.id}`,
+                sourceId: `${MACRO_POLLUTION_SOURCE_ID}-${band.id}`,
+                dataUrl: bandResult?.hasPollution === true ? bandResult.toDataUrl() : null
+            };
         });
-        const pollutionDataUrl = (pollutionResult?.hasPollution !== false) ? pollutionResult?.toDataUrl() : null;
+
+// Запускаем / перезапускаем rAF-пульсацию.
+// Разные частоты у разных слоёв → у 40 «дышит» медленно, у 100+ — быстро.
+        const startPollutionPulse = () => {
+            if (!mapInstance || typeof mapInstance.setPaintProperty !== 'function') return;
+
+            if (mapInstance.__pollutionPulseRafId) {
+                cancelAnimationFrame(mapInstance.__pollutionPulseRafId);
+                mapInstance.__pollutionPulseRafId = null;
+            }
+
+            const t0 = performance.now();
+            const tick = (now) => {
+                const t = (now - t0) / 1000;
+                let anyActive = false;
+
+                for (const band of bands) {
+                    if (!band.dataUrl) continue;
+                    if (!mapInstance.getLayer || !mapInstance.getLayer(band.layerId)) continue;
+
+                    const vis = mapInstance.getLayoutProperty
+                        ? mapInstance.getLayoutProperty(band.layerId, 'visibility')
+                        : 'visible';
+                    if (vis === 'none') continue; // viewMode === 'numeric' — слой скрыт
+
+                    anyActive = true;
+                    // «Дыхание» 0..1: sin в диапазоне [0.35, 1.0] от baseOpacity
+                    const breath = 0.5 + 0.5 * Math.sin(t * band.speed * 2 * Math.PI + band.phase);
+                    const opacity = band.baseOpacity * (0.35 + 0.65 * breath);
+
+                    try {
+                        mapInstance.setPaintProperty(band.layerId, 'raster-opacity', opacity);
+                    } catch (_) { /* слой уже удалён */ }
+                }
+
+                mapInstance.__pollutionPulseRafId = anyActive ? requestAnimationFrame(tick) : null;
+            };
+
+            mapInstance.__pollutionPulseRafId = requestAnimationFrame(tick);
+        };
 
         const applyMacroLayer = () => {
             if (!mapInstance || !mapInstance.getSource) return;
@@ -721,110 +788,78 @@ export default function MapComponent({
                 ? MICRO_LAYER_ID
                 : 'map-marker';
 
+            // --- Макро-слой (без изменений) ---
             if (existingSource) {
                 if (typeof existingSource.updateImage === 'function') {
-                    existingSource.updateImage({
-                        url: dataUrl,
-                        coordinates: coords
-                    });
+                    existingSource.updateImage({ url: dataUrl, coordinates: coords });
                 } else if (mapInstance.removeLayer && mapInstance.removeSource) {
                     if (mapInstance.getLayer && mapInstance.getLayer(MACRO_LAYER_ID)) {
                         mapInstance.removeLayer(MACRO_LAYER_ID);
                     }
                     mapInstance.removeSource(MACRO_SOURCE_ID);
-                    mapInstance.addSource(MACRO_SOURCE_ID, {
-                        type: 'image',
-                        url: dataUrl,
-                        coordinates: coords
-                    });
+                    mapInstance.addSource(MACRO_SOURCE_ID, { type: 'image', url: dataUrl, coordinates: coords });
                     mapInstance.addLayer({
                         id: MACRO_LAYER_ID,
                         type: 'raster',
                         source: MACRO_SOURCE_ID,
-                        layout: {
-                            visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
-                        },
-                        paint: {
-                            'raster-opacity': 0.70,
-                            'raster-fade-duration': 300
-                        }
+                        layout: { visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible' },
+                        paint: { 'raster-opacity': 0.70, 'raster-fade-duration': 300 }
                     }, beforeLayerId);
                 }
             } else {
-                mapInstance.addSource(MACRO_SOURCE_ID, {
-                    type: 'image',
-                    url: dataUrl,
-                    coordinates: coords
-                });
-
+                mapInstance.addSource(MACRO_SOURCE_ID, { type: 'image', url: dataUrl, coordinates: coords });
                 mapInstance.addLayer({
                     id: MACRO_LAYER_ID,
                     type: 'raster',
                     source: MACRO_SOURCE_ID,
-                    layout: {
-                        visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
-                    },
-                    paint: {
-                        'raster-opacity': 0.70,
-                        'raster-fade-duration': 300
-                    }
+                    layout: { visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible' },
+                    paint: { 'raster-opacity': 0.70, 'raster-fade-duration': 300 }
                 }, beforeLayerId);
             }
 
-            // Управление пульсирующим слоем загрязнения макро-сетки (41-100+)
-            if (pollutionDataUrl) {
-                const existingPollutionSource = mapInstance.getSource(MACRO_POLLUTION_SOURCE_ID);
-                if (existingPollutionSource) {
-                    if (typeof existingPollutionSource.updateImage === 'function') {
-                        existingPollutionSource.updateImage({
-                            url: pollutionDataUrl,
-                            coordinates: coords
-                        });
+            // --- Пульсирующие слои по диапазонам ---
+            bands.forEach(band => {
+                if (!band.dataUrl) {
+                    // нет пикселей в этом диапазоне — прячем слой, если он был
+                    if (mapInstance.getLayer && mapInstance.getLayer(band.layerId) && mapInstance.setLayoutProperty) {
+                        mapInstance.setLayoutProperty(band.layerId, 'visibility', 'none');
+                    }
+                    return;
+                }
+
+                const existingBandSource = mapInstance.getSource(band.sourceId);
+
+                if (existingBandSource) {
+                    if (typeof existingBandSource.updateImage === 'function') {
+                        existingBandSource.updateImage({ url: band.dataUrl, coordinates: coords });
                     } else if (mapInstance.removeLayer && mapInstance.removeSource) {
-                        if (mapInstance.getLayer && mapInstance.getLayer(MACRO_POLLUTION_LAYER_ID)) {
-                            mapInstance.removeLayer(MACRO_POLLUTION_LAYER_ID);
+                        if (mapInstance.getLayer(band.layerId)) {
+                            mapInstance.removeLayer(band.layerId);
                         }
-                        mapInstance.removeSource(MACRO_POLLUTION_SOURCE_ID);
-                        mapInstance.addSource(MACRO_POLLUTION_SOURCE_ID, {
-                            type: 'image',
-                            url: pollutionDataUrl,
-                            coordinates: coords
-                        });
+                        mapInstance.removeSource(band.sourceId);
+                        mapInstance.addSource(band.sourceId, { type: 'image', url: band.dataUrl, coordinates: coords });
                         mapInstance.addLayer({
-                            id: MACRO_POLLUTION_LAYER_ID,
+                            id: band.layerId,
                             type: 'raster',
-                            source: MACRO_POLLUTION_SOURCE_ID,
-                            layout: {
-                                visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
-                            },
-                            paint: {
-                                'raster-opacity': 0.70,
-                                'raster-fade-duration': 200
-                            }
+                            source: band.sourceId,
+                            layout: { visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible' },
+                            paint: { 'raster-opacity': band.baseOpacity, 'raster-fade-duration': 200 }
                         }, beforeLayerId);
                     }
                 } else {
-                    mapInstance.addSource(MACRO_POLLUTION_SOURCE_ID, {
-                        type: 'image',
-                        url: pollutionDataUrl,
-                        coordinates: coords
-                    });
+                    mapInstance.addSource(band.sourceId, { type: 'image', url: band.dataUrl, coordinates: coords });
                     mapInstance.addLayer({
-                        id: MACRO_POLLUTION_LAYER_ID,
+                        id: band.layerId,
                         type: 'raster',
-                        source: MACRO_POLLUTION_SOURCE_ID,
-                        layout: {
-                            visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible'
-                        },
-                        paint: {
-                            'raster-opacity': 0.70,
-                            'raster-fade-duration': 200
-                        }
+                        source: band.sourceId,
+                        layout: { visibility: viewModeRef.current === 'numeric' ? 'none' : 'visible' },
+                        paint: { 'raster-opacity': band.baseOpacity, 'raster-fade-duration': 200 }
                     }, beforeLayerId);
                 }
-            } else if (mapInstance.getLayer && mapInstance.getLayer(MACRO_POLLUTION_LAYER_ID) && typeof mapInstance.setLayoutProperty === 'function') {
-                mapInstance.setLayoutProperty(MACRO_POLLUTION_LAYER_ID, 'visibility', 'none');
-            }
+            });
+
+            // Стартуем / перезапускаем пульсацию после того, как слои точно добавлены
+            startPollutionPulse();
         };
 
         runWhenStyleReady(mapInstance, () => {
