@@ -23,7 +23,7 @@ export function getAqiWeightBoost(val) {
     }
     // Линейно-плавный рост от 1.0 при 40 до 2.5 при 110+
     const t = Math.min(1.0, (val - 40) / 70);
-    return 1.0 + (3.0 * t) ** 2;
+    return 1.0 + (3.0 * t);
 }
 
 /**
