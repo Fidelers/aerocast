@@ -24,8 +24,32 @@ const SCALE_RANGES = [
   { range: '100+', min: 101, max: Infinity, level: 'hazardous' },
 ];
 
-export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen = false, onClose, isColorBlind = false }) {
+export default function RightAirPanel({
+  airData,
+  selectedTimeIndex = 0,
+  isOpen = false,
+  onClose,
+  isColorBlind = false,
+  initialGridMode = '3x2'
+}) {
   const [selectedKey, setSelectedKey] = useState('pm2_5');
+  const [gridMode, setGridMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aerocast_pollutants_grid');
+      if (saved === '3x2' || saved === '2x3') return saved;
+    }
+    return initialGridMode;
+  });
+
+  const handleGridModeChange = (mode) => {
+    setGridMode(mode);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('aerocast_pollutants_grid', mode);
+      } catch {
+      }
+    }
+  };
 
   const panelRef = useRef(null);
   const isDraggingRef = useRef(false);
@@ -400,32 +424,74 @@ export default function RightAirPanel({ airData, selectedTimeIndex = 0, isOpen =
         </div>
       </div>
 
-      {/* Список 6 загрязнителей */}
-      <div className="pollutants-list">
-        {POLLUTANTS_LIST.map((item) => {
-          const rawVal = airData.hourly?.[item.apiKey]?.[selectedTimeIndex];
-          const assessment = getPollutantAssessment(item.key, rawVal, { colorBlind: isColorBlind });
-          const hasVal = rawVal !== undefined && rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal));
-
-          return (
+      {/* РЕДИЗАЙН: Блок 6 загрязнителей в виде сетки маленьких прямоугольников */}
+      <div className="pollutants-section">
+        <div className="pollutants-section__header">
+          <span className="pollutants-section__title">Основные загрязнители (6)</span>
+          <div className="pollutants-grid-toggle" role="group" aria-label="Выбор сетки загрязнителей">
             <button
-              key={item.key}
               type="button"
-              className={'pollutant-row' + (selectedKey === item.key ? ' pollutant-row--selected' : '')}
-              onClick={() => setSelectedKey(item.key)}
-              onMouseEnter={() => setSelectedKey(item.key)}
+              className={'grid-toggle-btn' + (gridMode === '3x2' ? ' grid-toggle-btn--active' : '')}
+              onClick={() => handleGridModeChange('3x2')}
+              title="Сетка 3 × 2 (3 карточки в ряд)"
+              data-testid="grid-toggle-3x2"
+              aria-pressed={gridMode === '3x2'}
             >
-              <span className="pollutant-formula">{item.label}</span>
-              <span className="pollutant-value">{hasVal ? `${rawVal} \u03BCg/m\u00B3` : '—'}</span>
-              <span
-                className="pollutant-badge"
-                style={{ backgroundColor: assessment.color }}
-              >
-                {assessment.label}
-              </span>
+              3 × 2
             </button>
-          );
-        })}
+            <button
+              type="button"
+              className={'grid-toggle-btn' + (gridMode === '2x3' ? ' grid-toggle-btn--active' : '')}
+              onClick={() => handleGridModeChange('2x3')}
+              title="Сетка 2 × 3 (2 карточки в ряд)"
+              data-testid="grid-toggle-2x3"
+              aria-pressed={gridMode === '2x3'}
+            >
+              2 × 3
+            </button>
+          </div>
+        </div>
+
+        <div
+          className={`pollutants-grid pollutants-list ${
+            gridMode === '3x2' ? 'pollutants-grid--3cols' : 'pollutants-grid--2cols'
+          }`}
+          data-testid="pollutants-grid"
+        >
+          {POLLUTANTS_LIST.map((item) => {
+            const rawVal = airData.hourly?.[item.apiKey]?.[selectedTimeIndex];
+            const assessment = getPollutantAssessment(item.key, rawVal, { colorBlind: isColorBlind });
+            const hasVal = rawVal !== undefined && rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal));
+
+            return (
+              <button
+                key={item.key}
+                type="button"
+                data-key={item.key}
+                data-level={assessment.level}
+                className={
+                  'pollutant-tile pollutant-row' +
+                  (selectedKey === item.key ? ' pollutant-tile--selected pollutant-row--selected' : '')
+                }
+                style={{ borderColor: assessment.color }}
+                onClick={() => setSelectedKey(item.key)}
+                onMouseEnter={() => setSelectedKey(item.key)}
+                aria-label={`${item.label}: ${hasVal ? rawVal : 'нет данных'}, норма: ${assessment.label}`}
+              >
+                <div className="tile-main">
+                  <span className="tile-formula pollutant-formula">{item.label}</span>
+                  <span className="tile-value pollutant-value">{hasVal ? `${rawVal} \u03BCg/m\u00B3` : '—'}</span>
+                </div>
+                <span
+                  className="tile-badge pollutant-badge"
+                  style={{ backgroundColor: assessment.color }}
+                >
+                  {assessment.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Карточка "Общ инф" выбранного вещества */}

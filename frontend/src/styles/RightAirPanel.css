@@ -4,7 +4,10 @@
   bottom: 0;
   right: 0;
   
-  width: 285px;
+  width: 300px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  overflow-x: hidden;
   
   background-color: var(--bg);
   border: 1px solid var(--border);
@@ -174,73 +177,282 @@
   border-radius: 3px;
 }
 
-.pollutants-list {
-  padding: 4px 0;
-  display: flex;
-  flex-direction: column;
+/* ==========================================================================
+   БЛОК ВЕЩЕСТВ: МАЛЕНЬКИЕ ПРЯМОУГОЛЬНИКИ С КОНТУРОМ НОРМЫ (РЕДИЗАЙН)
+   ========================================================================== */
+.pollutants-section {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--sidebar-divider);
 }
 
-.pollutant-row {
+.pollutants-section__header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 6px 14px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pollutants-section__title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pollutants-grid-toggle {
+  display: flex;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.grid-toggle-btn {
   background: transparent;
   border: none;
-  border-left: 3px solid transparent;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 7px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.15s;
-  text-align: left;
+  line-height: 1.2;
+  transition: all 0.15s ease;
+  font-family: var(--inter);
+}
+
+.grid-toggle-btn:hover {
+  color: var(--text-h);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.grid-toggle-btn--active {
+  background-color: var(--primary);
+  color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+}
+
+/* Сетка карточек-прямоугольников */
+.pollutants-grid {
+  display: grid;
+  gap: 6px;
+  width: 100%;
   box-sizing: border-box;
 }
 
-.pollutant-row:hover {
+/* Сетка 3 × 2 (3 карточки в ряд) */
+.pollutants-grid--3cols {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Сетка 2 × 3 (2 карточки в ряд) */
+.pollutants-grid--2cols {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Маленький прямоугольник (карточка загрязнителя) */
+.pollutant-tile {
   background-color: var(--surface-secondary);
-}
-
-.pollutant-row--selected {
-  background-color: var(--primary-subtle);
-  border-left-color: var(--primary);
-}
-
-.pollutant-formula {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text-h);
-  width: 40px;
-}
-
-.pollutant-value {
-  flex: 1;
-  font-size: 12px;
-  font-family: var(--mono);
-  color: var(--text);
-  text-align: right;
-  margin-right: 8px;
-}
-
-.pollutant-badge {
-  font-size: 9px;
-  font-weight: 600;
-  padding: 2px 5px;
   border-radius: 8px;
-  color: #000;
-  min-width: 50px;
+  padding: 7px 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  white-space: nowrap;
-  line-height: 1.2;
-  text-transform: lowercase;
+  position: relative;
+  user-select: none;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, background-color 0.18s ease;
+  border: 1.5px solid var(--border);
+  box-sizing: border-box;
+  outline: none;
+  width: 100%;
+  font-family: var(--inter);
 }
 
+.pollutant-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.pollutant-tile--selected,
+.pollutant-row--selected {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary), 0 4px 12px rgba(59, 130, 246, 0.25) !important;
+  transform: translateY(-1px);
+}
+
+.tile-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.tile-formula,
+.pollutant-formula {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin-bottom: 2px;
+  line-height: 1.1;
+}
+
+.tile-value,
+.pollutant-value {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: var(--text-h);
+  line-height: 1.2;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.tile-badge,
+.pollutant-badge {
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1.15;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
+  width: calc(100% - 4px);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
+  text-align: center;
+  color: #000;
+}
+
+/* -------------------------------------------------------------
+   ЦВЕТ НОРМЫ: КОНТУР + ЛЕГКИЙ АКЦЕНТ ФОНА
+   ------------------------------------------------------------- */
+.pollutant-tile[data-level="excellent"] {
+  border-color: var(--c-excellent, #4CAF50);
+  background: linear-gradient(180deg, rgba(76, 175, 80, 0.08) 0%, var(--surface-secondary) 100%);
+}
+.pollutant-tile[data-level="excellent"] .tile-badge,
+.pollutant-tile[data-level="excellent"] .pollutant-badge {
+  background-color: var(--c-excellent, #4CAF50);
+  color: #000;
+}
+
+.pollutant-tile[data-level="good"] {
+  border-color: var(--c-good, #8BC34A);
+  background: linear-gradient(180deg, rgba(139, 195, 74, 0.08) 0%, var(--surface-secondary) 100%);
+}
+.pollutant-tile[data-level="good"] .tile-badge,
+.pollutant-tile[data-level="good"] .pollutant-badge {
+  background-color: var(--c-good, #8BC34A);
+  color: #000;
+}
+
+.pollutant-tile[data-level="fair"] {
+  border-color: var(--c-fair, #FFC107);
+  background: linear-gradient(180deg, rgba(255, 193, 7, 0.08) 0%, var(--surface-secondary) 100%);
+}
+.pollutant-tile[data-level="fair"] .tile-badge,
+.pollutant-tile[data-level="fair"] .pollutant-badge {
+  background-color: var(--c-fair, #FFC107);
+  color: #000;
+}
+
+.pollutant-tile[data-level="poor"] {
+  border-color: var(--c-poor, #FF9800);
+  background: linear-gradient(180deg, rgba(255, 152, 0, 0.08) 0%, var(--surface-secondary) 100%);
+}
+.pollutant-tile[data-level="poor"] .tile-badge,
+.pollutant-tile[data-level="poor"] .pollutant-badge {
+  background-color: var(--c-poor, #FF9800);
+  color: #000;
+}
+
+.pollutant-tile[data-level="very-poor"],
+.pollutant-tile[data-level="veryPoor"] {
+  border-color: var(--c-very-poor, #F44336);
+  background: linear-gradient(180deg, rgba(244, 67, 54, 0.1) 0%, var(--surface-secondary) 100%);
+}
+.pollutant-tile[data-level="very-poor"] .tile-badge,
+.pollutant-tile[data-level="veryPoor"] .tile-badge,
+.pollutant-tile[data-level="very-poor"] .pollutant-badge,
+.pollutant-tile[data-level="veryPoor"] .pollutant-badge {
+  background-color: var(--c-very-poor, #F44336);
+  color: #fff;
+}
+
+.pollutant-tile[data-level="hazardous"],
+.pollutant-tile[data-level="haz"] {
+  border-color: var(--c-hazardous, #9C27B0);
+  background: linear-gradient(180deg, rgba(156, 39, 176, 0.1) 0%, var(--surface-secondary) 100%);
+}
+.pollutant-tile[data-level="hazardous"] .tile-badge,
+.pollutant-tile[data-level="haz"] .tile-badge,
+.pollutant-tile[data-level="hazardous"] .pollutant-badge,
+.pollutant-tile[data-level="haz"] .pollutant-badge {
+  background-color: var(--c-hazardous, #9C27B0);
+  color: #fff;
+}
+
+.pollutant-tile[data-level="unknown"] {
+  border-color: var(--border);
+  background: var(--surface-secondary);
+}
+.pollutant-tile[data-level="unknown"] .tile-badge,
+.pollutant-tile[data-level="unknown"] .pollutant-badge {
+  background-color: #9E9E9E;
+  color: #000;
+}
+
+/* Особенности для сетки 2 × 3 */
+.pollutants-grid--2cols .pollutant-tile {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.pollutants-grid--2cols .tile-main {
+  align-items: flex-start;
+  width: auto;
+}
+
+.pollutants-grid--2cols .tile-formula,
+.pollutants-grid--2cols .pollutant-formula {
+  margin-bottom: 1px;
+}
+
+.pollutants-grid--2cols .tile-value,
+.pollutants-grid--2cols .pollutant-value {
+  margin-bottom: 0;
+  font-size: 11.5px;
+}
+
+.pollutants-grid--2cols .tile-badge,
+.pollutants-grid--2cols .pollutant-badge {
+  width: auto;
+  min-width: 52px;
+  padding: 3px 6px;
+  font-size: 9px;
+}
+
+/* Блок "Общая информация": высота оптимизирована для сохранения габаритов панели */
 .general-info-card {
   margin: 6px 12px 10px;
   padding: 8px 10px;
   background-color: var(--surface-secondary);
   border-radius: 8px;
   border: 1px solid var(--border);
-  height: 240px;
+  height: 250px;
+  min-height: 250px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .general-info-card__heading {
@@ -370,27 +582,44 @@
     font-size: 10px;
   }
 
-  .pollutants-list {
-    padding: 6px 0;
+  .pollutants-section {
+    padding: 10px 18px;
   }
 
-  .pollutant-row {
-    padding: 7px 18px;
-  }
-
-  .pollutant-formula {
-    font-size: 15px;
-    width: 48px;
-  }
-
-  .pollutant-value {
-    font-size: 14px;
-    margin-right: 10px;
-  }
-
-  .pollutant-badge {
+  .pollutants-section__title {
     font-size: 11px;
-    padding: 3px 8px;
+  }
+
+  .grid-toggle-btn {
+    font-size: 11px;
+    padding: 3px 9px;
+  }
+
+  .pollutants-grid {
+    gap: 8px;
+  }
+
+  .pollutant-tile {
+    padding: 9px 6px;
+    border-radius: 10px;
+  }
+
+  .tile-formula,
+  .pollutant-formula {
+    font-size: 14px;
+    width: auto;
+  }
+
+  .tile-value,
+  .pollutant-value {
+    font-size: 13px;
+    margin-right: 0;
+  }
+
+  .tile-badge,
+  .pollutant-badge {
+    font-size: 10px;
+    padding: 3px 6px;
     min-width: 58px;
   }
 
@@ -542,9 +771,13 @@
     padding: 10px 16px;
   }
 
-  .pollutant-row {
+  .pollutants-section {
     padding: 8px 16px;
-    min-height: 44px;
+  }
+
+  .pollutant-tile {
+    padding: 8px 6px;
+    min-height: 48px;
   }
 
   .general-info-card {
