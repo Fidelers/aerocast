@@ -230,8 +230,10 @@ describe('Controller: gridAirController', () => {
             }));
         });
 
-        it('если макросетка в кэше свежая по TTL (в т.ч. сохранённая перед полночью), не запрашивает Open-Meteo повторно', async () => {
-            // Свежая макросетка: cached_date вчерашний, но TTL ещё валиден -> отдаётся из кэша без вызова API
+        it('если getTodayMacroGrid подтверждает актуальность кэша (покрытие сегодня+3 / сохранён сегодня), не запрашивает Open-Meteo повторно', async () => {
+            // Свежая макросетка подтверждена сервисом кэша -> повторного запроса к API нет.
+            // Само правило свежести (покрытие прогноза на 3 дня вперёд) проверяется в
+            // tests/services/spatialCacheService.test.js (getTodayMacroGrid/coversForecastHorizon)
             const freshMacro = {
                 type: 'macro',
                 points_count: 550,
@@ -311,6 +313,67 @@ describe('Controller: gridAirController', () => {
                 type: 'micro',
                 used_source: 'offline_database',
                 points: staleGrid.points
+            }));
+        });
+
+        it('макросетка: при недоступном Open-Meteo берёт прошлые/устаревшие точки из кэша и отдаёт 200 offline_database', async () => {
+            // Кэш за вчера/позавчера не проходит проверку «сегодня+3» -> обычный кэш-промах
+            spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // candidate-ветка: промах
+
+            // Основной сервис лежит (таймаут 2000 мс)
+            batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('timeout of 2000ms exceeded'));
+
+            // Устаревшая макросетка в кэше (ignoreTTL = true) — её надо отрисовать
+            const staleMacro = {
+                type: 'macro',
+                points_count: 550,
+                used_source: 'open-meteo',
+                cached_date: '2026-10-18',
+                time: ['2026-10-12T00:00', '2026-10-22T23:00'],
+                points: [{ lat: 55.75, lon: 37.61, european_aqi: [22] }]
+            };
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(staleMacro);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            // Офлайн-резерв запрошен именно с ignoreTTL = true
+            expect(spatialCacheService.getSpatialCache).toHaveBeenNthCalledWith(2, 'grid_macro_russia', true);
+            expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalledTimes(1);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'macro',
+                used_source: 'offline_database',
+                points: staleMacro.points
+            }));
+        });
+
+        it('макросетка: пустой ответ Open-Meteo не кешируется — уходит в офлайн-резерв с точками', async () => {
+            spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // candidate-ветка: промах
+
+            // API ответил, но без точек/времени — рисовать нечего, кешировать нельзя
+            batchAirService.normalizeBatchResponse.mockReturnValue({ time: [], points: [] });
+
+            const staleMacro = {
+                type: 'macro',
+                points: [{ lat: 55.75, lon: 37.61, european_aqi: [30] }],
+                time: ['2026-10-12T00:00', '2026-10-22T23:00']
+            };
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(staleMacro);
+
+            req.query = { type: 'macro' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            // Пустая сетка не записана в кэш
+            expect(spatialCacheService.setSpatialCache).not.toHaveBeenCalled();
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'macro',
+                used_source: 'offline_database',
+                points: staleMacro.points
             }));
         });
 

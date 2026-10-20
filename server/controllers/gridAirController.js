@@ -89,6 +89,16 @@ async function getGridAirQuality(req, res) {
             const rawResponse = await batchAirService.fetchBatchAirQuality(coordinates);
             const normalized = batchAirService.normalizeBatchResponse(rawResponse, coordinates);
 
+            // Макросетка без точек/времени непригодна для отрисовки и не должна попадать в кэш:
+            // считаем ответ сбоем, чтобы сработать ветку офлайн-резерва (устаревший кэш)
+            if (type === 'macro') {
+                const hasPoints = Array.isArray(normalized?.points) && normalized.points.length > 0;
+                const hasTime = Array.isArray(normalized?.time) && normalized.time.length > 0;
+                if (!hasPoints || !hasTime) {
+                    throw new Error('Open-Meteo returned an empty macro grid');
+                }
+            }
+
             const todayStr = timeUtils.getTodayDateString();
             const now = Date.now();
 
@@ -116,15 +126,28 @@ async function getGridAirQuality(req, res) {
 
 
         } catch (fetchError) {
-            //при сбое проверяем наличие устаревшего кэшща
+            // Основной сервис (Open-Meteo) недоступен или вернул непригодные данные.
+            // Явно уходим в офлайн-резерв: берём прошлые/устаревшие точки из кэша
+            // (SQLite ignoreTTL=true, при недоступности БД — in-memory кэш процесса),
+            // чтобы макросетка всё равно отрисовалась на карте.
+            console.warn(
+                'Сбой запроса к Open-Meteo, пробуем устаревший кэш:',
+                fetchError?.message || fetchError
+            );
         try {
             const staleGrid = await spatialCacheService.getSpatialCache(cacheKey, true);
+            const hasStalePoints = Array.isArray(staleGrid?.points) && staleGrid.points.length > 0;
+
+            if (hasStalePoints) {
+                const stalePayload = {
+                    ...staleGrid,
+                    used_source: 'offline_database'
+                };
+                return res.status(200).json(stalePayload);
+            }
+
             if (staleGrid) {
-            const stalePayload = {
-                ...staleGrid,
-                used_source: 'offline_database'
-            };
-            return res.status(200).json(stalePayload);
+                console.warn('Устаревший кэш найден, но не содержит точек — считаем его промахом офлайн-резерва');
             }
         } catch (staleErr) {
             console.error('Ошибка чтения устаревшего кэша:', staleErr);

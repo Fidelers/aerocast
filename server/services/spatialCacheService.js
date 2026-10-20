@@ -36,42 +36,63 @@ function quantizeCoordinates(lat, lon, step = 0.2) {
     };
 }
 
+// Любой сбой даёт null — кэш в этом случае уходит во in-memory запас и сервер продолжает работать.
+// ВАЖНО: getDB() — async-функция, возвращающая Promise. Без await обращение к db.get/db.run
+// падало с TypeError, ошибка молча глоталась catch'ем, и пространственный кэш НИКОГДА не попадал
+// в файл cache.db — после перезапуска сервера все сетки терялись.
+async function getDbOrNull() {
+    try {
+        const db = await dbConfig.getDB();
+        return db || null;
+    } catch (_) {
+        return null;
+    }
+}
+
+// Чтение из in-memory запаса процесса (fallback при недоступности/пустой SQLite)
+function readMemCache(cacheKey, ignoreTTL = false) {
+    const entry = _memCache.get(cacheKey);
+    if (!entry) return null;
+    if (!ignoreTTL && Date.now() >= entry.expiresAt) {
+        _memCache.delete(cacheKey);
+        return null;
+    }
+    return entry.data;
+}
+
 async function getSpatialCache(cacheKey, ignoreTTL = false) {
     try {
-        const db = dbConfig.getDB();
+        const db = await getDbOrNull();
 
-        //in-memory fallback
-        if (!db) {
-            const entry = _memCache.get(cacheKey);
-            if (!entry) return null;
-            if (!ignoreTTL && Date.now() >= entry.expiresAt) {
-                _memCache.delete(cacheKey);
-                return null;
+        if (db) {
+            const row = await db.get(
+                'SELECT data, expires_at FROM api_cache WHERE key = ?',
+                [cacheKey]
+            );
+
+            if (row) {
+                if (!ignoreTTL && Date.now() >= row.expires_at) return null;
+                try {
+                    return JSON.parse(row.data);
+                } catch (_) {
+                    // Битый JSON: обычное чтение — это промах,
+                    // офлайн-резерв (ignoreTTL) пытается прочитать из памяти
+                    if (!ignoreTTL) return null;
+                }
+            } else if (!ignoreTTL) {
+                return null; // промах по БД в обычном режиме (БД — источник истины)
             }
-            return entry.data;
-        }
-        const row = await db.get(
-            'SELECT data, expires_at FROM api_cache WHERE key = ?',
-            [cacheKey]
-        );
 
-        if (!row) return null;
-        if (!ignoreTTL && Date.now() >= row.expires_at) return null;
-
-        try {
-            return JSON.parse(row.data);
-        } catch (_) {
-            return null;
+            // Офлайн-резерв (ignoreTTL = true): записи в БД нет (например, запись не удалась
+            // или строка была удалена) — обязательно пробуем in-memory кэш процесса, иначе
+            // при недоступном Open-Meteo сетка не отрисовывается вовсе
+            return readMemCache(cacheKey, true);
         }
-    } catch {
-        const entry = _memCache.get(cacheKey);
-        if (!entry) return null;
-        if (!ignoreTTL && Date.now() >= entry.expiresAt) {
-            _memCache.delete(cacheKey);
-            return null;
-        }
-        return entry.data;
+    } catch (_) {
+        // БД недоступна — используем in-memory запас ниже
     }
+
+    return readMemCache(cacheKey, ignoreTTL);
 }
 
 
@@ -84,11 +105,10 @@ async function setSpatialCache(cacheKey, gridData, ttlSeconds = 3600) {
     _memCache.set(cacheKey, { data: gridData, expiresAt, updatedAt: now });
 
     try {
-        const db = dbConfig.getDB();
+        const db = await getDbOrNull();
 
-        
         if (!db) return;
-        
+
         await db.run(
             'INSERT OR REPLACE INTO api_cache (key, data, expires_at, updated_at) VALUES (?, ?, ?, ?)',
             [cacheKey, serialized, expiresAt, now]
@@ -98,7 +118,7 @@ async function setSpatialCache(cacheKey, gridData, ttlSeconds = 3600) {
             [sevenDaysAgo]
         );
     } catch {
-
+        // Сбой БД не должен ломать запрос: данные уже лежат в in-memory кэше
     }
 }
 
@@ -115,55 +135,50 @@ async function clearSpatialCache(pattern = 'grid_%') {
     }
 
     try {
-        const db = dbConfig.getDB();
+        const db = await getDbOrNull();
         if (!db) return memDeleted;
 
         const result = await db.run('DELETE FROM api_cache WHERE key LIKE ?', [pattern]);
         return result?.changes ?? 0;
     } catch {
+        return memDeleted;
     }
 }
 
 // Извлекает запись кэша вместе с метаданными времени обновления
 async function getSpatialCacheEntry(cacheKey) {
     try {
-        const db = dbConfig.getDB();
+        const db = await getDbOrNull();
 
-        if (!db) {
-            const entry = _memCache.get(cacheKey);
-            if (!entry) return null;
-            return {
-                data: entry.data,
-                expiresAt: entry.expiresAt,
-                updatedAt: entry.updatedAt || entry.expiresAt
-            };
+        if (db) {
+            const row = await db.get(
+                'SELECT data, expires_at, updated_at FROM api_cache WHERE key = ?',
+                [cacheKey]
+            );
+
+            if (!row) return null;
+
+            try {
+                return {
+                    data: JSON.parse(row.data),
+                    expiresAt: row.expires_at,
+                    updatedAt: row.updated_at
+                };
+            } catch (_) {
+                return null;
+            }
         }
-
-        const row = await db.get(
-            'SELECT data, expires_at, updated_at FROM api_cache WHERE key = ?',
-            [cacheKey]
-        );
-
-        if (!row) return null;
-
-        try {
-            return {
-                data: JSON.parse(row.data),
-                expiresAt: row.expires_at,
-                updatedAt: row.updated_at
-            };
-        } catch (_) {
-            return null;
-        }
-    } catch {
-        const entry = _memCache.get(cacheKey);
-        if (!entry) return null;
-        return {
-            data: entry.data,
-            expiresAt: entry.expiresAt,
-            updatedAt: entry.updatedAt || entry.expiresAt
-        };
+    } catch (_) {
+        // БД недоступна — используем in-memory запас ниже
     }
+
+    const entry = _memCache.get(cacheKey);
+    if (!entry) return null;
+    return {
+        data: entry.data,
+        expiresAt: entry.expiresAt,
+        updatedAt: entry.updatedAt || entry.expiresAt
+    };
 }
 
 // Проверяет, была ли запись кэша сохранена сегодня в Europe/Moscow
@@ -183,27 +198,57 @@ function isRecordSavedToday(record, updatedAt) {
     return true;
 }
 
-// Возвращает макросетку, если она ещё свежая по TTL или сохранена за сегодня.
-// Проверка TTL имеет приоритет над календарным днём: сетка, загруженная перед
-// полночью, не считается устаревшей только из-за смены даты. Это предотвращает
-// лишний запрос к Open-Meteo ровно в 00:00, когда API часто недоступно.
+// Горизонт прогноза макросетки: batchAirService запрашивает Open-Meteo с forecast_days=4,
+// т.е. сегодня + 3 дня вперёд (264 часа = 7 суток архива + 4 суток прогноза).
+const MACRO_COVER_DAYS_AHEAD = 3;
+
+// Дата последнего часа, покрытого сеткой ("ГГГГ-ММ-ДД"), либо null, если массива time нет
+function getGridLastCoveredDate(gridData) {
+    const time = gridData?.time;
+    if (!Array.isArray(time) || time.length === 0) return null;
+    const lastDate = String(time[time.length - 1] || '').slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(lastDate) ? lastDate : null;
+}
+
+// Покрывает ли сетка прогноз как минимум на 3 дня вперёд от сегодняшнего дня (Europe/Moscow).
+// Пример (сегодня 20-е): сетка, загруженная вчера, заканчивается 22-м числом -> false (нужен
+// новый запрос к Open-Meteo за точками на будущее); сетка, загруженная сегодня, заканчивается
+// 23-м числом (сегодня+3) -> true, её можно отдавать из кэша вплоть до конца дня, в том числе
+// после перезапуска сервера.
+function coversForecastHorizon(gridData) {
+    const lastCoveredDate = getGridLastCoveredDate(gridData);
+    if (!lastCoveredDate) return false;
+    const requiredDate = timeUtils.getTodayDateString(
+        Date.now() + MACRO_COVER_DAYS_AHEAD * 24 * 60 * 60 * 1000
+    );
+    // Строки "ГГГГ-ММ-ДД" корректно сравниваются лексикографически
+    return lastCoveredDate >= requiredDate;
+}
+
+// Возвращает макросетку из кэша, только если она пригодна для отрисовки сегодня:
+// 1) покрывает прогноз как минимум на 3 дня вперёд (сегодня + 3) — основное правило;
+// 2) иначе — запись без массива time (legacy), сохранённая сегодня (Europe/Moscow).
+// TTL намеренно НЕ является основанием: сетка, загруженная вчера (пусть ещё в пределах
+// TTL), покрывает только сегодня+2 и НЕ отдаётся — первый запрос в новый день гарантированно
+// забирает свежие точки у Open-Meteo. Если API в этот момент недоступен, контроллер сетки
+// отдаёт устаревший кэш с пометкой offline_database (см. gridAirController).
 async function getTodayMacroGrid(cacheKey = 'grid_macro_russia') {
     const entry = await getSpatialCacheEntry(cacheKey);
     if (!entry || !entry.data) return null;
 
-    const now = Date.now();
+    const data = entry.data;
 
-    // Если TTL ещё не истёк, данные свежие — отдаём их независимо от смены календарного дня
-    if (entry.expiresAt && now < entry.expiresAt) {
-        return entry.data;
+    if (coversForecastHorizon(data)) return data;
+
+    // Legacy-записи без time: ориентируемся на дату сохранения.
+    // Записи с time, но без покрытия горизонта, считаются устаревшими (иначе
+    // повторный запрос к API при усечённом прогнозе не происходил бы вовсе).
+    if (getGridLastCoveredDate(data) === null && !Array.isArray(data.time)
+        && isRecordSavedToday(data, entry.updatedAt)) {
+        return data;
     }
 
-    // Иначе — только если запись сохранена именно сегодня (принудительное обновление со сменой суток)
-    if (!isRecordSavedToday(entry.data, entry.updatedAt)) {
-        return null;
-    }
-
-    return entry.data;
+    return null;
 }
 
 // Проверяет факт наличия сохраненной макросетки за сегодня (в этот день)
@@ -220,6 +265,7 @@ module.exports = {
     getSpatialCacheEntry,
     isRecordSavedToday,
     getTodayMacroGrid,
-    isMacroGridSavedToday
+    isMacroGridSavedToday,
+    coversForecastHorizon
 };
 
