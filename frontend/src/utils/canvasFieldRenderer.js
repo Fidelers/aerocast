@@ -17,8 +17,8 @@ const COLOR_STOPS = Object.freeze([
     Object.freeze({ aqi: 30,  r: 76,  g: 175, b: 80  }),  // #4CAF50 граница отлично
     Object.freeze({ aqi: 38,  r: 212, g: 225, b: 87  }),  // #D4E157 жёлто-зелёный
     Object.freeze({ aqi: 42,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый
-    Object.freeze({ aqi: 65,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый (плато, 32 ед.)
-    Object.freeze({ aqi: 66, r: 255, g: 152, b: 0   }),  // #FF9800 оранжевый
+    Object.freeze({ aqi: 60,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый (плато, 32 ед.)
+    Object.freeze({ aqi: 61, r: 255, g: 152, b: 0   }),  // #FF9800 оранжевый
     Object.freeze({ aqi: 95, r: 244, g: 67,  b: 54  }),  // #F44336 красный
     Object.freeze({ aqi: 100, r: 213, g: 0,   b: 0   })   // #D50000 опасно
 ]);
