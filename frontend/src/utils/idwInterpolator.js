@@ -152,7 +152,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
         useMercator = true,
-        boostPolluted = true
+        boostPolluted = false
     } = options;
 
     const validPoints = sanitizePoints(points, timeIndex);
@@ -236,7 +236,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
         useMercator = true,
-        boostPolluted = true
+        boostPolluted = false
     } = options;
 
     const totalPixels = width * height;
