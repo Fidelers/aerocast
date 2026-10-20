@@ -18,8 +18,7 @@ const COLOR_STOPS = Object.freeze([
     Object.freeze({ aqi: 38,  r: 212, g: 225, b: 87  }),  // #D4E157 жёлто-зелёный
     Object.freeze({ aqi: 42,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый
     Object.freeze({ aqi: 65,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый (плато, 32 ед.)
-    Object.freeze({ aqi: 69,  r: 255, g: 193, b: 7   }),  // #FFC107 янтарный
-    Object.freeze({ aqi: 85, r: 255, g: 152, b: 0   }),  // #FF9800 оранжевый
+    Object.freeze({ aqi: 66, r: 255, g: 152, b: 0   }),  // #FF9800 оранжевый
     Object.freeze({ aqi: 95, r: 244, g: 67,  b: 54  }),  // #F44336 красный
     Object.freeze({ aqi: 100, r: 213, g: 0,   b: 0   })   // #D50000 опасно
 ]);
@@ -32,8 +31,7 @@ export const COLORBLIND_COLOR_STOPS = Object.freeze([
     Object.freeze({ aqi: 38,  r: 86,  g: 180, b: 233 }),  // #56B4E9 голубой — хорошо
     Object.freeze({ aqi: 42,  r: 240, g: 228, b: 66  }),  // #F0E442 жёлтый — удовлетворительно
     Object.freeze({ aqi: 65,  r: 240, g: 228, b: 66  }),  // #F0E442 жёлтый (плато, 29 ед.)
-    Object.freeze({ aqi: 69,  r: 230, g: 159, b: 0   }),  // #E69F00 оранжевый — плохо
-    Object.freeze({ aqi: 85,  r: 213, g: 94,  b: 0   }),  // #D55E00 вермильон — очень плохо
+    Object.freeze({ aqi: 66,  r: 213, g: 94,  b: 0   }),  // #D55E00 вермильон — очень плохо
     Object.freeze({ aqi: 95,  r: 204, g: 121, b: 167 }),  // #CC79A7 розово-пурпурный
     Object.freeze({ aqi: 100, r: 123, g: 50,  b: 148 })   // #7B3294 фиолетовый — опасно
 ]);
