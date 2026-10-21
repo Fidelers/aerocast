@@ -195,6 +195,32 @@ describe('Forecast Badge (Плашка «Прогноз» на карте)', () 
             expect(badge.getAttribute('title')).toBeTruthy();
         });
     });
+
+    it('7. Плашка прогноза на 18:00 автоматически исчезает при наступлении 18:01 без смены времени пользователем', async () => {
+        // Время 17:59 — на 18:00 плашка прогноза видна
+        const { container, rerender } = render(<App referenceDate={new Date('2026-10-21T17:59:00')} />);
+
+        await waitFor(() => {
+            expect(container.querySelector('.days')).toBeTruthy();
+        });
+
+        const btn18 = Array.from(container.querySelectorAll('.times .time')).find(
+            (b) => b.textContent.trim() === '18:00'
+        );
+        expect(btn18).toBeTruthy();
+        fireEvent.click(btn18);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('forecast-badge')).toBeTruthy();
+        });
+
+        // Наступает 18:01:00 (тот же выбранный час 18:00 стал текущим/прошедшим)
+        rerender(<App referenceDate={new Date('2026-10-21T18:01:00')} />);
+
+        await waitFor(() => {
+            expect(screen.queryByTestId('forecast-badge')).toBeNull();
+        });
+    });
 });
 
 describe('isForecastTime unit tests', () => {

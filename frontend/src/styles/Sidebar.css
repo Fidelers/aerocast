@@ -254,19 +254,24 @@ h2 {
   color: var(--text-muted);
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, transform 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .sidebar__settings-btn:hover {
   background-color: var(--accent-bg);
   color: var(--text-h);
-  transform: rotate(30deg);
 }
 
 .sidebar__settings-icon {
   width: 20px;
   height: 20px;
   display: block;
+  transition: transform 0.3s ease;
+  transform-origin: center;
+}
+
+.sidebar__settings-btn:hover .sidebar__settings-icon {
+  transform: rotate(45deg);
 }
 
 .sidebar__info-btn {

@@ -30,6 +30,47 @@ function App({ referenceDate } = {}) {
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+    // Реактивное текущее время: авто-синхронизация при смене минут/часов и возврате на вкладку
+    const [currentTime, setCurrentTime] = useState(() => referenceDate || new Date());
+
+    useEffect(() => {
+        if (referenceDate) {
+            setCurrentTime(referenceDate);
+            return;
+        }
+
+        const updateClock = () => {
+            setCurrentTime(new Date());
+        };
+
+        // Немедленное обновление при возврате на вкладку / фокусе окна
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                updateClock();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', updateClock);
+
+        // 1. Периодический интервал каждые 30 секунд
+        const intervalId = setInterval(updateClock, 30000);
+
+        // 2. Дополнительный точный таймер на границу следующей минуты (xx:xx:00)
+        const nowMs = Date.now();
+        const delayToNextMinute = Math.max(500, 60000 - (nowMs % 60000));
+        const timeoutId = setTimeout(updateClock, delayToNextMinute);
+
+        return () => {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', updateClock);
+        };
+    }, [referenceDate]);
+
+    const activeReferenceDate = referenceDate || currentTime;
+
     // Состояние уведомления о клике за пределы зоны покрытия цветовой сетки
     const [coverageWarning, setCoverageWarning] = useState(null);
     const [isCoverageWarningVisible, setIsCoverageWarningVisible] = useState(false);
@@ -185,7 +226,7 @@ function App({ referenceDate } = {}) {
                     }
 
                     if (targetIndex === null) {
-                        targetIndex = findDefaultTimeIndex(data.hourly.time, referenceDate || new Date());
+                        targetIndex = findDefaultTimeIndex(data.hourly.time, activeReferenceDate);
                     }
 
                     setSelectedTimeIndex(targetIndex);
@@ -256,13 +297,13 @@ function App({ referenceDate } = {}) {
     // Определение: выбран ли прогноз (будущий день или будущий час сегодняшнего дня)
     const isForecast = useMemo(() => {
         if (!selectedIsoTime) return false;
-        return isForecastTime(selectedIsoTime, referenceDate || new Date());
-    }, [selectedIsoTime, referenceDate]);
+        return isForecastTime(selectedIsoTime, activeReferenceDate);
+    }, [selectedIsoTime, activeReferenceDate]);
 
     return (
         <div className="layout">
             <Sidebar
-                referenceDate={referenceDate}
+                referenceDate={activeReferenceDate}
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
                 onSelectTime={handleSelectTime}
