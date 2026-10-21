@@ -534,3 +534,115 @@ describe('RightAirPanel — граничные случаи данных', () =>
         expect(rows[1].className).toContain('pollutant-row--selected');
     });
 });
+
+describe('RightAirPanel — выбор сетки (3x2 / 2x3) и цветной контур нормы', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        cleanup();
+        localStorage.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('1. По умолчанию отображает сетку 3 × 2 (3 карточки в ряд) с активной кнопкой', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        const btn3x2 = screen.getByTestId('grid-toggle-3x2');
+        const btn2x3 = screen.getByTestId('grid-toggle-2x3');
+        expect(btn3x2).toBeTruthy();
+        expect(btn2x3).toBeTruthy();
+
+        expect(btn3x2.classList.contains('grid-toggle-btn--active')).toBe(true);
+        expect(btn3x2.getAttribute('aria-pressed')).toBe('true');
+        expect(btn2x3.classList.contains('grid-toggle-btn--active')).toBe(false);
+
+        const grid = container.querySelector('.pollutants-grid');
+        expect(grid.classList.contains('pollutants-grid--3cols')).toBe(true);
+        expect(grid.classList.contains('pollutants-grid--2cols')).toBe(false);
+    });
+
+    it('2. Переключает сетку на 2 × 3 при клике на соответствующую кнопку и сохраняет в localStorage', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        const btn2x3 = screen.getByTestId('grid-toggle-2x3');
+        fireEvent.click(btn2x3);
+
+        const grid = container.querySelector('.pollutants-grid');
+        expect(grid.classList.contains('pollutants-grid--2cols')).toBe(true);
+        expect(grid.classList.contains('pollutants-grid--3cols')).toBe(false);
+        expect(btn2x3.classList.contains('grid-toggle-btn--active')).toBe(true);
+        expect(btn2x3.getAttribute('aria-pressed')).toBe('true');
+
+        expect(localStorage.getItem('aerocast_pollutants_grid')).toBe('2x3');
+
+        // Переключаем обратно на 3x2
+        const btn3x2 = screen.getByTestId('grid-toggle-3x2');
+        fireEvent.click(btn3x2);
+        expect(grid.classList.contains('pollutants-grid--3cols')).toBe(true);
+        expect(localStorage.getItem('aerocast_pollutants_grid')).toBe('3x2');
+    });
+
+    it('3. Инициализирует сетку из сохраненного значения в localStorage', () => {
+        localStorage.setItem('aerocast_pollutants_grid', '2x3');
+
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        const grid = container.querySelector('.pollutants-grid');
+        expect(grid.classList.contains('pollutants-grid--2cols')).toBe(true);
+        expect(screen.getByTestId('grid-toggle-2x3').classList.contains('grid-toggle-btn--active')).toBe(true);
+    });
+
+    it('4. Каждая карточка выделена цветным контуром (borderColor) и имеет атрибут data-level', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        const tiles = container.querySelectorAll('.pollutant-tile');
+        expect(tiles.length).toBe(6);
+
+        tiles.forEach((tile) => {
+            const level = tile.getAttribute('data-level');
+            expect(level).toBeTruthy();
+            expect(tile.style.borderColor).toBeTruthy();
+        });
+
+        // PM2.5 = 15 -> Хорошо -> #8BC34A
+        const pm25Tile = container.querySelector('.pollutant-tile[data-key="pm2_5"]');
+        expect(pm25Tile.getAttribute('data-level')).toBe('good');
+        expect(pm25Tile.style.borderColor).toBe('rgb(139, 195, 74)');
+    });
+
+    it('5. В режиме дальтоников контур карточки использует палитру Okabe-Ito', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} isColorBlind={true} />
+        );
+
+        // PM2.5 = 15 -> Хорошо в Okabe-Ito -> #56B4E9
+        const pm25Tile = container.querySelector('.pollutant-tile[data-key="pm2_5"]');
+        expect(pm25Tile.style.borderColor).toBe('rgb(86, 180, 233)');
+    });
+
+    it('6. Устойчив к ошибкам localStorage при переключении сетки', () => {
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new Error('QuotaExceededError');
+        });
+
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        const btn2x3 = screen.getByTestId('grid-toggle-2x3');
+        expect(() => fireEvent.click(btn2x3)).not.toThrow();
+
+        const grid = container.querySelector('.pollutants-grid');
+        expect(grid.classList.contains('pollutants-grid--2cols')).toBe(true);
+    });
+});

@@ -138,6 +138,25 @@ describe('Service: spatialCacheService (Пространственное кэш�
             const result = await spatialCacheService.getSpatialCache(key);
             expect(result).toBeNull();
         });
+
+        it('офлайн-резерв (ignoreTTL=true): если записи нет в SQLite, читает из in-memory кэша процесса', async () => {
+            // Прод-сценарий: запись в БД не удалась/строки нет, TTL истёк, а Open-Meteo лежит —
+            // макросетка всё равно должна отдаваться из памяти процесса, а не превращаться в 500
+            const offlineKey = 'grid_offline_mem_fallback';
+            const offlineData = { type: 'macro', points: [{ lat: 55.75, lon: 37.61, european_aqi: [20] }] };
+
+            dbConfig.getDB.mockReturnValue(Promise.resolve(mockDb)); // как в проде
+            mockDb.run.mockResolvedValue({ changes: 1 });
+            await spatialCacheService.setSpatialCache(offlineKey, offlineData, 10);
+
+            mockDb.get.mockResolvedValue(undefined); // строки в БД нет
+            jest.advanceTimersByTime(11 * 1000); // TTL истёк
+
+            // Обычное чтение — промах по БД (БД источник истины)
+            expect(await spatialCacheService.getSpatialCache(offlineKey, false)).toBeNull();
+            // Офлайн-резерв — отдаёт данные из памяти несмотря на истёкший TTL
+            expect(await spatialCacheService.getSpatialCache(offlineKey, true)).toEqual(offlineData);
+        });
     });
 
     describe('3. setSpatialCache(cacheKey, gridData, ttlSeconds)', () => {
@@ -177,6 +196,34 @@ describe('Service: spatialCacheService (Пространственное кэш�
                 'INSERT OR REPLACE INTO api_cache (key, data, expires_at, updated_at) VALUES (?, ?, ?, ?)',
                 [key, JSON.stringify(sampleGridData), expectedExpiresAt, Date.now()]
             );
+        });
+
+        it('пишет в SQLite, когда getDB() возвращает Promise (как в проде) — кэш переживает перезапуск сервера', async () => {
+            // В проде getDB() — async-функция: без await обращение к db.run/db.get падало,
+            // ошибка молча глоталась, и запись терялась (после рестарта в cache.db пусто)
+            dbConfig.getDB.mockReturnValue(Promise.resolve(mockDb));
+            mockDb.run.mockResolvedValue({ changes: 1 });
+
+            await spatialCacheService.setSpatialCache(key, sampleGridData, 86400);
+
+            expect(mockDb.run).toHaveBeenNthCalledWith(1,
+                'INSERT OR REPLACE INTO api_cache (key, data, expires_at, updated_at) VALUES (?, ?, ?, ?)',
+                [key, JSON.stringify(sampleGridData), expect.any(Number), expect.any(Number)]
+            );
+
+            // Чтение также работает через Promise-соединение
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify(sampleGridData),
+                expires_at: Date.now() + 86400 * 1000,
+                updated_at: Date.now()
+            });
+
+            const result = await spatialCacheService.getSpatialCache(key);
+            expect(result).toEqual(sampleGridData);
+
+            const entry = await spatialCacheService.getSpatialCacheEntry(key);
+            expect(entry).not.toBeNull();
+            expect(entry.data).toEqual(sampleGridData);
         });
     });
 
@@ -298,21 +345,56 @@ describe('Service: spatialCacheService (Пространственное кэш�
             expect(isSaved).toBe(true);
         });
 
-        it('возвращает сетку, если TTL ещё не истек, даже когда cached_date вчерашний (TTL приоритетнее смены дня)', async () => {
-            // Текущее время: 2026-10-09 15:00 Мск; кэш сохранён вчера (2026-10-08), но TTL ещё валиден
+        it('TTL ещё валиден, но сетка загружена вчера (покрывает только сегодня+2) — возвращает null: нужны свежие точки на будущее', async () => {
+            // Текущее время: 2026-10-09 15:00 Мск; кэш сохранён вчера (2026-10-08),
+            // прогноз заканчивается 2026-10-11 = сегодня+2, а нужно сегодня+3 (2026-10-12)
             const yesterdayMs = Date.now() - 24 * 3600 * 1000;
             mockDb.get.mockResolvedValue({
-                data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-08' }),
-                expires_at: Date.now() + 3600 * 1000, // TTL ещё не истек
+                data: JSON.stringify({
+                    ...sampleMacro,
+                    cached_date: '2026-10-08',
+                    time: ['2026-10-02T00:00', '2026-10-11T23:00'] // покрытие до 2026-10-11 включительно
+                }),
+                expires_at: Date.now() + 3600 * 1000, // TTL ещё валиден, но он больше не основание
                 updated_at: yesterdayMs
+            });
+
+            const result = await spatialCacheService.getTodayMacroGrid(key);
+            expect(result).toBeNull();
+
+            const isSaved = await spatialCacheService.isMacroGridSavedToday(key);
+            expect(isSaved).toBe(false);
+        });
+
+        it('сетка, покрывающая прогноз до сегодня+3 (2026-10-12T23:00), отдаётся из кэша даже с истёкшим TTL', async () => {
+            // Сценарий: сетка загружена сегодня, сервер перезагрузили — чтение идёт только из
+            // SQLite (in-memory пуст); покрытие "сегодня+3" делает запись действительной
+            mockDb.get.mockResolvedValue({
+                data: JSON.stringify({
+                    ...sampleMacro,
+                    cached_date: '2026-10-09',
+                    time: ['2026-10-02T00:00', '2026-10-12T23:00'] // сегодня (09-е) + 3 дня = 12-е
+                }),
+                expires_at: Date.now() - 1000, // TTL истёк — покрытие важнее TTL
+                updated_at: Date.now()
             });
 
             const result = await spatialCacheService.getTodayMacroGrid(key);
             expect(result).not.toBeNull();
             expect(result.type).toBe('macro');
+            expect(await spatialCacheService.isMacroGridSavedToday(key)).toBe(true);
+        });
 
-            const isSaved = await spatialCacheService.isMacroGridSavedToday(key);
-            expect(isSaved).toBe(true);
+        it('coversForecastHorizon: true для покрытия сегодня+3, false для сегодня+2 и без массива time', () => {
+            const timeUtils = require('../../services/timeUtils');
+            const todayPlus3 = timeUtils.getTodayDateString(Date.now() + 3 * 24 * 3600 * 1000);
+            const todayPlus2 = timeUtils.getTodayDateString(Date.now() + 2 * 24 * 3600 * 1000);
+
+            expect(spatialCacheService.coversForecastHorizon({ time: [`${todayPlus3}T23:00`] })).toBe(true);
+            expect(spatialCacheService.coversForecastHorizon({ time: ['2000-01-01T00:00', `${todayPlus2}T23:00`] })).toBe(false);
+            expect(spatialCacheService.coversForecastHorizon({ points: [] })).toBe(false);
+            expect(spatialCacheService.coversForecastHorizon({ time: [] })).toBe(false);
+            expect(spatialCacheService.coversForecastHorizon(null)).toBe(false);
         });
 
         it('возвращает null, если TTL истек и макросетка сохранена во вчерашний день (требуется актуализация)', async () => {

@@ -23,7 +23,7 @@ export function getAqiWeightBoost(val) {
     }
     // Линейно-плавный рост от 1.0 при 40 до 2.5 при 110+
     const t = Math.min(1.0, (val - 40) / 70);
-    return 1.0 + (3.0 * t);
+    return 1.0 + (1.5 * t);
 }
 
 /**
@@ -152,7 +152,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
         useMercator = true,
-        boostPolluted = true
+        boostPolluted = false
     } = options;
 
     const validPoints = sanitizePoints(points, timeIndex);
@@ -236,7 +236,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
         useMercator = true,
-        boostPolluted = true
+        boostPolluted = false
     } = options;
 
     const totalPixels = width * height;
