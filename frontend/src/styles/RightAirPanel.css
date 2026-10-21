@@ -443,6 +443,69 @@
 }
 
 /* Блок "Общая информация": высота оптимизирована для сохранения габаритов панели */
+
+/* Фиксация плитки загрязнителя по клику */
+.pollutant-tile--pinned,
+.pollutant-row--pinned {
+  box-shadow: 0 0 0 2px var(--primary), 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+  transform: translateY(-2px);
+}
+
+.tile-pin-indicator {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  animation: pinPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes pinPopIn {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.general-info-card__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.general-info-card__header-row .general-info-card__heading {
+  margin: 0;
+}
+
+.general-info-card__pinned-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--primary);
+  background-color: var(--primary-subtle, rgba(37, 99, 235, 0.12));
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.2px;
+  animation: pinPopIn 0.18s ease-out;
+  user-select: none;
+}
+
 .general-info-card {
   margin: 6px 12px 10px;
   padding: 8px 10px;

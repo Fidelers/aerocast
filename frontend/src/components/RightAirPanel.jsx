@@ -30,9 +30,26 @@ export default function RightAirPanel({
   isOpen = false,
   onClose,
   isColorBlind = false,
-  initialGridMode = '2x3'
+  initialGridMode = '2x3',
+  initialPinnedKey = null
 }) {
-  const [selectedKey, setSelectedKey] = useState('pm2_5');
+  const [selectedKey, setSelectedKey] = useState(initialPinnedKey || 'pm2_5');
+  const [pinnedKey, setPinnedKey] = useState(initialPinnedKey);
+
+  const handleTileClick = (key) => {
+    if (pinnedKey === key) {
+      setPinnedKey(null);
+    } else {
+      setPinnedKey(key);
+      setSelectedKey(key);
+    }
+  };
+
+  const handleTileMouseEnter = (key) => {
+    if (!pinnedKey) {
+      setSelectedKey(key);
+    }
+  };
   const [gridMode, setGridMode] = useState(() => {
     // if (typeof window !== 'undefined') {
     //   const saved = localStorage.getItem('aerocast_pollutants_grid');
@@ -462,6 +479,8 @@ export default function RightAirPanel({
             const rawVal = airData.hourly?.[item.apiKey]?.[selectedTimeIndex];
             const assessment = getPollutantAssessment(item.key, rawVal, { colorBlind: isColorBlind });
             const hasVal = rawVal !== undefined && rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal));
+            const isPinned = pinnedKey === item.key;
+            const isSelected = selectedKey === item.key;
 
             return (
               <button
@@ -469,15 +488,35 @@ export default function RightAirPanel({
                 type="button"
                 data-key={item.key}
                 data-level={assessment.level}
+                data-pinned={isPinned ? 'true' : undefined}
+                aria-pressed={isPinned}
                 className={
                   'pollutant-tile pollutant-row' +
-                  (selectedKey === item.key ? ' pollutant-tile--selected pollutant-row--selected' : '')
+                  (isSelected ? ' pollutant-tile--selected pollutant-row--selected' : '') +
+                  (isPinned ? ' pollutant-tile--pinned pollutant-row--pinned' : '')
                 }
                 style={{ borderColor: assessment.color }}
-                onClick={() => setSelectedKey(item.key)}
-                onMouseEnter={() => setSelectedKey(item.key)}
-                aria-label={`${item.label}: ${hasVal ? rawVal : 'нет данных'}, норма: ${assessment.label}`}
+                onClick={() => handleTileClick(item.key)}
+                onMouseEnter={() => handleTileMouseEnter(item.key)}
+                title={
+                  isPinned
+                    ? `${item.label} зафиксирован (кликните, чтобы открепить)`
+                    : `${item.label}: ${hasVal ? rawVal : 'нет данных'}, норма: ${assessment.label}. Кликните для фиксации`
+                }
+                aria-label={`${item.label}: ${hasVal ? rawVal : 'нет данных'}, норма: ${assessment.label}${isPinned ? ', зафиксировано' : ''}`}
               >
+                {isPinned && (
+                  <span
+                    className="tile-pin-indicator"
+                    title="Зафиксировано"
+                    aria-hidden="true"
+                    data-testid={`pin-indicator-${item.key}`}
+                  >
+                    <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor">
+                      <path d="M16 3a1 1 0 0 1 .1 1.99L16 5v4.59l1.7 1.7a1 1 0 0 1 .3.71v1a1 1 0 0 1-1 1h-5v6a1 1 0 0 1-1.99.1L10 20v-6H5a1 1 0 0 1-1-1v-1a1 1 0 0 1 .3-.71l1.7-1.7V5a1 1 0 0 1 .1-1.99L6 3h10z" />
+                    </svg>
+                  </span>
+                )}
                 <div className="tile-main">
                   <span className="tile-formula pollutant-formula">{item.label}</span>
                   <span className="tile-value pollutant-value">{hasVal ? `${rawVal} \u03BCg/m\u00B3` : '—'}</span>
@@ -496,7 +535,21 @@ export default function RightAirPanel({
 
       {/* Карточка "Общ инф" выбранного вещества */}
       <div className="general-info-card fade-in" key={selectedKey}>
-        <h4 className="general-info-card__heading">Общая информация</h4>
+        <div className="general-info-card__header-row">
+          <h4 className="general-info-card__heading">Общая информация</h4>
+          {pinnedKey === selectedKey && (
+            <span
+              className="general-info-card__pinned-tag"
+              data-testid="general-info-pinned-tag"
+              title="Вещество зафиксировано (кликните по плитке, чтобы открепить)"
+            >
+              <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor" aria-hidden="true">
+                <path d="M16 3a1 1 0 0 1 .1 1.99L16 5v4.59l1.7 1.7a1 1 0 0 1 .3.71v1a1 1 0 0 1-1 1h-5v6a1 1 0 0 1-1.99.1L10 20v-6H5a1 1 0 0 1-1-1v-1a1 1 0 0 1 .3-.71l1.7-1.7V5a1 1 0 0 1 .1-1.99L6 3h10z" />
+              </svg>
+              Зафиксировано
+            </span>
+          )}
+        </div>
         <div className="info-title">{currentMeta.name}</div>
         <p className="info-description">{currentMeta.description}</p>
         <div className="info-sources">

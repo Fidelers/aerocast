@@ -8,6 +8,7 @@ import RightAirPanel from './components/RightAirPanel';
 import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString, formatDateKey, isForecastTime } from './utils/timeUtils';
 import useAirGrid from './hooks/useAirGrid';
+import { isPointInCoverage } from './utils/russiaBoundary2026';
 
 const DEFAULT_COORDS = {
     lat: 53.7596,
@@ -28,6 +29,41 @@ function App({ referenceDate } = {}) {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+    // Состояние уведомления о клике за пределы зоны покрытия цветовой сетки
+    const [coverageWarning, setCoverageWarning] = useState(null);
+    const [isCoverageWarningVisible, setIsCoverageWarningVisible] = useState(false);
+    const warningTimerRef = useRef(null);
+    const warningFadeTimerRef = useRef(null);
+
+    const hideCoverageWarning = useCallback(() => {
+        if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+        if (warningFadeTimerRef.current) clearTimeout(warningFadeTimerRef.current);
+        setIsCoverageWarningVisible(false);
+        setCoverageWarning(null);
+    }, []);
+
+    const showCoverageWarning = useCallback((message) => {
+        if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+        if (warningFadeTimerRef.current) clearTimeout(warningFadeTimerRef.current);
+
+        setCoverageWarning(message);
+        setIsCoverageWarningVisible(true);
+
+        warningTimerRef.current = setTimeout(() => {
+            setIsCoverageWarningVisible(false);
+            warningFadeTimerRef.current = setTimeout(() => {
+                setCoverageWarning(null);
+            }, 300);
+        }, 5000);
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+            if (warningFadeTimerRef.current) clearTimeout(warningFadeTimerRef.current);
+        };
+    }, []);
 
     // Управление темой сайта (тёмная / светлая)
     const [theme, setTheme] = useState(() => {
@@ -141,7 +177,7 @@ function App({ referenceDate } = {}) {
                     }
 
                     if (targetIndex === null) {
-                        targetIndex = findDefaultTimeIndex(data.hourly.time);
+                        targetIndex = findDefaultTimeIndex(data.hourly.time, referenceDate || new Date());
                     }
 
                     setSelectedTimeIndex(targetIndex);
@@ -170,6 +206,8 @@ function App({ referenceDate } = {}) {
 
     const handleLocationSelect = (loc, maybeLon) => {
         setIsMobileSidebarOpen(false);
+        let targetLat = null;
+        let targetLon = null;
         if (typeof loc === 'object' && loc !== null) {
             if (loc.lat == null || loc.lon == null) {
                 setCoords({ lat: null, lon: null });
@@ -178,6 +216,8 @@ function App({ referenceDate } = {}) {
             const lat = Number(loc.lat);
             const lon = Number(loc.lon);
             if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                targetLat = lat;
+                targetLon = lon;
                 setCoords({ lat, lon });
                 setRecenterTrigger((prev) => prev + 1);
             }
@@ -189,8 +229,18 @@ function App({ referenceDate } = {}) {
             const lat = Number(loc);
             const lon = Number(maybeLon);
             if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                targetLat = lat;
+                targetLon = lon;
                 setCoords({ lat, lon });
                 setRecenterTrigger((prev) => prev + 1);
+            }
+        }
+
+        if (targetLat !== null && targetLon !== null) {
+            if (!isPointInCoverage(targetLat, targetLon)) {
+                showCoverageWarning('Эта территория не находится в пределах покрытия цветовым отображением');
+            } else {
+                hideCoverageWarning();
             }
         }
     };
@@ -261,6 +311,46 @@ function App({ referenceDate } = {}) {
                     >
                         <span className="forecast-badge__dot" aria-hidden="true" />
                         <span className="forecast-badge__label">Прогноз</span>
+                    </div>
+                )}
+                {coverageWarning && (
+                    <div
+                        className={`coverage-notification ${isCoverageWarningVisible ? 'coverage-notification--visible' : 'coverage-notification--hiding'}`}
+                        role="alert"
+                        data-testid="coverage-notification"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <svg
+                            className="coverage-notification__icon"
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span className="coverage-notification__text">
+                            {coverageWarning}
+                        </span>
+                        <button
+                            type="button"
+                            className="coverage-notification__close"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                hideCoverageWarning();
+                            }}
+                            aria-label="Закрыть уведомление"
+                            data-testid="coverage-notification-close"
+                        >
+                            &times;
+                        </button>
                     </div>
                 )}
                 <MapComponent
