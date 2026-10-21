@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import '../styles/SettingsModal.css';
 
 // Стандартные цвета шкалы EAQI
-const STANDARD_PALETTE = [
+export const STANDARD_PALETTE = [
   { range: '0–20', color: '#4CAF50', label: 'Отлично', textColor: '#ffffff' },
   { range: '21–40', color: '#8BC34A', label: 'Хорошо', textColor: '#000000' },
   { range: '41–60', color: '#FFEB3B', label: 'Удовл.', textColor: '#000000' },
@@ -12,15 +12,52 @@ const STANDARD_PALETTE = [
   { range: '100+', color: '#D50000', label: 'Опасно', textColor: '#ffffff' }
 ];
 
-// Доступная палитра для людей с цветовой слепотой (Okabe-Ito / ColorBrewer)
-const COLORBLIND_PALETTE = [
-  { range: '0–20', color: '#0072B2', label: 'Отлично', textColor: '#ffffff' },
-  { range: '21–40', color: '#56B4E9', label: 'Хорошо', textColor: '#000000' },
-  { range: '41–60', color: '#F0E442', label: 'Удовл.', textColor: '#000000' },
-  { range: '61–80', color: '#E69F00', label: 'Плохо', textColor: '#000000' },
-  { range: '81–100', color: '#D55E00', label: 'Очень плохо', textColor: '#ffffff' },
-  { range: '100+', color: '#7B3294', label: 'Опасно', textColor: '#ffffff' }
+// Доступные виды дальтонизма (цветовой слепоты)
+export const COLORBLIND_TYPES = [
+  { id: 'okabe', label: 'Окабе' },
+  { id: 'deuteranopia', label: 'Дейтеранопия' },
+  { id: 'protanopia', label: 'Протанопия' },
+  { id: 'tritanopia', label: 'Тританопия' }
 ];
+
+// Палитры для каждого вида дальтонизма
+export const COLORBLIND_PALETTES = {
+  okabe: [
+    { range: '0–20', color: '#0072B2', label: 'Отлично', textColor: '#ffffff' },
+    { range: '21–40', color: '#56B4E9', label: 'Хорошо', textColor: '#000000' },
+    { range: '41–60', color: '#F0E442', label: 'Удовл.', textColor: '#000000' },
+    { range: '61–80', color: '#E69F00', label: 'Плохо', textColor: '#000000' },
+    { range: '81–100', color: '#D55E00', label: 'Очень плохо', textColor: '#ffffff' },
+    { range: '100+', color: '#7B3294', label: 'Опасно', textColor: '#ffffff' }
+  ],
+  deuteranopia: [
+    { range: '0–20', color: '#1E88E5', label: 'Отлично', textColor: '#ffffff' },
+    { range: '21–40', color: '#64B5F6', label: 'Хорошо', textColor: '#000000' },
+    { range: '41–60', color: '#FFF176', label: 'Удовл.', textColor: '#000000' },
+    { range: '61–80', color: '#FB8C00', label: 'Плохо', textColor: '#000000' },
+    { range: '81–100', color: '#8E24AA', label: 'Очень плохо', textColor: '#ffffff' },
+    { range: '100+', color: '#4A148C', label: 'Опасно', textColor: '#ffffff' }
+  ],
+  protanopia: [
+    { range: '0–20', color: '#0077BB', label: 'Отлично', textColor: '#ffffff' },
+    { range: '21–40', color: '#33BBEE', label: 'Хорошо', textColor: '#000000' },
+    { range: '41–60', color: '#EECC66', label: 'Удовл.', textColor: '#000000' },
+    { range: '61–80', color: '#EE7733', label: 'Плохо', textColor: '#000000' },
+    { range: '81–100', color: '#EE3377', label: 'Очень плохо', textColor: '#ffffff' },
+    { range: '100+', color: '#332288', label: 'Опасно', textColor: '#ffffff' }
+  ],
+  tritanopia: [
+    { range: '0–20', color: '#009E73', label: 'Отлично', textColor: '#ffffff' },
+    { range: '21–40', color: '#66C2A5', label: 'Хорошо', textColor: '#000000' },
+    { range: '41–60', color: '#FEE08B', label: 'Удовл.', textColor: '#000000' },
+    { range: '61–80', color: '#FF7043', label: 'Плохо', textColor: '#ffffff' },
+    { range: '81–100', color: '#E53935', label: 'Очень плохо', textColor: '#ffffff' },
+    { range: '100+', color: '#880E4F', label: 'Опасно', textColor: '#ffffff' }
+  ]
+};
+
+// Для обратной совместимости
+const COLORBLIND_PALETTE = COLORBLIND_PALETTES.okabe;
 
 export default function SettingsModal({
   isOpen,
@@ -28,7 +65,9 @@ export default function SettingsModal({
   theme,
   onThemeChange,
   isColorBlind,
-  onColorBlindChange
+  onColorBlindChange,
+  colorBlindType,
+  onColorBlindTypeChange
 }) {
   // Локальные состояния на случай использования компонента в автономном режиме
   const [localTheme, setLocalTheme] = useState(() => {
@@ -45,8 +84,14 @@ export default function SettingsModal({
     return localStorage.getItem('aerocast_colorblind') === 'true';
   });
 
+  const [localColorBlindType, setLocalColorBlindType] = useState(() => {
+    if (typeof window === 'undefined') return 'okabe';
+    return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
+  });
+
   const currentTheme = theme !== undefined ? theme : localTheme;
   const currentColorBlind = isColorBlind !== undefined ? isColorBlind : localColorBlind;
+  const currentColorBlindType = colorBlindType !== undefined ? colorBlindType : localColorBlindType;
 
   // Закрытие окна по клавише Escape
   useEffect(() => {
@@ -85,14 +130,32 @@ export default function SettingsModal({
       setLocalColorBlind(nextCB);
       if (typeof window !== 'undefined') {
         document.documentElement.setAttribute('data-colorblind', nextCB ? 'true' : 'false');
+        document.documentElement.setAttribute('data-colorblind-type', currentColorBlindType);
         localStorage.setItem('aerocast_colorblind', nextCB ? 'true' : 'false');
+        localStorage.setItem('aerocast_colorblind_type', currentColorBlindType);
+      }
+    }
+  };
+
+  const handleSelectColorBlindType = (typeId) => {
+    if (onColorBlindTypeChange) {
+      onColorBlindTypeChange(typeId);
+    } else {
+      setLocalColorBlindType(typeId);
+      if (typeof window !== 'undefined') {
+        document.documentElement.setAttribute('data-colorblind-type', typeId);
+        localStorage.setItem('aerocast_colorblind_type', typeId);
       }
     }
   };
 
   if (!isOpen) return null;
 
-  const activePalette = currentColorBlind ? COLORBLIND_PALETTE : STANDARD_PALETTE;
+  const activePalette = currentColorBlind
+    ? (COLORBLIND_PALETTES[currentColorBlindType] || COLORBLIND_PALETTES.okabe)
+    : STANDARD_PALETTE;
+
+  const currentTypeObj = COLORBLIND_TYPES.find((t) => t.id === currentColorBlindType) || COLORBLIND_TYPES[0];
 
   return (
     <div
@@ -193,7 +256,7 @@ export default function SettingsModal({
                 <span className="settings-item__title">Цветовая слепота</span>
               </div>
               <span className="settings-item__desc">
-                Высококонтрастная шкала для людей с нарушением цветовосприятия
+                Высококонтрастная шкала для людей с нарушением цветовосприятия (режим для дальтоников)
               </span>
             </div>
 
@@ -202,7 +265,7 @@ export default function SettingsModal({
               id="settings-colorblind-switch"
               role="switch"
               aria-checked={currentColorBlind}
-              aria-label="Переключить цветовую слепоту"
+              aria-label="Переключить режим для дальтоников (цветовая слепота)"
               data-testid="settings-colorblind-switch"
               className={`settings-switch ${currentColorBlind ? 'settings-switch--active' : ''}`}
               onClick={handleToggleColorBlind}
@@ -213,12 +276,42 @@ export default function SettingsModal({
             </button>
           </div>
 
+          {/* Выбор вида дальтонизма — отображается ТОЛЬКО если включен режим цветовой слепоты */}
+          {currentColorBlind && (
+            <div className="settings-colorblind-types" data-testid="settings-colorblind-types">
+              <div className="settings-colorblind-types__header">
+                <span className="settings-colorblind-types__title">Вид дальтонизма</span>
+              </div>
+              <div className="settings-colorblind-types__grid" role="radiogroup" aria-label="Вид дальтонизма">
+                {COLORBLIND_TYPES.map((type) => {
+                  const isSelected = currentColorBlindType === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      data-testid={`settings-colorblind-type-${type.id}`}
+                      className={`settings-colorblind-type-btn ${isSelected ? 'settings-colorblind-type-btn--active' : ''}`}
+                      onClick={() => handleSelectColorBlindType(type.id)}
+                    >
+                      <span className="settings-colorblind-type-btn__radio" aria-hidden="true">
+                        {isSelected && <span className="settings-colorblind-type-btn__radio-dot" />}
+                      </span>
+                      <span className="settings-colorblind-type-btn__label">{type.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Интерактивный предпросмотр активной палитры */}
           <div className="settings-preview">
             <div className="settings-preview__title">
               <span>Палитра шкалы воздуха</span>
               <span className="settings-preview__badge">
-                {currentColorBlind ? 'Режим доступности' : 'Стандартная'}
+                {currentColorBlind ? `Режим доступности: ${currentTypeObj.label}` : 'Стандартная'}
               </span>
             </div>
             <div className="settings-preview__palette" data-testid="settings-preview-palette">

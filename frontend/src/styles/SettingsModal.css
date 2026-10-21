@@ -230,6 +230,99 @@
   justify-content: center;
 }
 
+/* Блок выбора вида дальтонизма */
+.settings-colorblind-types {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background-color: var(--surface-secondary, #f8fafc);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  margin-top: -6px;
+  animation: settingsFadeIn 0.2s ease-out;
+}
+
+.settings-colorblind-types__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-colorblind-types__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #6b7280);
+}
+
+.settings-colorblind-types__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.settings-colorblind-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  background-color: var(--surface-card, #ffffff);
+  color: var(--text, #374151);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.settings-colorblind-type-btn:hover {
+  border-color: var(--border-hover, #93c5fd);
+  background-color: var(--surface-secondary, #f8fafc);
+}
+
+.settings-colorblind-type-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary, #2563eb);
+}
+
+.settings-colorblind-type-btn--active {
+  border-color: var(--primary, #2563eb);
+  background-color: var(--primary-subtle, rgba(37, 99, 235, 0.1));
+  color: var(--primary, #2563eb);
+  font-weight: 600;
+}
+
+.settings-colorblind-type-btn__radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease;
+}
+
+.settings-colorblind-type-btn__radio-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.settings-colorblind-type-btn__label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Блок предпросмотра палитры качества воздуха */
 .settings-preview {
   margin-top: 4px;
@@ -309,5 +402,14 @@
 
   .settings-item__desc {
     font-size: 11.5px;
+  }
+
+  .settings-colorblind-types {
+    padding: 10px 12px;
+  }
+
+  .settings-colorblind-type-btn {
+    padding: 7px 8px;
+    font-size: 12px;
   }
 }

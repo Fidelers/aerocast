@@ -30,6 +30,7 @@ export default function RightAirPanel({
   isOpen = false,
   onClose,
   isColorBlind = false,
+  colorBlindType = 'okabe',
   initialGridMode = '2x3',
   initialPinnedKey = null
 }) {
@@ -354,7 +355,7 @@ export default function RightAirPanel({
   const source = airData.used_source || 'open-meteo';
   const aqiRaw = airData.hourly?.european_aqi?.[selectedTimeIndex];
   const aqi = aqiRaw !== undefined && aqiRaw !== null && !isNaN(Number(aqiRaw)) ? Number(aqiRaw) : null;
-  const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind });
+  const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind, colorBlindType });
   const aqiRecommendationText = getAqiRecommendation(aqi);
 
   const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
@@ -477,7 +478,7 @@ export default function RightAirPanel({
         >
           {POLLUTANTS_LIST.map((item) => {
             const rawVal = airData.hourly?.[item.apiKey]?.[selectedTimeIndex];
-            const assessment = getPollutantAssessment(item.key, rawVal, { colorBlind: isColorBlind });
+            const assessment = getPollutantAssessment(item.key, rawVal, { colorBlind: isColorBlind, colorBlindType });
             const hasVal = rawVal !== undefined && rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal));
             const isPinned = pinnedKey === item.key;
             const isSelected = selectedKey === item.key;

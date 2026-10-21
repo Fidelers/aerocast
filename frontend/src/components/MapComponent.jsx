@@ -199,7 +199,8 @@ export default function MapComponent({
     macroGrid = null,
     microGrid = null,
     onViewportMove = null,
-    isColorBlind = false
+    isColorBlind = false,
+    colorBlindType = 'okabe'
 }) {
     const mapContainer = useRef(null);
     const map = useRef(null);
@@ -586,7 +587,7 @@ export default function MapComponent({
             return;
         }
 
-        const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind });
+        const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind, colorBlindType });
 
         // Создаем или обновляем DOM-элемент маркера
         let el = markerElementRef.current;
@@ -662,7 +663,7 @@ export default function MapComponent({
             //     popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
             // }
         }
-    }, [airData, selectedTimeIndex, viewMode, lat, lon, isColorBlind]);
+    }, [airData, selectedTimeIndex, viewMode, lat, lon, isColorBlind, colorBlindType]);
 
     // Эффект отрисовки и обновления макро-слоя (macroGrid) + пульсирующего слоя загрязнения (41-100+)
     useEffect(() => {
@@ -694,7 +695,8 @@ export default function MapComponent({
             maxRadius: 10,
             decayRadius: 0.30,
             bgVal: 20,
-            colorBlind: isColorBlind
+            colorBlind: isColorBlind,
+            colorBlindType
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
@@ -766,7 +768,8 @@ export default function MapComponent({
             maskPolygons: RUSSIA_BOUNDARIES_NORMALIZED,
             useMercator: true,
             onlyPollution: true,
-            colorBlind: isColorBlind
+            colorBlind: isColorBlind,
+            colorBlindType
         });
 // --- конец изменений ---
 
@@ -890,7 +893,7 @@ export default function MapComponent({
             applyMacroLayer();
             if (updateLodOpacityRef.current) updateLodOpacityRef.current();
         });
-    }, [macroGrid, selectedTimeIndex, selectedIsoTime, isColorBlind]);
+    }, [macroGrid, selectedTimeIndex, selectedIsoTime, isColorBlind, colorBlindType]);
 
     // Эффект отрисовки и обновления микро-слоя (microGrid)
     useEffect(() => {
@@ -939,7 +942,8 @@ export default function MapComponent({
             timeIndex,
             useMercator: true,
             zoneMode: true,
-            colorBlind: isColorBlind
+            colorBlind: isColorBlind,
+            colorBlindType
         });
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
@@ -953,7 +957,8 @@ export default function MapComponent({
             timeIndex,
             useMercator: true,
             onlyPollution: true,
-            colorBlind: isColorBlind
+            colorBlind: isColorBlind,
+            colorBlindType
         });
         const microPollutionDataUrl = (microPollutionResult?.hasPollution !== false) ? microPollutionResult?.toDataUrl() : null;
 
@@ -1089,7 +1094,7 @@ export default function MapComponent({
             applyMicroLayer();
             if (updateLodOpacityRef.current) updateLodOpacityRef.current();
         });
-    }, [microGrid, selectedTimeIndex, selectedIsoTime, isColorBlind]);
+    }, [microGrid, selectedTimeIndex, selectedIsoTime, isColorBlind, colorBlindType]);
 
     // Анимация пульсирования загрязненных зон (41-100+) на карте синхронно с маркером
     useEffect(() => {

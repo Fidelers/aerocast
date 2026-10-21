@@ -81,6 +81,12 @@ function App({ referenceDate } = {}) {
         return localStorage.getItem('aerocast_colorblind') === 'true';
     });
 
+    // Выбранный вид дальтонизма: okabe | deuteranopia | protanopia | tritanopia
+    const [colorBlindType, setColorBlindType] = useState(() => {
+        if (typeof window === 'undefined') return 'okabe';
+        return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
+    });
+
     useEffect(() => {
         if (typeof document !== 'undefined') {
             document.documentElement.setAttribute('data-theme', theme);
@@ -91,9 +97,11 @@ function App({ referenceDate } = {}) {
     useEffect(() => {
         if (typeof document !== 'undefined') {
             document.documentElement.setAttribute('data-colorblind', isColorBlind ? 'true' : 'false');
+            document.documentElement.setAttribute('data-colorblind-type', colorBlindType);
             localStorage.setItem('aerocast_colorblind', isColorBlind ? 'true' : 'false');
+            localStorage.setItem('aerocast_colorblind_type', colorBlindType);
         }
-    }, [isColorBlind]);
+    }, [isColorBlind, colorBlindType]);
 
     // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
@@ -366,6 +374,7 @@ function App({ referenceDate } = {}) {
                     activeBaseLayer={activeBaseLayer}
                     recenterTrigger={recenterTrigger}
                     isColorBlind={isColorBlind}
+                    colorBlindType={colorBlindType}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}
@@ -383,6 +392,8 @@ function App({ referenceDate } = {}) {
                 onThemeChange={setTheme}
                 isColorBlind={isColorBlind}
                 onColorBlindChange={setIsColorBlind}
+                colorBlindType={colorBlindType}
+                onColorBlindTypeChange={setColorBlindType}
             />
             <RightAirPanel
                 airData={airData}
@@ -391,6 +402,7 @@ function App({ referenceDate } = {}) {
                 onClose={() => setIsRightPanelOpen(false)}
                 onOpen={() => setIsRightPanelOpen(true)}
                 isColorBlind={isColorBlind}
+                colorBlindType={colorBlindType}
             />
             {!isRightPanelOpen && (
                 <button
