@@ -607,6 +607,161 @@ h2 {
   border-color: var(--primary);
 }
 
+
+/* === Выделение сегодняшнего дня (лаймовый цвет, рамка 2px, без синего и белого) === */
+.day-card--today {
+  border: 2px solid #84cc16;
+  background-color: #f7fee7;
+  box-sizing: border-box;
+}
+
+.day-card--today .day-card__label {
+  color: #4d7c0f;
+  font-weight: 600;
+}
+
+.day-card--today .day-card__num {
+  color: #365314;
+  font-weight: 700;
+}
+
+.day-card--today .day-card__extra {
+  color: #65a30d;
+  font-weight: 700;
+}
+
+.day-card--today:hover {
+  border-color: #65a30d;
+  background-color: #ecfccb;
+  transform: translateY(-1px);
+}
+
+/* Сегодняшний день в активном (выбранном) состоянии — насыщенный лаймовый акцент */
+.day-card--today.day-card--active,
+.day-card--today.day-card--forecast.day-card--active {
+  background: #65a30d;
+  border-color: #4d7c0f;
+  border-width: 2.5px;
+  box-shadow: 0 0 0 1px #4d7c0f, 0 2px 6px rgba(101, 163, 13, 0.4);
+}
+
+.day-card--today.day-card--active .day-card__label,
+.day-card--today.day-card--active .day-card__num,
+.day-card--today.day-card--active .day-card__extra,
+.day-card--today.day-card--forecast.day-card--active .day-card__label,
+.day-card--today.day-card--forecast.day-card--active .day-card__num,
+.day-card--today.day-card--forecast.day-card--active .day-card__extra {
+  color: #ffffff;
+}
+
+.day-card--today.day-card--active:hover,
+.day-card--today.day-card--forecast.day-card--active:hover {
+  background: #4d7c0f;
+  border-color: #365314;
+}
+
+/* Поддержка тёмной темы для сегодняшнего дня */
+[data-theme="dark"] .day-card--today {
+  border-color: #a3e635;
+  background-color: rgba(163, 230, 53, 0.16);
+}
+
+[data-theme="dark"] .day-card--today .day-card__label {
+  color: #d9f99d;
+}
+
+[data-theme="dark"] .day-card--today .day-card__num {
+  color: #bef264;
+}
+
+[data-theme="dark"] .day-card--today .day-card__extra {
+  color: #a3e635;
+}
+
+[data-theme="dark"] .day-card--today:hover {
+  border-color: #bef264;
+  background-color: rgba(163, 230, 53, 0.25);
+}
+
+[data-theme="dark"] .day-card--today.day-card--active,
+[data-theme="dark"] .day-card--today.day-card--forecast.day-card--active {
+  background: #4d7c0f;
+  border-color: #a3e635;
+  box-shadow: 0 0 0 1px #a3e635, 0 2px 6px rgba(163, 230, 53, 0.35);
+}
+
+/* === Кнопка «Выбрать текущее время» в лаймовой гамме === */
+.date-nav__now-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 32px;
+  margin-top: 8px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background-color: rgba(132, 204, 22, 0.08);
+  border: 1px solid rgba(101, 163, 13, 0.45);
+  border-radius: 5px;
+  color: #365314;
+  font-family: var(--inter, sans-serif);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.date-nav__now-btn:hover {
+  background-color: rgba(132, 204, 22, 0.18);
+  border-color: #65a30d;
+  color: #1a2e05;
+}
+
+[data-theme="dark"] .date-nav__now-btn {
+  background-color: rgba(163, 230, 53, 0.12);
+  border-color: rgba(163, 230, 53, 0.4);
+  color: #ecfccb;
+}
+
+[data-theme="dark"] .date-nav__now-btn:hover {
+  background-color: rgba(163, 230, 53, 0.22);
+  border-color: #bef264;
+  color: #ffffff;
+}
+
+.date-nav__now-btn--active {
+  border-color: #65a30d;
+  border-width: 1.5px;
+  background-color: rgba(132, 204, 22, 0.18);
+  font-weight: 600;
+  color: #1a2e05;
+}
+
+[data-theme="dark"] .date-nav__now-btn--active {
+  border-color: #a3e635;
+  background-color: rgba(163, 230, 53, 0.22);
+  color: #f7fee7;
+}
+
+.date-nav__now-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #65a30d;
+  transition: color 0.2s ease;
+}
+
+[data-theme="dark"] .date-nav__now-icon {
+  color: #a3e635;
+}
+
+.date-nav__now-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.35);
+  outline: none;
+}
+
 .time-nav__empty {
   font-size: 13px;
   color: var(--text-muted);
@@ -774,6 +929,12 @@ h2 {
     padding-right: 16px;
   }
 
+  .date-nav__now-btn {
+    height: 36px;
+    font-size: 13px;
+  }
+
+
   .city-search__dropdown {
     left: 16px;
     right: 16px;
@@ -937,6 +1098,26 @@ h2 {
   .day-card__extra {
     font-size: 11px;
   }
+
+  .date-nav__now-btn {
+    height: 40px;
+    font-size: 14px;
+    gap: 9px;
+  }
+
+  .date-nav__now-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .day-card--today {
+    border-width: 2.5px;
+  }
+
+  .day-card--today.day-card--active {
+    border-width: 3px;
+  }
+
 
   .times {
     gap: 6px;

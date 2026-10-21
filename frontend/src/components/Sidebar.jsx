@@ -4,7 +4,7 @@ import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
 import SettingsModal from './SettingsModal';
-import { groupTimesByDay, parseIsoTimeString } from '../utils/timeUtils';
+import { groupTimesByDay, parseIsoTimeString, findDefaultTimeIndex } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
 function Sidebar({
@@ -173,6 +173,49 @@ function Sidebar({
       }
     }
   };
+
+
+  // Индекс времени, наиболее близкого к текущему моменту
+  const closestCurrentTimeIndex = useMemo(() => {
+    if (!timeArray || timeArray.length === 0) return null;
+    return findDefaultTimeIndex(timeArray, referenceDate || new Date());
+  }, [timeArray, referenceDate]);
+
+  const isCurrentTimeSelected = activeTimeIndex !== null && activeTimeIndex === closestCurrentTimeIndex;
+
+  // Обработчик выбора ближайшего времени к текущему моменту
+  const handleSelectCurrentTime = useCallback(() => {
+    if (!timeArray || timeArray.length === 0) return;
+
+    const now = referenceDate || new Date();
+    const targetIndex = findDefaultTimeIndex(timeArray, now);
+    if (targetIndex === null || targetIndex === undefined || targetIndex < 0) return;
+
+    const targetTimestamp = timeArray[targetIndex];
+    const parsed = parseIsoTimeString(targetTimestamp);
+    if (parsed) {
+      setSelectedDayStr(parsed.dateStr);
+    }
+
+    setInternalTimeIndex(targetIndex);
+    if (typeof handleSelectTime === 'function') {
+      handleSelectTime(targetIndex);
+    }
+
+    if (daysContainerRef.current) {
+      const container = daysContainerRef.current;
+      const targetCard = container.querySelector('[data-is-today="true"]') ||
+        container.querySelector('.day-card--today');
+      if (targetCard) {
+        if (container.clientWidth > 0) {
+          container.scrollTo({
+            left: targetCard.offsetLeft - (container.clientWidth - targetCard.offsetWidth) / 2,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }
+  }, [timeArray, referenceDate, handleSelectTime]);
 
   // Клик по плитке часа: вычисляет глобальный selectedTimeIndex и передает его наверх
   const handleHourClick = (globalIndex) => {
@@ -723,6 +766,7 @@ function Sidebar({
               const cardClasses = [
                 'day-card',
                 day.isForecast ? 'day-card--forecast' : '',
+                day.isToday ? 'day-card--today' : '',
                 isDayActive ? 'day-card--active' : ''
               ].filter(Boolean).join(' ');
 
@@ -747,6 +791,30 @@ function Sidebar({
             })
           )}
         </div>
+        <button
+          type="button"
+          className={`date-nav__now-btn ${isCurrentTimeSelected ? 'date-nav__now-btn--active' : ''}`}
+          onClick={handleSelectCurrentTime}
+          title="Выбрать ближайшее время к текущему"
+          data-testid="select-current-time-btn"
+        >
+          <svg
+            className="date-nav__now-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>Выбрать текущее время</span>
+        </button>
       </section>
 
       <section className="time-nav">
