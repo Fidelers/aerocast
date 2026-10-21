@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './App.css';
 import Sidebar from './components/Sidebar';
 import MapComponent from './components/MapComponent';
@@ -6,7 +6,7 @@ import AboutModal from './components/AboutModal';
 import SettingsModal from './components/SettingsModal';
 import RightAirPanel from './components/RightAirPanel';
 import LayerSwitcher from './components/LayerSwitcher';
-import { findDefaultTimeIndex, parseIsoTimeString } from './utils/timeUtils';
+import { findDefaultTimeIndex, parseIsoTimeString, formatDateKey, isForecastTime } from './utils/timeUtils';
 import useAirGrid from './hooks/useAirGrid';
 
 const DEFAULT_COORDS = {
@@ -16,7 +16,7 @@ const DEFAULT_COORDS = {
 
 const API_BASE = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : '';
 
-function App() {
+function App({ referenceDate } = {}) {
     const [airData, setAirData] = useState(null);
     const [selectedTimeIndex, setSelectedTimeIndex] = useState(null);
     const [viewMode, setViewMode] = useState('combo');
@@ -195,9 +195,16 @@ function App() {
         }
     };
 
+    // Определение: выбран ли прогноз (будущий день или будущий час сегодняшнего дня)
+    const isForecast = useMemo(() => {
+        if (!selectedIsoTime) return false;
+        return isForecastTime(selectedIsoTime, referenceDate || new Date());
+    }, [selectedIsoTime, referenceDate]);
+
     return (
         <div className="layout">
             <Sidebar
+                referenceDate={referenceDate}
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
                 onSelectTime={handleSelectTime}
@@ -245,6 +252,17 @@ function App() {
                         Поиск
                     </span>
                 </button>
+                {isForecast && (
+                    <div
+                        className="forecast-badge"
+                        data-testid="forecast-badge"
+                        role="status"
+                        title="Отображаются прогнозные данные качества воздуха"
+                    >
+                        <span className="forecast-badge__dot" aria-hidden="true" />
+                        <span className="forecast-badge__label">Прогноз</span>
+                    </div>
+                )}
                 <MapComponent
                     lat={coords.lat}
                     lon={coords.lon}

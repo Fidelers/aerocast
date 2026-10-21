@@ -192,3 +192,39 @@ export function findDefaultTimeIndex(timeArray, referenceDate = new Date(), opti
 
     return 0;
 }
+
+export function isForecastTime(timeStr, referenceDate = new Date()) {
+    if (!timeStr) return false;
+    const parsed = parseIsoTimeString(timeStr);
+    if (!parsed) return false;
+
+    let refDateStr = '';
+    let refHour = 0;
+
+    if (referenceDate instanceof Date && !Number.isNaN(referenceDate.getTime())) {
+        const year = referenceDate.getFullYear();
+        const month = String(referenceDate.getMonth() + 1).padStart(2, '0');
+        const day = String(referenceDate.getDate()).padStart(2, '0');
+        refDateStr = `${year}-${month}-${day}`;
+        refHour = referenceDate.getHours();
+    } else if (typeof referenceDate === 'string') {
+        const parsedRef = parseIsoTimeString(referenceDate);
+        if (parsedRef) {
+            refDateStr = parsedRef.dateStr;
+            refHour = parsedRef.hour;
+        } else {
+            const match = referenceDate.match(/^(\d{4}-\d{2}-\d{2})/);
+            refDateStr = match ? match[1] : '';
+        }
+    }
+
+    if (!refDateStr) return false;
+
+    if (parsed.dateStr > refDateStr) {
+        return true;
+    }
+    if (parsed.dateStr === refDateStr) {
+        return parsed.hour > refHour;
+    }
+    return false;
+}

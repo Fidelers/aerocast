@@ -4,7 +4,7 @@ import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
 import SettingsModal from './SettingsModal';
-import { groupTimesByDay } from '../utils/timeUtils';
+import { groupTimesByDay, parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
 function Sidebar({
@@ -153,6 +153,23 @@ function Sidebar({
         e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
       } catch {
         // ignore
+      }
+    }
+
+    const clickedDay = days.find((d) => d.dateStr === dateStr);
+    if (clickedDay && clickedDay.hours && clickedDay.hours.length > 0) {
+      let targetHour = null;
+      if (activeTimeIndex !== null && activeTimeIndex !== undefined && timeArray[activeTimeIndex]) {
+        const currentParsed = parseIsoTimeString(timeArray[activeTimeIndex]);
+        if (currentParsed) {
+          targetHour = clickedDay.hours.find((h) => h.hour === currentParsed.hour);
+        }
+      }
+      if (!targetHour) {
+        targetHour = clickedDay.hours[0];
+      }
+      if (targetHour) {
+        handleHourClick(targetHour.index);
       }
     }
   };

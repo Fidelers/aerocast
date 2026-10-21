@@ -9,6 +9,58 @@
     position: relative;
 }
 
+
+/* Плашка «Прогноз» на карте при выборе прогнозируемого дня */
+.forecast-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  height: 26px;
+  box-sizing: border-box;
+  background-color: var(--surface-card, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: var(--inter, sans-serif);
+  pointer-events: auto;
+  user-select: none;
+  animation: forecastBadgeFadeIn 0.2s ease-out;
+}
+
+@keyframes forecastBadgeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.forecast-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--primary, #2563eb);
+  flex-shrink: 0;
+}
+
+.forecast-badge__label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text-h, #111827);
+  letter-spacing: 0.1px;
+}
+
 .map-container {
     flex: 1 1 0%;
     min-width: 0;
@@ -529,6 +581,17 @@ h2 {
 
 
 @media (max-width: 768px) {
+  .forecast-badge {
+    top: calc(max(14px, env(safe-area-inset-top, 14px)) + 46px);
+    left: max(12px, env(safe-area-inset-left, 12px));
+    height: 24px;
+    padding: 3px 9px;
+  }
+
+  .forecast-badge__label {
+    font-size: 11px;
+  }
+
   .layout {
     flex-direction: column;
     height: auto;
@@ -596,6 +659,24 @@ h2 {
 
 /* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
 @media (min-width: 1921px) {
+  .forecast-badge {
+    top: 20px;
+    left: 20px;
+    height: 30px;
+    padding: 5px 12px;
+    gap: 8px;
+    border-radius: 24px;
+  }
+
+  .forecast-badge__dot {
+    width: 7px;
+    height: 7px;
+  }
+
+  .forecast-badge__label {
+    font-size: 14px;
+  }
+
   .sidebar {
     width: 350px;
     flex: 0 0 350px;
