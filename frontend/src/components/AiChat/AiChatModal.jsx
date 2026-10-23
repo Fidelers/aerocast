@@ -178,7 +178,7 @@ export default function AiChatModal({ isOpen, onClose }) {
         <header className="ai-chat-header">
           <div className="ai-chat-header__info">
             <span className="ai-chat-header__status-dot" aria-hidden="true" />
-            <span className="ai-chat-header__name">Ани</span>
+            <span className="ai-chat-header__name">Ая</span>
             <span className="ai-chat-header__status-text">на связи</span>
             <span className="ai-chat-header__badge">am/free</span>
           </div>
@@ -257,7 +257,7 @@ export default function AiChatModal({ isOpen, onClose }) {
           })}
 
           {isLoading && (
-            <div className="ai-chat-typing" aria-label="Ани печатает ответ">
+            <div className="ai-chat-typing" aria-label="Ая печатает ответ">
               <span className="ai-chat-typing__dot" />
               <span className="ai-chat-typing__dot" />
               <span className="ai-chat-typing__dot" />

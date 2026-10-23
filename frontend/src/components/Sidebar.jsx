@@ -851,14 +851,14 @@ function Sidebar({
         type="button"
         className="sidebar-ai-chat-trigger"
         onClick={() => setIsAiChatOpen(true)}
-        title="Открыть чат с AI-маскотом Ани (AnyModel)"
+        title='Открыть чат с AI-маскотом "Ая" (AnyModel)'
         data-testid="open-ai-chat-btn"
       >
         <div className="sidebar-ai-chat-trigger__left">
           <span className="sidebar-ai-chat-trigger__icon" aria-hidden="true">
             💬
           </span>
-          <span>Чат с Ани</span>
+          <span>Чат с Аей</span>
         </div>
         <span className="sidebar-ai-chat-trigger__badge">am/free</span>
       </button>
