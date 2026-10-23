@@ -4,6 +4,7 @@ import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
 import SettingsModal from './SettingsModal';
+import AiChatModal from './AiChat/AiChatModal';
 import { groupTimesByDay, parseIsoTimeString, findDefaultTimeIndex } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
@@ -27,6 +28,7 @@ function Sidebar({
   const [geoError, setGeoError] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
   const [isGeoErrorVisible, setIsGeoErrorVisible] = useState(false);
 
@@ -844,6 +846,27 @@ function Sidebar({
           )}
         </div>
       </section>
+
+      <button
+        type="button"
+        className="sidebar-ai-chat-trigger"
+        onClick={() => setIsAiChatOpen(true)}
+        title="Открыть чат с AI-маскотом Ани (AnyModel)"
+        data-testid="open-ai-chat-btn"
+      >
+        <div className="sidebar-ai-chat-trigger__left">
+          <span className="sidebar-ai-chat-trigger__icon" aria-hidden="true">
+            💬
+          </span>
+          <span>Чат с Ани</span>
+        </div>
+        <span className="sidebar-ai-chat-trigger__badge">am/free</span>
+      </button>
+
+      <AiChatModal
+        isOpen={isAiChatOpen}
+        onClose={() => setIsAiChatOpen(false)}
+      />
 
       {!onOpenAbout && (
         <AboutModal
