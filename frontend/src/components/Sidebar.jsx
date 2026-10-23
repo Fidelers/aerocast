@@ -5,6 +5,7 @@ import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
 import SettingsModal from './SettingsModal';
 import AiChatModal from './AiChat/AiChatModal';
+import AyaMascot from './AiChat/AyaMascot';
 import { groupTimesByDay, parseIsoTimeString, findDefaultTimeIndex } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
@@ -22,7 +23,8 @@ function Sidebar({
   onOpenSettings,
   onLocateMe,
   isOpen = false,
-  onClose
+  onClose,
+  mascotMode = 'mascot'
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -702,6 +704,7 @@ function Sidebar({
         </div>
       </div>
 
+
       <CitySearch
         onLocationSelect={(loc) => {
           if (typeof onLocationSelect === 'function') {
@@ -847,26 +850,44 @@ function Sidebar({
         </div>
       </section>
 
-      <button
-        type="button"
-        className="sidebar-ai-chat-trigger"
-        onClick={() => setIsAiChatOpen(true)}
-        title='Открыть чат с AI-маскотом "Ая" (AnyModel)'
-        data-testid="open-ai-chat-btn"
-      >
-        <div className="sidebar-ai-chat-trigger__left">
-          <span className="sidebar-ai-chat-trigger__icon" aria-hidden="true">
-            💬
-          </span>
-          <span>Чат с Аей</span>
+      {isAiChatOpen ? (
+        <div className="sidebar-chat-active-container" data-testid="sidebar-chat-active-container">
+          <AiChatModal
+            isOpen={true}
+            onClose={() => setIsAiChatOpen(false)}
+            onOpenSettings={() => {
+              if (typeof onOpenSettings === 'function') onOpenSettings();
+              else setIsSettingsOpen(true);
+            }}
+            embedded={true}
+            mascotUnderChat={mascotMode === 'mascot'}
+          />
         </div>
-        <span className="sidebar-ai-chat-trigger__badge">am/free</span>
-      </button>
-
-      <AiChatModal
-        isOpen={isAiChatOpen}
-        onClose={() => setIsAiChatOpen(false)}
-      />
+      ) : mascotMode === 'button' ? (
+        <button
+          type="button"
+          className="sidebar-ai-chat-trigger"
+          onClick={() => setIsAiChatOpen(true)}
+          title='Открыть чат с AI-маскотом "Ая" (AnyModel)'
+          data-testid="open-ai-chat-btn"
+        >
+          <div className="sidebar-ai-chat-trigger__left">
+            <span className="sidebar-ai-chat-trigger__icon" aria-hidden="true">
+              💬
+            </span>
+            <span>Чат с Аей</span>
+          </div>
+          <span className="sidebar-ai-chat-trigger__badge">am/free</span>
+        </button>
+      ) : (
+        <div className="sidebar-mascot-container" data-testid="sidebar-mascot-container">
+          <AyaMascot
+            emotion="idle"
+            size="sidebar"
+            onClick={() => setIsAiChatOpen(true)}
+          />
+        </div>
+      )}
 
       {!onOpenAbout && (
         <AboutModal

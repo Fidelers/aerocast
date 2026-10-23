@@ -19,10 +19,10 @@
 }
 
 .ai-chat-window {
-  width: 360px;
+  width: 340px;
   max-width: calc(100vw - 32px);
-  height: 480px;
-  max-height: 80vh;
+  height: 220px; /* На треть меньше по высоте (было 320px / 480px) */
+  max-height: 50vh;
   background: rgba(19, 23, 34, 0.96);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -349,4 +349,153 @@
   padding: 2px 6px;
   border-radius: 6px;
   font-weight: 600;
+}
+
+/* =========================================================
+   Встроенный режим: Чат над маскотом, маскот под чатом
+   (согласно secrets/future/docs/assets/mascot_chat_open.png)
+   ========================================================= */
+
+.sidebar-chat-active-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px 0 10px;
+  margin-top: auto;
+  justify-content: flex-end;
+}
+
+.sidebar-mascot-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: auto;
+  padding-bottom: 0;
+}
+
+.ai-chat-embedded-layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  gap: 12px; /* Четкий зазор над маскотом */
+  animation: aiChatFadeIn 0.25s ease-out;
+}
+
+.ai-chat-window--embedded {
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+  height: 310px; /* Ещё больше чат: просторный и удобный */
+  min-height: 240px;
+  max-height: 400px;
+  margin: 0;
+  border-radius: 14px;
+  background: rgba(18, 22, 34, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
+}
+
+.ai-chat-window--embedded .ai-chat-header {
+  padding: 6px 10px;
+  flex-shrink: 0;
+}
+
+.ai-chat-window--embedded .ai-chat-header__title {
+  font-size: 13px;
+}
+
+.ai-chat-window--embedded .ai-chat-header__dot {
+  width: 7px;
+  height: 7px;
+}
+
+.ai-chat-window--embedded .ai-chat-header__badge {
+  font-size: 9.5px;
+  padding: 1px 5px;
+}
+
+.ai-chat-window--embedded .ai-chat-header__actions {
+  gap: 3px;
+}
+
+.ai-chat-window--embedded .ai-chat-icon-btn {
+  width: 26px;
+  height: 26px;
+}
+
+.ai-chat-window--embedded .ai-chat-messages {
+  padding: 8px 10px;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 130px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ai-chat-window--embedded .ai-chat-msg__bubble {
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  border-radius: 10px;
+}
+
+.ai-chat-window--embedded .ai-chat-msg__time {
+  font-size: 9.5px;
+  margin-top: 2px;
+}
+
+.ai-chat-window--embedded .ai-chat-footer {
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+
+.ai-chat-window--embedded .ai-chat-input-form {
+  padding: 2px 4px 2px 10px;
+  border-radius: 10px;
+}
+
+.ai-chat-window--embedded .ai-chat-input {
+  font-size: 12px;
+  padding: 5px 0;
+}
+
+.ai-chat-window--embedded .ai-chat-send-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.ai-chat-mascot-docked {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end; /* Маскот в самом низу */
+  margin-top: 4px;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  position: relative;
+  overflow: visible;
+}
+
+/* Светлая тема */
+[data-theme="light"] .ai-chat-window--embedded {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }

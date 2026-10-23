@@ -144,6 +144,18 @@ function App({ referenceDate } = {}) {
         }
     }, [isColorBlind, colorBlindType]);
 
+    // Режим AI-ассистента: 'mascot' (маскот Ая) или 'button' (кнопка)
+    const [mascotMode, setMascotMode] = useState(() => {
+        if (typeof window === 'undefined') return 'mascot';
+        return localStorage.getItem('aerocast_mascot_mode') || 'mascot';
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('aerocast_mascot_mode', mascotMode);
+        }
+    }, [mascotMode]);
+
     // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
 
@@ -322,6 +334,7 @@ function App({ referenceDate } = {}) {
                 loadError={loadError}
                 isOpen={isMobileSidebarOpen}
                 onClose={() => setIsMobileSidebarOpen(false)}
+                mascotMode={mascotMode}
             />
             <div
                 className={`sidebar-backdrop ${isMobileSidebarOpen ? 'sidebar-backdrop--visible' : ''}`}
@@ -435,6 +448,8 @@ function App({ referenceDate } = {}) {
                 onColorBlindChange={setIsColorBlind}
                 colorBlindType={colorBlindType}
                 onColorBlindTypeChange={setColorBlindType}
+                mascotMode={mascotMode}
+                onMascotModeChange={setMascotMode}
             />
             <RightAirPanel
                 airData={airData}

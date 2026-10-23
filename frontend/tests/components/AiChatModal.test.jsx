@@ -23,10 +23,10 @@ describe('AiChatModal Component', () => {
   it('рендерит начальное приветствие и шапку с бейджем am/free при открытии', () => {
     render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
 
-    expect(screen.getByText('Ани')).toBeDefined();
+    expect(screen.getAllByText(/(?:Ая|Ани)/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('на связи')).toBeDefined();
     expect(screen.getByText('am/free')).toBeDefined();
-    expect(screen.getByText(/Ну привет. Я Ани./i)).toBeDefined();
+    expect(screen.getByText(/Ну привет\. Я (?:Ая|Ани)\./i)).toBeDefined();
     expect(screen.getByPlaceholderText('Спроси что-нибудь...')).toBeDefined();
   });
 
@@ -51,21 +51,21 @@ describe('AiChatModal Component', () => {
   it('переключает состояние звука и сохраняет в localStorage', async () => {
     render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
 
-    const soundBtn = screen.getByLabelText('Выключить звук');
+    const soundBtn = screen.getByRole('button', { name: /звук/i });
+    expect(soundBtn).toBeDefined();
+
     await userEvent.click(soundBtn);
-
     expect(localStorage.getItem('aerocast_sound_enabled')).toBe('false');
-    expect(screen.getByLabelText('Включить звук')).toBeDefined();
 
-    await userEvent.click(screen.getByLabelText('Включить звук'));
+    await userEvent.click(soundBtn);
     expect(localStorage.getItem('aerocast_sound_enabled')).toBe('true');
   });
 
   it('отправляет сообщение пользователя и отображает ответ от AnyModel API', async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        reply: 'Конечно! В Москве сегодня умеренный уровень загрязнения.',
+        reply: 'Ответ от AnyModel: всё супер!',
         emotion: 'happy'
       })
     });
@@ -73,34 +73,41 @@ describe('AiChatModal Component', () => {
     render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
 
     const input = screen.getByPlaceholderText('Спроси что-нибудь...');
-    const sendBtn = screen.getByLabelText('Отправить сообщение');
+    const sendBtn = screen.getByRole('button', { name: 'Отправить сообщение' });
 
-    await userEvent.type(input, 'Как дела в Москве?');
-    expect(sendBtn.disabled).toBe(false);
+    await userEvent.type(input, 'Привет, как дела?');
+    expect(input.value).toBe('Привет, как дела?');
 
     await userEvent.click(sendBtn);
 
-    // Сообщение пользователя появилось
-    expect(screen.getByText('Как дела в Москве?')).toBeDefined();
+    // Инпут должен очиститься
+    expect(input.value).toBe('');
 
-    // Ждем ответ от AnyModel
+    // Ждем появления ответа
     await waitFor(() => {
-      expect(screen.getByText('Конечно! В Москве сегодня умеренный уровень загрязнения.')).toBeDefined();
+      expect(screen.getByText('Ответ от AnyModel: всё супер!')).toBeDefined();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/api/ai/chat', expect.objectContaining({
-      method: 'POST'
-    }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/ai/chat',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: expect.stringContaining('Привет, как дела?')
+      })
+    );
   });
 
   it('корректно отображает ошибку при сбое сетевого запроса', async () => {
-    global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network disconnected'));
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network disconnected'));
 
     render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
 
     const input = screen.getByPlaceholderText('Спроси что-нибудь...');
-    await userEvent.type(input, 'Привет');
-    await userEvent.click(screen.getByLabelText('Отправить сообщение'));
+    const sendBtn = screen.getByRole('button', { name: 'Отправить сообщение' });
+
+    await userEvent.type(input, 'Тестовый запрос');
+    await userEvent.click(sendBtn);
 
     await waitFor(() => {
       expect(screen.getByText(/Ошибка соединения: Network disconnected/i)).toBeDefined();

@@ -1,0 +1,355 @@
+/* frontend/src/styles/AyaMascot.css */
+
+/* Основной контейнер маскота */
+.aya-mascot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aya-mascot:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+/* =========================================================
+   Размеры маскота
+   ========================================================= */
+
+/* Сайдбарный размер (посажен в нижнюю часть боковой панели) */
+.aya-mascot--sidebar {
+  width: 100%;
+  max-width: 280px;
+  margin: 8px auto 4px auto;
+  padding: 0 12px;
+}
+
+/* Компактный размер для шапки чата */
+.aya-mascot--header {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1.5px solid rgba(99, 102, 241, 0.4);
+}
+
+.aya-mascot--header .aya-character {
+  width: 100%;
+  height: 100%;
+  padding-bottom: 0;
+}
+
+.aya-mascot--header .aya-pose {
+  transform: scale(1.6) translateY(18%);
+}
+
+/* Размер для маскота, расположенного строго под окном открытого чата */
+.aya-mascot--chat-docked {
+  width: 100%;
+  max-width: 270px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.aya-mascot--chat-docked .aya-character {
+  width: 100%;
+  height: 175px; /* Аккуратный выразительный спрайт в самом низу */
+  padding-bottom: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.aya-mascot--chat-docked .aya-pose {
+  transform: scale(1.18) translateY(-3%);
+}
+
+.aya-mascot--chat-docked .aya-bubble {
+  position: static !important; /* В нормальном потоке документа, без наложения */
+  margin: 0 0 4px 0 !important;
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  font-weight: 500;
+  border-radius: 12px;
+  background: rgba(18, 22, 34, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  pointer-events: none;
+  max-width: 90%;
+  white-space: normal;
+}
+
+.aya-mascot--chat-docked .aya-bubble__arrow {
+  display: none !important;
+}
+
+/* =========================================================
+   Речевой баббл (всплывающая реплика)
+   ========================================================= */
+.aya-bubble {
+  position: relative;
+  margin-bottom: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 12px rgba(99, 102, 241, 0.2);
+  color: #f1f5f9;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  max-width: 90%;
+  animation: ayaBubblePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(8px);
+  z-index: 2;
+  transition: all 0.2s ease;
+}
+
+.aya-mascot--hover .aya-bubble {
+  border-color: rgba(99, 102, 241, 0.8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 16px rgba(99, 102, 241, 0.35);
+  transform: translateY(-2px);
+}
+
+.aya-bubble__text {
+  display: block;
+}
+
+.aya-bubble__arrow {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(99, 102, 241, 0.6);
+}
+
+@keyframes ayaBubblePop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================================================
+   Контейнер персонажа с кроссфейдом позов
+   ========================================================= */
+.aya-character {
+  position: relative;
+  width: 100%;
+  padding-bottom: 74.7%; /* Соотношение сторон 1024x765 */
+  overflow: visible;
+}
+
+/* Мягкое фоновое свечение */
+.aya-character__glow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0) 70%);
+  filter: blur(12px);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.aya-mascot--hover .aya-character__glow {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, rgba(99, 102, 241, 0) 70%);
+}
+
+/* Слои позов (наложены друг на друга) */
+.aya-pose {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.98);
+  transition: opacity 0.35s ease-in-out, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Активная поза плавно проявляется */
+.aya-pose--active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+/* =========================================================
+   Живая анимация дыхания и эмоций
+   ========================================================= */
+
+/* Базовое дыхание в позе IDLE */
+.aya-mascot--idle .aya-character {
+  animation: ayaBreathe 4.5s ease-in-out infinite;
+}
+
+@keyframes ayaBreathe {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Задумчивое покачивание в позе THINK */
+.aya-mascot--think .aya-character {
+  animation: ayaThinkPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes ayaThinkPulse {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-1.2deg);
+  }
+}
+
+/* Радостный подскок в позе HAPPY */
+.aya-mascot--happy .aya-character {
+  animation: ayaHappyBounce 1.8s ease-in-out infinite;
+}
+
+@keyframes ayaHappyBounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+/* Цундере-дрожание / возмущение в позе ALERT */
+.aya-mascot--alert .aya-character {
+  animation: ayaAlertShake 3s ease-in-out infinite;
+}
+
+@keyframes ayaAlertShake {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  10%, 30% {
+    transform: translateY(-2px) rotate(1.2deg);
+  }
+  20%, 40% {
+    transform: translateY(-2px) rotate(-1.2deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* Реакция на наведение мыши */
+.aya-mascot--hover {
+  transform: translateY(-3px);
+}
+
+/* =========================================================
+   Бейдж статуса под маскотом
+   ========================================================= */
+.aya-status-pill {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.aya-status-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: ayaStatusPulse 2s infinite;
+}
+
+@keyframes ayaStatusPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+}
+
+.aya-status-pill__name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.aya-status-pill__badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+
+/* Поддержка светлой темы */
+[data-theme="light"] .aya-bubble {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  color: #1e293b;
+}
+
+[data-theme="light"] .aya-bubble__arrow {
+  border-top-color: rgba(99, 102, 241, 0.4);
+}
+
+[data-theme="light"] .aya-status-pill {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .aya-status-pill__name {
+  color: #0f172a;
+}

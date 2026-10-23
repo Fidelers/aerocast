@@ -1,6 +1,7 @@
 // frontend/src/components/AiChat/AiChatModal.jsx
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import AyaMascot from './AyaMascot';
 import '../../styles/AiChatModal.css';
 
 const INITIAL_GREETING = {
@@ -58,7 +59,13 @@ function formatMessageContent(text) {
   });
 }
 
-export default function AiChatModal({ isOpen, onClose }) {
+export default function AiChatModal({
+  isOpen,
+  onClose,
+  onOpenSettings,
+  embedded = false,
+  mascotUnderChat = false
+}) {
   const [messages, setMessages] = useState([INITIAL_GREETING]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -169,28 +176,58 @@ export default function AiChatModal({ isOpen, onClose }) {
     }
   };
 
+  const currentEmotion = useMemo(() => {
+    if (isLoading) return 'think';
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+    return lastAssistant?.emotion || 'idle';
+  }, [isLoading, messages]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="ai-chat-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="ai-chat-window" onClick={(e) => e.stopPropagation()}>
-        {/* Шапка чата */}
-        <header className="ai-chat-header">
-          <div className="ai-chat-header__info">
-            <span className="ai-chat-header__status-dot" aria-hidden="true" />
-            <span className="ai-chat-header__name">Ая</span>
-            <span className="ai-chat-header__status-text">на связи</span>
-            <span className="ai-chat-header__badge">am/free</span>
-          </div>
+  const chatWindowNode = (
+    <div
+      className={`ai-chat-window ${embedded ? 'ai-chat-window--embedded' : ''}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Шапка чата */}
+      <header className="ai-chat-header">
+        <div className="ai-chat-header__info">
+          {!embedded && (
+            <AyaMascot
+              size="header"
+              emotion={currentEmotion}
+              showBubble={false}
+            />
+          )}
+          <span className="ai-chat-header__status-dot" aria-hidden="true" />
+          <span className="ai-chat-header__name">Ая</span>
+          <span className="ai-chat-header__status-text">на связи</span>
+          <span className="ai-chat-header__badge">am/free</span>
+        </div>
 
-          <div className="ai-chat-header__actions">
+        <div className="ai-chat-header__actions">
+          {onOpenSettings && (
             <button
               type="button"
               className="ai-chat-header__btn"
-              onClick={toggleSound}
-              title={isSoundEnabled ? 'Звук включен' : 'Без звука'}
-              aria-label={isSoundEnabled ? 'Выключить звук' : 'Включить звук'}
+              onClick={onOpenSettings}
+              title="Настройки"
+              aria-label="Настройки"
             >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="ai-chat-header__btn"
+            onClick={toggleSound}
+            title={isSoundEnabled ? 'Звук включен' : 'Без звука'}
+            aria-label={isSoundEnabled ? 'Выключить звук' : 'Включить звук'}
+          >
               {isSoundEnabled ? (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -294,7 +331,38 @@ export default function AiChatModal({ isOpen, onClose }) {
             </button>
           </form>
         </footer>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="ai-chat-embedded-layout" role="region" aria-label="Чат с Аей">
+        {chatWindowNode}
+        {mascotUnderChat && (
+          <div className="ai-chat-mascot-docked" data-testid="ai-chat-mascot-docked">
+            <AyaMascot
+              emotion={currentEmotion}
+              size="chat-docked"
+              showBubble={true}
+              customBubbleText={
+                isLoading
+                  ? 'Хм-м-м, дай подумать...'
+                  : currentEmotion === 'happy'
+                  ? 'Ура! Рада помочь! ✨'
+                  : currentEmotion === 'alert'
+                  ? 'Б-бака! Чего ты натворил?! 💢'
+                  : 'All systems go!'
+              }
+            />
+          </div>
+        )}
       </div>
+    );
+  }
+
+  return (
+    <div className="ai-chat-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      {chatWindowNode}
     </div>
   );
 }

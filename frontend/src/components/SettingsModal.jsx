@@ -67,7 +67,9 @@ export default function SettingsModal({
   isColorBlind,
   onColorBlindChange,
   colorBlindType,
-  onColorBlindTypeChange
+  onColorBlindTypeChange,
+  mascotMode,
+  onMascotModeChange
 }) {
   // Локальные состояния на случай использования компонента в автономном режиме
   const [localTheme, setLocalTheme] = useState(() => {
@@ -89,9 +91,26 @@ export default function SettingsModal({
     return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
   });
 
+  const [localMascotMode, setLocalMascotMode] = useState(() => {
+    if (typeof window === 'undefined') return 'mascot';
+    return localStorage.getItem('aerocast_mascot_mode') || 'mascot';
+  });
+
   const currentTheme = theme !== undefined ? theme : localTheme;
   const currentColorBlind = isColorBlind !== undefined ? isColorBlind : localColorBlind;
   const currentColorBlindType = colorBlindType !== undefined ? colorBlindType : localColorBlindType;
+  const currentMascotMode = mascotMode !== undefined ? mascotMode : localMascotMode;
+
+  const handleSelectMascotMode = (mode) => {
+    if (onMascotModeChange) {
+      onMascotModeChange(mode);
+    } else {
+      setLocalMascotMode(mode);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('aerocast_mascot_mode', mode);
+      }
+    }
+  };
 
   // Закрытие окна по клавише Escape
   useEffect(() => {
@@ -241,6 +260,53 @@ export default function SettingsModal({
                 {currentTheme === 'dark' ? '🌙' : '☀️'}
               </span>
             </button>
+          </div>
+
+          {/* Переключатель вида AI-ассистента: Маскот или Кнопка */}
+          <div className="settings-item settings-item--column" data-testid="settings-mascot-mode-container">
+            <div className="settings-item__info">
+              <div className="settings-item__label-row">
+                <span className="settings-item__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </span>
+                <span className="settings-item__title">AI-Ассистент Ая</span>
+              </div>
+              <span className="settings-item__desc">
+                Выберите вид отображения в боковой панели
+              </span>
+            </div>
+
+            <div className="settings-mascot-types__grid" role="radiogroup" aria-label="Вид AI-ассистента">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={currentMascotMode === 'mascot'}
+                data-testid="settings-mascot-mode-mascot"
+                className={`settings-colorblind-type-btn ${currentMascotMode === 'mascot' ? 'settings-colorblind-type-btn--active' : ''}`}
+                onClick={() => handleSelectMascotMode('mascot')}
+              >
+                <span className="settings-colorblind-type-btn__radio" aria-hidden="true">
+                  {currentMascotMode === 'mascot' && <span className="settings-colorblind-type-btn__radio-dot" />}
+                </span>
+                <span className="settings-colorblind-type-btn__label">Маскот</span>
+              </button>
+
+              <button
+                type="button"
+                role="radio"
+                aria-checked={currentMascotMode === 'button'}
+                data-testid="settings-mascot-mode-button"
+                className={`settings-colorblind-type-btn ${currentMascotMode === 'button' ? 'settings-colorblind-type-btn--active' : ''}`}
+                onClick={() => handleSelectMascotMode('button')}
+              >
+                <span className="settings-colorblind-type-btn__radio" aria-hidden="true">
+                  {currentMascotMode === 'button' && <span className="settings-colorblind-type-btn__radio-dot" />}
+                </span>
+                <span className="settings-colorblind-type-btn__label">Кнопка</span>
+              </button>
+            </div>
           </div>
 
           {/* Свитчер режима для цветовой слепоты (дальтонизм) */}
