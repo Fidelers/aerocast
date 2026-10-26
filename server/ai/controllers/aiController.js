@@ -3,9 +3,7 @@
 const aiService = require('../services/aiService');
 const aiConfig = require('../config/aiConfig');
 
-/**
- * Обработка сообщения чата
- */
+
 async function handleChat(req, res) {
     const { message, history } = req.body;
 
@@ -31,9 +29,6 @@ async function handleChat(req, res) {
     }
 }
 
-/**
- * Статус подключения к AnyModel
- */
 function getStatus(req, res) {
     res.json({
         status: 'ok',
