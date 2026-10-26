@@ -207,14 +207,23 @@ h2 {
 }
 
 .sidebar {
-    font-family: var(--inter);
-    background-color: var(--bg);
-    width: 280px;
-    flex: 0 0 280px;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
+  font-family: var(--inter);
+  background-color: var(--bg);
+  width: 280px;
+  flex: 0 0 280px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden; /* Жестко отсекает горизонтальный скролл */
+  overflow-y: auto;   /* Оставляет вертикальный поток, если экран слишком низкий */
+  scrollbar-width: none; /* Скрывает полосу прокрутки в Firefox */
+}
+
+/* Полностью скрываем полосы прокрутки для Chromium/WebKit (Chrome, Edge, Яндекс) */
+.sidebar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .sidebar__header {

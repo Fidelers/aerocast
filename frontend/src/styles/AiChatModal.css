@@ -375,7 +375,8 @@
   justify-content: flex-end;
   width: 100%;
   margin-top: auto;
-  padding-bottom: 0;
+  padding: 0;              /* убираем боковые отступы, чтобы маскот стоял по ширине панели */
+  overflow: visible;
 }
 
 .ai-chat-embedded-layout {
