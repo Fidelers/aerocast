@@ -48,7 +48,7 @@
 
 /* Масштаб персонажа (крупная Ая на всю ширину) */
 .aya-mascot--sidebar .aya-video {
-  transform: scale(1.9) translateY(4%);
+  transform: scale(1.9) translateY(0%);
   transform-origin: bottom center;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
