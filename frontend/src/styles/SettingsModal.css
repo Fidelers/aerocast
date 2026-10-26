@@ -425,3 +425,25 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
+
+
+/* Оптимизация под экраны 1920x1200 и 2K мониторы */
+@media (min-width: 1920px) {
+  .settings-modal__card {
+    max-width: 440px;
+    padding: 28px;
+    border-radius: 20px;
+  }
+
+  .settings-modal__title {
+    font-size: 20px;
+  }
+
+  .settings-item {
+    padding: 14px 16px;
+  }
+
+  .settings-item__title {
+    font-size: 15px;
+  }
+}

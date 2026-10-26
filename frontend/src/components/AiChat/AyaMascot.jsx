@@ -73,7 +73,7 @@ export default function AyaMascot({
 
   return (
       <div
-          className={`aya-mascot aya-mascot--${size} ${isHovered ? 'aya-mascot--hover' : ''}`}
+          className={`aya-mascot aya-mascot--${size} aya-mascot--${activeEmotion} ${isHovered ? 'aya-mascot--hover' : ''}`}
           onClick={onClick}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -101,6 +101,10 @@ export default function AyaMascot({
         {/* Контейнер персонажа с бесшовным видео */}
         <div className="aya-character">
           <div className="aya-character__glow" aria-hidden="true" />
+          <span className={`aya-pose aya-pose--idle ${activeEmotion === 'idle' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
+          <span className={`aya-pose aya-pose--think ${activeEmotion === 'think' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
+          <span className={`aya-pose aya-pose--happy ${activeEmotion === 'happy' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
+          <span className={`aya-pose aya-pose--alert ${activeEmotion === 'alert' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
 
           <video
               src={idleWebm}

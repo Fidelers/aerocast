@@ -500,3 +500,138 @@
   border-color: rgba(99, 102, 241, 0.2);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
+
+/* =========================================================
+   Адаптивная верстка чата под мобильные устройства (до 768px)
+   ========================================================= */
+@media (max-width: 768px) {
+  .sidebar-chat-active-container {
+    padding: 6px 8px 0 8px;
+    margin-top: 6px;
+  }
+
+  .sidebar-mascot-container {
+    margin-top: 8px;
+    padding: 0 8px max(14px, env(safe-area-inset-bottom, 14px)) 8px;
+  }
+
+  .ai-chat-embedded-layout {
+    gap: 6px;
+  }
+
+  .ai-chat-window--embedded {
+    height: 270px;
+    min-height: 200px;
+    max-height: calc(100dvh - 220px);
+    border-radius: 12px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-header {
+    padding: 6px 8px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-header__title {
+    font-size: 12.5px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-messages {
+    padding: 6px 8px;
+    gap: 5px;
+    min-height: 90px;
+    max-height: 160px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-msg__bubble {
+    padding: 5px 9px;
+    font-size: 11.5px;
+    line-height: 1.3;
+    border-radius: 9px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-footer {
+    padding: 4px 6px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-input-form {
+    padding: 2px 4px 2px 8px;
+    border-radius: 8px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-input {
+    font-size: 11.5px;
+    padding: 4px 0;
+  }
+
+  .ai-chat-window:not(.ai-chat-window--embedded) {
+    width: calc(100vw - 24px);
+    max-width: 100%;
+    height: min(560px, 88dvh);
+    border-radius: 16px;
+  }
+}
+
+/* =========================================================
+   Оптимизация под экраны 1920x1200 и 2K мониторы (от 1920px)
+   ========================================================= */
+@media (min-width: 1920px) {
+  .sidebar-chat-active-container {
+    padding: 10px 14px 0 14px;
+  }
+
+  .sidebar-mascot-container {
+    padding: 0 12px 14px 12px;
+  }
+
+  .ai-chat-embedded-layout {
+    gap: 14px;
+  }
+
+  .ai-chat-window--embedded {
+    height: 380px;
+    min-height: 300px;
+    max-height: 520px;
+    border-radius: 16px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-header {
+    padding: 10px 14px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-header__title {
+    font-size: 15px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-messages {
+    padding: 12px 14px;
+    min-height: 180px;
+    max-height: 300px;
+    gap: 8px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-msg__bubble {
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    border-radius: 12px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-footer {
+    padding: 8px 12px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-input-form {
+    padding: 4px 6px 4px 12px;
+    border-radius: 12px;
+  }
+
+  .ai-chat-window--embedded .ai-chat-input {
+    font-size: 13.5px;
+    padding: 7px 0;
+  }
+
+  .ai-chat-window:not(.ai-chat-window--embedded) {
+    max-width: 480px;
+    height: 600px;
+    border-radius: 20px;
+  }
+}

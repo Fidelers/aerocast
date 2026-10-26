@@ -578,7 +578,7 @@
 }
 
 /* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .right-air-panel {
     width: 360px;
     border-radius: 16px 0 0 0;
@@ -719,6 +719,17 @@
     padding: 12px 20px;
     font-size: 15px;
     border-radius: 10px;
+  }
+
+  /* Оптимизация под экраны 1920x1200 */
+  @media (min-height: 1000px) {
+    .right-air-panel {
+      max-height: calc(100vh - 28px);
+    }
+    .general-info-card {
+      height: 330px;
+      min-height: 300px;
+    }
   }
 }
 

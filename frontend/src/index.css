@@ -47,7 +47,7 @@
     font-size: 15px;
   }
 
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 18px;
   }
 }
@@ -348,7 +348,7 @@ h1 {
     font-size: 36px;
     margin: 20px 0;
   }
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 64px;
     margin: 40px 0;
   }
@@ -361,7 +361,7 @@ h2 {
   @media (max-width: 1024px) {
     font-size: 20px;
   }
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 28px;
   }
 }
@@ -372,7 +372,7 @@ h3 {
   font-size: 18px;
   font-weight: 500;
   margin: 0;
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 22px;
   }
 }
@@ -393,7 +393,7 @@ code {
 }
 
 /* === Стили карты для 2K экранов === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .maplibregl-ctrl-top-right {
     top: 16px;
     right: 16px;

@@ -119,7 +119,7 @@
 }
 
 /* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .layer-switcher {
     top: 115px;
     right: 12px;

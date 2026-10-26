@@ -909,7 +909,8 @@ h2 {
     border-right: none;
     border-bottom: 1px solid var(--border);
     max-height: none;
-    overflow: visible;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .days {
@@ -970,7 +971,7 @@ h2 {
 }
 
 /* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .forecast-badge {
     top: 20px;
     left: 20px;
@@ -1142,6 +1143,26 @@ h2 {
     height: 36px;
     font-size: 14px;
   }
+
+  /* Специфично для экранов 1920x1200: просторная вертикальная сетка */
+  @media (min-height: 1000px) {
+    .sidebar {
+      padding-bottom: 24px;
+    }
+
+    .city-search,
+    .display-mode,
+    .geo-nav,
+    .date-nav,
+    .time-nav {
+      padding: 16px 18px 0;
+    }
+
+    .sidebar-mascot-container {
+      margin-top: auto;
+      padding-bottom: 12px;
+    }
+  }
 }
 
 /* === Адаптивная верстка под телефоны и мобильные устройства (до 768px) === */
@@ -1174,6 +1195,9 @@ h2 {
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     border-right: 1px solid var(--border);
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
     padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
