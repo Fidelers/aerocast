@@ -113,4 +113,25 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText(/Ошибка соединения: Network disconnected/i)).toBeDefined();
     });
   });
+
+  it('при клике на маскота в открытом чате сменяет реплику', async () => {
+    const { container } = render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        embedded={true}
+        mascotUnderChat={true}
+      />
+    );
+
+    const mascot = container.querySelector('.ai-chat-mascot-docked .aya-mascot');
+    const bubble = container.querySelector('.ai-chat-mascot-docked .aya-bubble__text');
+    expect(mascot).toBeTruthy();
+
+    await userEvent.click(mascot);
+
+    const secondPhrase = bubble.textContent;
+    expect(secondPhrase).not.toBe('All systems go!');
+    expect(secondPhrase.length).toBeGreaterThan(0);
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AyaMascot from './AyaMascot';
+import { AYA_CHAT_DOCK_PHRASES } from '../../utils/ayaPhrases';
 import '../../styles/AiChatModal.css';
 
 const INITIAL_GREETING = {
@@ -76,6 +77,32 @@ export default function AiChatModal({
       return true;
     }
   });
+
+  const [dockedPhrase, setDockedPhrase] = useState(() => {
+    return AYA_CHAT_DOCK_PHRASES[Math.floor(Math.random() * AYA_CHAT_DOCK_PHRASES.length)];
+  });
+
+  // Случайная реплика при клике на маскота
+  const handleMascotClick = useCallback(() => {
+    setDockedPhrase((prev) => {
+      const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
+      return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
+    });
+  }, []);
+
+  // Периодическая смена реплик каждые 12 секунд
+  useEffect(() => {
+    if (!embedded || !mascotUnderChat || !isOpen) return;
+
+    const timer = setInterval(() => {
+      setDockedPhrase((prev) => {
+        const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
+        return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
+      });
+    }, 12000);
+
+    return () => clearInterval(timer);
+  }, [embedded, mascotUnderChat, isOpen]);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -344,6 +371,7 @@ export default function AiChatModal({
               emotion={currentEmotion}
               size="chat-docked"
               showBubble={true}
+              onClick={handleMascotClick}
               customBubbleText={
                 isLoading
                   ? 'Хм-м-м, дай подумать...'
@@ -351,7 +379,7 @@ export default function AiChatModal({
                   ? 'Ура! Рада помочь! ✨'
                   : currentEmotion === 'alert'
                   ? 'Б-бака! Чего ты натворил?! 💢'
-                  : 'All systems go!'
+                  : dockedPhrase
               }
             />
           </div>
