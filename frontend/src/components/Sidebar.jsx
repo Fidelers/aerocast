@@ -618,7 +618,7 @@ function Sidebar({
   return (
     <aside
       ref={sidebarRef}
-      className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}
+      className={`sidebar ${isOpen ? 'sidebar--open' : ''} ${isAiChatOpen ? 'sidebar--chat-open' : ''}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

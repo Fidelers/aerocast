@@ -78,31 +78,54 @@ export default function AiChatModal({
     }
   });
 
+  const currentEmotion = useMemo(() => {
+    if (isLoading) return 'think';
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+    return lastAssistant?.emotion || 'idle';
+  }, [isLoading, messages]);
+
   const [dockedPhrase, setDockedPhrase] = useState(() => {
     return AYA_CHAT_DOCK_PHRASES[Math.floor(Math.random() * AYA_CHAT_DOCK_PHRASES.length)];
   });
 
-  // Случайная реплика при клике на маскота
-  const handleMascotClick = useCallback(() => {
-    setDockedPhrase((prev) => {
-      const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
-      return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
-    });
-  }, []);
+  const mascotTimerRef = useRef(null);
 
-  // Периодическая смена реплик каждые 12 секунд
-  useEffect(() => {
-    if (!embedded || !mascotUnderChat || !isOpen) return;
+  // Перезапуск таймера автосмены реплик на 12 секунд
+  const resetMascotTimer = useCallback(() => {
+    if (mascotTimerRef.current) {
+      clearTimeout(mascotTimerRef.current);
+      mascotTimerRef.current = null;
+    }
 
-    const timer = setInterval(() => {
+    if (!embedded || !mascotUnderChat || !isOpen || currentEmotion !== 'idle') return;
+
+    mascotTimerRef.current = setTimeout(() => {
       setDockedPhrase((prev) => {
         const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
         return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
       });
     }, 12000);
+  }, [embedded, mascotUnderChat, isOpen, currentEmotion]);
 
-    return () => clearInterval(timer);
-  }, [embedded, mascotUnderChat, isOpen]);
+  // Случайная реплика при клике на маскота с гарантированным сбросом и обновлением таймера
+  const handleMascotClick = useCallback(() => {
+    setDockedPhrase((prev) => {
+      const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
+      return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
+    });
+    resetMascotTimer();
+  }, [resetMascotTimer]);
+
+  // Периодическая смена реплик каждые 12 секунд (сбрасывается при клике/смене реплики)
+  useEffect(() => {
+    resetMascotTimer();
+    return () => {
+      if (mascotTimerRef.current) {
+        clearTimeout(mascotTimerRef.current);
+        mascotTimerRef.current = null;
+      }
+    };
+  }, [resetMascotTimer, dockedPhrase]);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -202,12 +225,6 @@ export default function AiChatModal({
       setIsLoading(false);
     }
   };
-
-  const currentEmotion = useMemo(() => {
-    if (isLoading) return 'think';
-    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-    return lastAssistant?.emotion || 'idle';
-  }, [isLoading, messages]);
 
   if (!isOpen) return null;
 

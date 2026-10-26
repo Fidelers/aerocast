@@ -52,21 +52,21 @@ export default function AyaMascot({
       return;
     }
 
-    // Случайная фраза раз в 15 секунд в спокойном режиме
-    const interval = setInterval(() => {
+    // Случайная фраза раз в 15 секунд в спокойном режиме (сбрасывается при смене bubbleText)
+    const timeout = setTimeout(() => {
       setBubbleText((prev) => {
         const others = pool.filter((p) => p !== prev);
         return others[Math.floor(Math.random() * others.length)] || pool[0];
       });
     }, size === 'chat-docked' ? 12000 : 15000);
 
-    return () => clearInterval(interval);
-  }, [customBubbleText, activeEmotion, pool, size]);
+    return () => clearTimeout(timeout);
+  }, [customBubbleText, activeEmotion, pool, size, bubbleText]);
 
   const handleClick = (e) => {
     if (onClick) {
       onClick(e);
-    } else if (size === 'chat-docked') {
+    } else {
       setBubbleText((prev) => {
         const others = pool.filter((p) => p !== prev);
         return others[Math.floor(Math.random() * others.length)] || pool[0];

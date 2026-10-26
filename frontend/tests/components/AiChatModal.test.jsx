@@ -134,4 +134,43 @@ describe('AiChatModal Component', () => {
     expect(secondPhrase).not.toBe('All systems go!');
     expect(secondPhrase.length).toBeGreaterThan(0);
   });
+
+  it('сбрасывает таймер автосмены при клике на маскота', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    const { container } = render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        embedded={true}
+        mascotUnderChat={true}
+      />
+    );
+
+    const mascot = container.querySelector('.ai-chat-mascot-docked .aya-mascot');
+    const bubble = container.querySelector('.ai-chat-mascot-docked .aya-bubble__text');
+    expect(mascot).toBeTruthy();
+
+    const initialPhrase = bubble.textContent;
+
+    // Прошло 11 секунд (таймер 12 сек почти истек)
+    vi.advanceTimersByTime(11000);
+    expect(bubble.textContent).toBe(initialPhrase);
+
+    // Пользователь кликает на маскота
+    fireEvent.click(mascot);
+
+    const clickedPhrase = bubble.textContent;
+    expect(clickedPhrase.length).toBeGreaterThan(0);
+
+    // Проходит еще 2 секунды (если бы таймер не сбросился, 11с + 2с = 13с > 12с и фраза сразу сменилась бы)
+    vi.advanceTimersByTime(2000);
+    expect(bubble.textContent).toBe(clickedPhrase);
+
+    // Проходит оставшееся время до 12 секунд после клика (еще 10100 мс)
+    vi.advanceTimersByTime(10100);
+    expect(bubble.textContent.length).toBeGreaterThan(0);
+
+    vi.useRealTimers();
+  });
 });

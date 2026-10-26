@@ -1209,6 +1209,30 @@ h2 {
     transform: translateX(0);
   }
 
+  /* Размытие фона сайдбара на мобильных устройствах при открытом AI-чате */
+  .sidebar--chat-open {
+    overflow: hidden !important;
+  }
+
+  .sidebar--chat-open .city-search,
+  .sidebar--chat-open .display-mode,
+  .sidebar--chat-open .geo-nav,
+  .sidebar--chat-open .date-nav,
+  .sidebar--chat-open .time-nav {
+    filter: blur(8px);
+    opacity: 0.18;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .city-search,
+  .display-mode,
+  .geo-nav,
+  .date-nav,
+  .time-nav {
+    transition: filter 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   .sidebar--dragging {
     user-select: none;
     cursor: grabbing;
