@@ -596,6 +596,9 @@
     min-height: 80px;
     max-height: none; /* Чат естественно заполняет всё доступное пространство */
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
     margin: 0;
   }
 

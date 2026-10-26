@@ -1212,6 +1212,7 @@ h2 {
   /* Размытие фона сайдбара на мобильных устройствах при открытом AI-чате */
   .sidebar--chat-open {
     overflow: hidden !important;
+    overscroll-behavior: none !important;
   }
 
   .sidebar--chat-open .city-search,

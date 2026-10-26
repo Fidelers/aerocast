@@ -379,9 +379,21 @@ function Sidebar({
     }
   }, [isOpen]);
 
+  // При открытии чата сбрасываем скролл сайдбара, чтобы окно чата не сдвигалось наверх
+  useEffect(() => {
+    if (isAiChatOpen && sidebarRef.current) {
+      sidebarRef.current.scrollTop = 0;
+    }
+  }, [isAiChatOpen]);
+
   // Обработка жеста утягивания сайдбара влево (за край, как шторки в мобильных приложениях)
   const startDrag = useCallback((clientX, clientY, target, pointerType = '') => {
     if (!isOpen || isClosingRef.current) return;
+
+    // При открытом чате перетаскивание сайдбара разрешено только за специальный хэндл
+    if (isAiChatOpen && !target?.closest?.('.sidebar__drag-handle')) {
+      return;
+    }
 
     // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО при целенаправленном захвате хэндла на краю
     if (pointerType === 'mouse' && !target?.closest?.('.sidebar__drag-handle')) {
@@ -877,7 +889,6 @@ function Sidebar({
             </span>
             <span>Чат с Аей</span>
           </div>
-          <span className="sidebar-ai-chat-trigger__badge">am/free</span>
         </button>
       ) : (
         <div className="sidebar-mascot-container" data-testid="sidebar-mascot-container">

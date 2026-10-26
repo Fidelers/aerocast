@@ -127,20 +127,38 @@ export default function AiChatModal({
     };
   }, [resetMascotTimer, dockedPhrase]);
 
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Скролл вниз при добавлении сообщений
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+  // Скролл вниз при добавлении сообщений строго внутри контейнера сообщений (не дергая сайдбар и экран)
+  const scrollToBottom = useCallback((smooth = true) => {
+    const el = messagesContainerRef.current;
+    if (el) {
+      if (smooth && typeof el.scrollTo === 'function') {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
   }, []);
 
+  // Скролл при появлении сообщений или индикатора набора ответа
   useEffect(() => {
     if (isOpen) {
       scrollToBottom();
-      setTimeout(() => inputRef.current?.focus(), 150);
     }
-  }, [isOpen, messages, scrollToBottom]);
+  }, [isOpen, messages, isLoading, scrollToBottom]);
+
+  // Фокус поля ввода ТОЛЬКО при первичном открытии на десктопе (не на мобильных тач-устройствах)
+  useEffect(() => {
+    if (!isOpen || embedded) return;
+    const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    if (!isTouch) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, embedded]);
 
   // Закрытие по клавише Escape
   useEffect(() => {
@@ -245,8 +263,6 @@ export default function AiChatModal({
           )}
           <span className="ai-chat-header__status-dot" aria-hidden="true" />
           <span className="ai-chat-header__name">Ая</span>
-          <span className="ai-chat-header__status-text">на связи</span>
-          <span className="ai-chat-header__badge">am/free</span>
         </div>
 
         <div className="ai-chat-header__actions">
@@ -312,7 +328,7 @@ export default function AiChatModal({
         </header>
 
         {/* Список сообщений */}
-        <div className="ai-chat-messages">
+        <div className="ai-chat-messages" ref={messagesContainerRef}>
           {messages.map((msg) => {
             const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {
               hour: '2-digit',

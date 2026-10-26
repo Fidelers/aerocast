@@ -20,12 +20,10 @@ describe('AiChatModal Component', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('рендерит начальное приветствие и шапку с бейджем am/free при открытии', () => {
+  it('рендерит начальное приветствие и имя Ая при открытии', () => {
     render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
 
     expect(screen.getAllByText(/(?:Ая|Ани)/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('на связи')).toBeDefined();
-    expect(screen.getByText('am/free')).toBeDefined();
     expect(screen.getByText(/Ну привет\. Я (?:Ая|Ани)\./i)).toBeDefined();
     expect(screen.getByPlaceholderText('Спроси что-нибудь...')).toBeDefined();
   });
@@ -172,5 +170,31 @@ describe('AiChatModal Component', () => {
     expect(bubble.textContent.length).toBeGreaterThan(0);
 
     vi.useRealTimers();
+  });
+
+  it('прокручивает контейнер сообщений локально и не дергает внешние элементы при ответе', async () => {
+    const mockReply = 'Это ответ нейросети.';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: mockReply, emotion: 'idle' })
+    });
+
+    const scrollIntoViewMock = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} embedded={true} />);
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    const sendBtn = screen.getByRole('button', { name: 'Отправить сообщение' });
+
+    await userEvent.type(input, 'Вопрос');
+    await userEvent.click(sendBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(mockReply)).toBeDefined();
+    });
+
+    // scrollIntoView не должен вызываться на элементах, чтобы верстка не прыгала наверх
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 });
