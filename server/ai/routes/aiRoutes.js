@@ -15,6 +15,7 @@ const asyncHandler = (fn) => async (req, res, next) => {
 };
 
 router.post('/chat', asyncHandler(aiController.handleChat));
+router.post('/transcribe', asyncHandler(aiController.handleTranscribe));
 router.get('/status', asyncHandler(aiController.getStatus));
 
 module.exports = router;

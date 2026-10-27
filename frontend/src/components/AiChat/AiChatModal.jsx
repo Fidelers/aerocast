@@ -160,15 +160,25 @@ export default function AiChatModal({
     }
   }, [isOpen, embedded]);
 
-  // Закрытие по клавише Escape
+  // Состояние и ссылки для голосового ввода (Web Speech API + MediaRecorder fallback)
+  const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const transcriptRef = useRef('');
+  const isCancelledRef = useRef(false);
+  const messagesRef = useRef(messages);
+  const inputMessageRef = useRef(inputMessage);
+
   useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose?.();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    inputMessageRef.current = inputMessage;
+  }, [inputMessage]);
 
   const toggleSound = () => {
     setIsSoundEnabled((prev) => {
@@ -182,9 +192,10 @@ export default function AiChatModal({
     });
   };
 
-  const handleSendMessage = async (e) => {
+  const handleSendMessage = useCallback(async (e, directText = null) => {
     e?.preventDefault?.();
-    const trimmed = inputMessage.trim();
+    const rawText = typeof directText === 'string' ? directText : inputMessageRef.current;
+    const trimmed = rawText.trim();
     if (!trimmed || isLoading) return;
 
     const userMsg = {
@@ -200,7 +211,7 @@ export default function AiChatModal({
 
     try {
       // Собираем последние реплики для контекста (ровно до 4 реплик: 2 пары вопрос-ответ)
-      const historyPayload = messages
+      const historyPayload = messagesRef.current
         .filter((m) => m.id !== 'init-1' && !m.isError)
         .slice(-4)
         .map((m) => ({ role: m.role, content: m.content }));
@@ -242,7 +253,352 @@ export default function AiChatModal({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading]);
+
+  // Конвертация аудио blob в base64
+  const blobToBase64 = useCallback((blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result;
+        const base64 = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : '';
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  // Отправка аудио на бэкенд для распознавания (fallback для Firefox и браузеров без SpeechRecognition)
+  const sendVoiceBlobToBackend = useCallback(async (blob) => {
+    setIsTranscribing(true);
+    try {
+      const base64 = await blobToBase64(blob);
+      if (!base64) {
+        throw new Error('Пустая аудиозапись');
+      }
+
+      const response = await fetch('/api/ai/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio: base64,
+          mimeType: blob.type || 'audio/webm'
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Ошибка сервера (${response.status})`);
+      }
+
+      const data = await response.json();
+      const transcribedText = (data.text || '').trim();
+      if (!transcribedText) {
+        throw new Error('Не удалось распознать речь в аудиозаписи');
+      }
+
+      setInputMessage(transcribedText);
+      await handleSendMessage(null, transcribedText);
+    } catch (err) {
+      console.warn('Backend audio transcribe error:', err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-voice-${Date.now()}`,
+          role: 'assistant',
+          isError: true,
+          content: `Ошибка распознавания аудио: ${err.message}. Для мгновенного прямого распознавания речи в браузере рекомендуются Google Chrome, Microsoft Edge или Яндекс.Браузер.`,
+          timestamp: Date.now()
+        }
+      ]);
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, [blobToBase64, handleSendMessage]);
+
+  // Отмена голосового ввода без отправки сообщения
+  const handleCancelVoice = useCallback(() => {
+    isCancelledRef.current = true;
+    transcriptRef.current = '';
+    audioChunksRef.current = [];
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // ignore
+      }
+      mediaRecorderRef.current = null;
+    }
+
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        // ignore
+      }
+      mediaStreamRef.current = null;
+    }
+
+    setIsListening(false);
+    setInputMessage('');
+  }, []);
+
+  // Включение / остановка голосового ввода по клику на микрофон
+  const handleToggleVoice = useCallback(async () => {
+    if (isLoading || isTranscribing) return;
+
+    // Пользователь нажал микрофон во время записи -> останавливаем и отправляем надиктованное
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      return;
+    }
+
+    // 1. Проверяем доступность API запроса медиаустройств
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const unsupportedMsg = {
+        id: `sys-${Date.now()}`,
+        role: 'assistant',
+        isError: true,
+        content:
+          'Запрос разрешения на микрофон не поддерживается в текущем окружении. Браузер требует безопасное соединение (HTTPS или http://localhost:5173).',
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, unsupportedMsg]);
+      return;
+    }
+
+    // 2. ЯВНО запрашиваем у браузера разрешение на использование микрофона
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.warn('Microphone permission error:', err);
+      let errorText = 'Не удалось получить доступ к микрофону.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorText =
+          'Разрешение на использование микрофона отклонено. Пожалуйста, разрешите доступ к микрофону в настройках браузера (значок микрофона или замка в адресной строке) и нажмите на микрофон снова.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorText = 'Микрофон не обнаружен. Пожалуйста, подключите микрофон к компьютеру.';
+      }
+      const deniedMsg = {
+        id: `sys-${Date.now()}`,
+        role: 'assistant',
+        isError: true,
+        content: errorText,
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, deniedMsg]);
+      return;
+    }
+
+    // Разрешение получено!
+    isCancelledRef.current = false;
+    transcriptRef.current = '';
+    audioChunksRef.current = [];
+
+    const SpeechRecognition =
+      typeof window !== 'undefined'
+        ? window.SpeechRecognition || window.webkitSpeechRecognition
+        : null;
+
+    // ВАРИАНТ А: Браузер поддерживает Web Speech API (Google Chrome, Microsoft Edge, Яндекс.Браузер, Safari)
+    if (SpeechRecognition) {
+      // Освобождаем временный поток getUserMedia: SpeechRecognition использует аудиоканал автономно
+      try {
+        stream.getTracks().forEach((track) => track.stop());
+      } catch {
+        // ignore
+      }
+
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+
+        recognition.onresult = (event) => {
+          let interim = '';
+          let final = '';
+
+          for (let i = 0; i < event.results.length; ++i) {
+            const item = event.results[i];
+            if (item.isFinal) {
+              final += item[0].transcript;
+            } else {
+              interim += item[0].transcript;
+            }
+          }
+
+          const currentText = final || interim;
+          transcriptRef.current = final || currentText;
+          setInputMessage(currentText);
+        };
+
+        recognition.onerror = (event) => {
+          console.warn('SpeechRecognition error:', event.error);
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            const errMsg = {
+              id: `err-mic-${Date.now()}`,
+              role: 'assistant',
+              isError: true,
+              content:
+                'Доступ к микрофону заблокирован. Разрешите доступ к микрофону в настройках браузера для Aerocast.',
+              timestamp: Date.now()
+            };
+            setMessages((prev) => [...prev, errMsg]);
+          }
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+          const textToSend = transcriptRef.current.trim();
+          transcriptRef.current = '';
+
+          if (!isCancelledRef.current && textToSend) {
+            handleSendMessage(null, textToSend);
+          }
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        setIsListening(false);
+      }
+      return;
+    }
+
+    // ВАРИАНТ Б: Браузер НЕ поддерживает Web Speech API (например, Mozilla Firefox),
+    // но доступ к микрофону пользователь уже разрешил! Записываем через MediaRecorder и отправляем на бэкенд
+    if (typeof MediaRecorder !== 'undefined') {
+      try {
+        mediaStreamRef.current = stream;
+        const mimeType =
+          typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+            ? 'audio/ogg;codecs=opus'
+            : '';
+
+        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        recorder.onstart = () => {
+          setIsListening(true);
+        };
+
+        recorder.onstop = async () => {
+          setIsListening(false);
+          try {
+            stream.getTracks().forEach((track) => track.stop());
+          } catch {
+            // ignore
+          }
+          mediaStreamRef.current = null;
+
+          if (isCancelledRef.current) {
+            audioChunksRef.current = [];
+            return;
+          }
+
+          const recordedBlob = new Blob(audioChunksRef.current, {
+            type: recorder.mimeType || 'audio/webm'
+          });
+          audioChunksRef.current = [];
+
+          if (recordedBlob.size > 200) {
+            await sendVoiceBlobToBackend(recordedBlob);
+          }
+        };
+
+        recorder.start();
+      } catch (err) {
+        console.error('Failed to start MediaRecorder:', err);
+        try {
+          stream.getTracks().forEach((track) => track.stop());
+        } catch {
+          // ignore
+        }
+        setIsListening(false);
+      }
+      return;
+    }
+
+    // Если ни SpeechRecognition, ни MediaRecorder не поддерживаются в браузере:
+    try {
+      stream.getTracks().forEach((track) => track.stop());
+    } catch {
+      // ignore
+    }
+    const fallbackMsg = {
+      id: `sys-${Date.now()}`,
+      role: 'assistant',
+      isError: true,
+      content:
+        'Разрешение на микрофон получено, однако ваш браузер не поддерживает распознавание речи (Web Speech API). Для работы голосового ввода рекомендуются Google Chrome, Microsoft Edge или Яндекс.Браузер.',
+      timestamp: Date.now()
+    };
+    setMessages((prev) => [...prev, fallbackMsg]);
+  }, [isLoading, isTranscribing, isListening, handleSendMessage, sendVoiceBlobToBackend]);
+
+  // Остановка записи при закрытии окна
+  useEffect(() => {
+    if (!isOpen && isListening) {
+      handleCancelVoice();
+    }
+  }, [isOpen, isListening, handleCancelVoice]);
+
+  // Закрытие по клавише Escape (или отмена голосового ввода, если идет запись)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isListening) {
+          handleCancelVoice();
+        } else {
+          onClose?.();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, isListening, handleCancelVoice]);
 
   if (!isOpen) return null;
 
@@ -364,7 +720,7 @@ export default function AiChatModal({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Форма ввода */}
+        {/* Форма ввода с голосовым управлением */}
         <footer className="ai-chat-footer">
           <form className="ai-chat-input-form" onSubmit={handleSendMessage}>
             <input
@@ -372,15 +728,48 @@ export default function AiChatModal({
               type="text"
               className="ai-chat-input"
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Спроси что-нибудь..."
-              disabled={isLoading}
+              onChange={(e) => {
+                if (isListening) handleCancelVoice();
+                setInputMessage(e.target.value);
+              }}
+              placeholder={isTranscribing ? "Распознавание речи..." : isListening ? "Слушаю вас, говорите..." : "Спроси что-нибудь..."}
+              disabled={isLoading || isTranscribing}
               maxLength={600}
             />
+            {isListening && (
+              <button
+                type="button"
+                className="ai-chat-cancel-voice-btn"
+                onClick={handleCancelVoice}
+                title="Отменить запись"
+                aria-label="Отменить голосовой ввод"
+                data-testid="ai-chat-cancel-voice-btn"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+            <button
+              type="button"
+              className={`ai-chat-mic-btn ${isListening ? 'ai-chat-mic-btn--listening' : ''}`}
+              onClick={handleToggleVoice}
+              disabled={isLoading || isTranscribing}
+              title={isListening ? "Остановить запись и отправить" : "Голосовой ввод"}
+              aria-label={isListening ? "Остановить запись и отправить" : "Включить голосовой ввод"}
+              data-testid="ai-chat-mic-btn"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+            </button>
             <button
               type="submit"
               className="ai-chat-send-btn"
-              disabled={!inputMessage.trim() || isLoading}
+              disabled={!inputMessage.trim() || isLoading || isTranscribing}
               title="Отправить (Enter)"
               aria-label="Отправить сообщение"
             >

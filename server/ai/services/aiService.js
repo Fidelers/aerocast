@@ -139,6 +139,56 @@ async function sendChatMessage({ history = [], userMessage }) {
     }
 }
 
+async function transcribeAudio({ audioBase64, mimeType = 'audio/webm' }) {
+    const apiKey = aiConfig.apiKey;
+
+    if (!apiKey || apiKey.trim() === '' || apiKey === 'YOUR_ANYMODEL_KEY') {
+        throw new Error('API-ключ AnyModel не настроен для транскрипции аудио.');
+    }
+
+    const cleanBase64 = String(audioBase64 || '').replace(/^data:audio\/[a-z0-9_-]+;base64,/i, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+
+    if (buffer.length === 0) {
+        throw new Error('Пустой аудиофайл.');
+    }
+
+    const extension = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'webm';
+    const blob = new Blob([buffer], { type: mimeType });
+
+    const formData = new FormData();
+    formData.append('file', blob, `voice.${extension}`);
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'ru');
+
+    try {
+        const res = await fetch(`${aiConfig.baseURL}/audio/transcriptions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey.trim()}`
+            },
+            body: formData,
+            signal: AbortSignal.timeout(aiConfig.timeoutMs)
+        });
+
+        if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson.error?.message || errJson.error || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const text = (data.text || '').trim();
+        if (!text) {
+            throw new Error('Транскрипция вернула пустой результат.');
+        }
+        return text;
+    } catch (err) {
+        console.error('aiService transcribeAudio error:', err.message);
+        throw new Error(`Ошибка транскрипции: ${err.message}`);
+    }
+}
+
 module.exports = {
-    sendChatMessage
+    sendChatMessage,
+    transcribeAudio
 };

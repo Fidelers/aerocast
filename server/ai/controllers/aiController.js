@@ -29,6 +29,29 @@ async function handleChat(req, res) {
     }
 }
 
+async function handleTranscribe(req, res) {
+    const { audio, mimeType } = req.body;
+
+    if (!audio || typeof audio !== 'string' || !audio.trim()) {
+        return res.status(400).json({ error: 'Поле audio обязательно и должно содержать base64-строку.' });
+    }
+
+    try {
+        const text = await aiService.transcribeAudio({
+            audioBase64: audio.trim(),
+            mimeType: mimeType || 'audio/webm'
+        });
+
+        res.json({
+            text,
+            timestamp: Date.now()
+        });
+    } catch (err) {
+        console.error('aiController transcribe error:', err.message);
+        res.status(500).json({ error: err.message || 'Ошибка транскрипции аудио' });
+    }
+}
+
 function getStatus(req, res) {
     res.json({
         status: 'ok',
@@ -40,5 +63,6 @@ function getStatus(req, res) {
 
 module.exports = {
     handleChat,
+    handleTranscribe,
     getStatus
 };

@@ -64,4 +64,46 @@ describe('AI Module & AnyModel endpoints', () => {
             spy.mockRestore();
         });
     });
+
+    describe('POST /api/ai/transcribe', () => {
+        it('возвращает 400 если аудио не передано или пустое', async () => {
+            const res = await request(app)
+                .post('/api/ai/transcribe')
+                .send({ audio: '   ' });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBeDefined();
+        });
+
+        it('возвращает 200 и текст при успешной транскрипции аудио', async () => {
+            const spy = jest.spyOn(aiService, 'transcribeAudio').mockResolvedValueOnce('Какое качество воздуха в Москве?');
+
+            const res = await request(app)
+                .post('/api/ai/transcribe')
+                .send({
+                    audio: 'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
+                    mimeType: 'audio/webm'
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.text).toBe('Какое качество воздуха в Москве?');
+            expect(spy).toHaveBeenCalled();
+            spy.mockRestore();
+        });
+
+        it('обрабатывает ошибку транскрипции со статусом 500', async () => {
+            const spy = jest.spyOn(aiService, 'transcribeAudio').mockRejectedValueOnce(new Error('Whisper API offline'));
+
+            const res = await request(app)
+                .post('/api/ai/transcribe')
+                .send({
+                    audio: 'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=',
+                    mimeType: 'audio/webm'
+                });
+
+            expect(res.status).toBe(500);
+            expect(res.body.error).toMatch(/Whisper API offline/);
+            spy.mockRestore();
+        });
+    });
 });
