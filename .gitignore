@@ -3,7 +3,7 @@
 /server/.idea
 /server/node_modules/
 /SECRETS
-/server/cache.db*
+/server/data/cache.db*
 /server/coverage/
 /frontend/coverage/
 /models/
