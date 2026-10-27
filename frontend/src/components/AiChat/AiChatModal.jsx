@@ -273,6 +273,28 @@ export default function AiChatModal({
   const sendVoiceBlobToBackend = useCallback(async (blob) => {
     setIsTranscribing(true);
     try {
+      // Попытка использовать локальный транскриптор, если нативный отсутствует
+      if (typeof window !== 'undefined' && !window.SpeechRecognition && !window.webkitSpeechRecognition) {
+        try {
+          const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm');
+          env.allowLocalModels = false;
+          const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+          
+          const arrayBuffer = await blob.arrayBuffer();
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          const result = await transcriber(audioBuffer.getChannelData(0));
+          
+          if (result && result.text) {
+            setInputMessage(result.text);
+            await handleSendMessage(null, result.text);
+            return;
+          }
+        } catch (localErr) {
+          console.warn('Local WASM transcription failed, falling back:', localErr);
+        }
+      }
+
       const base64 = await blobToBase64(blob);
       if (!base64) {
         throw new Error('Пустая аудиозапись');
@@ -308,7 +330,7 @@ export default function AiChatModal({
           id: `err-voice-${Date.now()}`,
           role: 'assistant',
           isError: true,
-          content: `Ошибка распознавания аудио: ${err.message}. Для мгновенного прямого распознавания речи в браузере рекомендуются Google Chrome, Microsoft Edge или Яндекс.Браузер.`,
+          content: `Ошибка распознавания аудио: ${err.message}.`,
           timestamp: Date.now()
         }
       ]);
