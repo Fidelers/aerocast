@@ -9,6 +9,7 @@ import LayerSwitcher from './components/LayerSwitcher';
 import { findDefaultTimeIndex, parseIsoTimeString, formatDateKey, isForecastTime } from './utils/timeUtils';
 import useAirGrid from './hooks/useAirGrid';
 import { isPointInCoverage } from './utils/russiaBoundary2026';
+import PollutionDynamicsModal from './components/PollutionDynamicsModal';
 
 const DEFAULT_COORDS = {
     lat: 53.7596,
@@ -29,6 +30,9 @@ function App({ referenceDate } = {}) {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isDynamicsModalOpen, setIsDynamicsModalOpen] = useState(false);
+    const handleOpenDynamicsModal = () => setIsDynamicsModalOpen(true);
+    const handleCloseDynamicsModal = () => setIsDynamicsModalOpen(false);
 
     // Реактивное текущее время: авто-синхронизация при смене минут/часов и возврате на вкладку
     const [currentTime, setCurrentTime] = useState(() => referenceDate || new Date());
@@ -457,6 +461,16 @@ function App({ referenceDate } = {}) {
                 isOpen={isRightPanelOpen}
                 onClose={() => setIsRightPanelOpen(false)}
                 onOpen={() => setIsRightPanelOpen(true)}
+                isColorBlind={isColorBlind}
+                colorBlindType={colorBlindType}
+                onOpenDynamicsModal={handleOpenDynamicsModal}
+            />
+            <PollutionDynamicsModal
+                isOpen={isDynamicsModalOpen}
+                onClose={handleCloseDynamicsModal}
+                airData={airData}
+                selectedTimeIndex={selectedTimeIndex}
+                coords={coords}
                 isColorBlind={isColorBlind}
                 colorBlindType={colorBlindType}
             />
