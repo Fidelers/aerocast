@@ -8,7 +8,7 @@ const { open } = require('sqlite');
 
 // Файл базы лежит в корне server/ (рядом с этим модулем).
 // Переменной окружения DB_PATH можно указать своё расположение.
-const DB_FILE = process.env.DB_PATH || path.join(__dirname, '..', 'cache.db');
+const DB_FILE = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'cache.db');
 
 let dbPromise = null;
 

@@ -7,6 +7,9 @@ services:
       - "3000:3000"
     environment:
       - LLM_BASE_URL=http://llama-server:8080/v1
+      - DB_PATH=/app/data/cache.db
+    volumes:
+      - ./server/data:/app/data
     depends_on:
       - llama-server
 
