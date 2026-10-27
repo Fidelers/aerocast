@@ -146,6 +146,58 @@
   }
 }
 
+/* ==========================================================================
+   Адаптация переключателя слоев под 1920x1080 (масштаб 125% / 1536x864)
+   ========================================================================== */
+@media screen and (min-width: 769px) and (max-width: 1680px),
+       screen and (min-width: 769px) and (max-height: 900px) {
+  .layer-switcher {
+    top: 90px;
+    right: 10px;
+  }
+
+  .layer-switcher__toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .layer-switcher__icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .layer-switcher__item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* ==========================================================================
+   Адаптация переключателя слоев под 1920x1200 (масштаб 125% / 1536x960)
+   ========================================================================== */
+@media screen and (min-width: 769px) and (max-width: 1680px) and (min-height: 841px),
+       screen and (min-width: 769px) and (min-height: 851px) and (max-height: 990px) {
+  .layer-switcher {
+    top: 95px;
+    right: 12px;
+  }
+
+  .layer-switcher__toggle {
+    width: 33px;
+    height: 33px;
+  }
+
+  .layer-switcher__icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  .layer-switcher__item {
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+}
+
 /* === Оптимизация для телефонов и мобильных устройств (до 768px) === */
 @media (max-width: 768px) {
   .layer-switcher {
