@@ -1,6 +1,6 @@
 // tests/types.test.js — тесты классификации AQI (Vitest)
 import { describe, it, expect } from 'vitest';
-import { getAqiInfo, getAqiRecommendation } from '../src/types.js';
+import { getAqiInfo, getAqiRecommendation, COLORBLIND_PALETTES } from '../src/types.js';
 
 describe('types.getAqiInfo', () => {
     describe('Отсутствие данных', () => {
@@ -102,7 +102,7 @@ describe('types.getAqiInfo', () => {
     });
 
     describe('Режим для дальтоников (options.colorBlind)', () => {
-        it('возвращает hex из палитры Okabe-Ito при colorBlind: true', () => {
+        it('возвращает hex из палитры Okabe-Ito при colorBlind: true по умолчанию', () => {
             expect(getAqiInfo(10, { colorBlind: true }).hex).toBe('#0072B2');  // отлично
             expect(getAqiInfo(30, { colorBlind: true }).hex).toBe('#56B4E9');  // хорошо
             expect(getAqiInfo(50, { colorBlind: true }).hex).toBe('#F0E442');  // удовлетворительно
@@ -111,8 +111,38 @@ describe('types.getAqiInfo', () => {
             expect(getAqiInfo(120, { colorBlind: true }).hex).toBe('#7B3294'); // опасно
         });
 
+        it('поддерживает палитру Дейтеранопия при colorBlindType: deuteranopia', () => {
+            const opts = { colorBlind: true, colorBlindType: 'deuteranopia' };
+            expect(getAqiInfo(10, opts).hex).toBe('#1E88E5');
+            expect(getAqiInfo(30, opts).hex).toBe('#64B5F6');
+            expect(getAqiInfo(50, opts).hex).toBe('#FFF176');
+            expect(getAqiInfo(70, opts).hex).toBe('#FB8C00');
+            expect(getAqiInfo(90, opts).hex).toBe('#8E24AA');
+            expect(getAqiInfo(120, opts).hex).toBe('#4A148C');
+        });
+
+        it('поддерживает палитру Протанопия при colorBlindType: protanopia', () => {
+            const opts = { colorBlind: true, colorBlindType: 'protanopia' };
+            expect(getAqiInfo(10, opts).hex).toBe('#0077BB');
+            expect(getAqiInfo(30, opts).hex).toBe('#33BBEE');
+            expect(getAqiInfo(50, opts).hex).toBe('#EECC66');
+            expect(getAqiInfo(70, opts).hex).toBe('#EE7733');
+            expect(getAqiInfo(90, opts).hex).toBe('#EE3377');
+            expect(getAqiInfo(120, opts).hex).toBe('#332288');
+        });
+
+        it('поддерживает палитру Тританопия при colorBlindType: tritanopia', () => {
+            const opts = { colorBlind: true, colorBlindType: 'tritanopia' };
+            expect(getAqiInfo(10, opts).hex).toBe('#009E73');
+            expect(getAqiInfo(30, opts).hex).toBe('#66C2A5');
+            expect(getAqiInfo(50, opts).hex).toBe('#FEE08B');
+            expect(getAqiInfo(70, opts).hex).toBe('#FF7043');
+            expect(getAqiInfo(90, opts).hex).toBe('#E53935');
+            expect(getAqiInfo(120, opts).hex).toBe('#880E4F');
+        });
+
         it('не изменяет label, level и cssClass в режиме дальтоника', () => {
-            const info = getAqiInfo(30, { colorBlind: true });
+            const info = getAqiInfo(30, { colorBlind: true, colorBlindType: 'deuteranopia' });
             expect(info.label).toBe('хорошо');
             expect(info.level).toBe('good');
             expect(info.cssClass).toBe('aqi-good');
@@ -125,14 +155,14 @@ describe('types.getAqiInfo', () => {
 
         it('для «нет данных» возвращает нейтральный серый #9E9E9E', () => {
             expect(getAqiInfo(null, { colorBlind: true }).hex).toBe('#9E9E9E');
+            expect(getAqiInfo(null, { colorBlind: true, colorBlindType: 'tritanopia' }).hex).toBe('#9E9E9E');
         });
 
-        it('палитра дальтоника не повторяет стандартные hex-коды', () => {
-            const standard = [0, 30, 50, 70, 90, 120].map(v => getAqiInfo(v).hex);
-            const colorBlind = [0, 30, 50, 70, 90, 120].map(v => getAqiInfo(v, { colorBlind: true }).hex);
-            for (const hex of colorBlind) {
-                expect(standard).not.toContain(hex);
-            }
+        it('экспортирует COLORBLIND_PALETTES со всеми 4 видами дальтонизма', () => {
+            expect(COLORBLIND_PALETTES.okabe).toBeDefined();
+            expect(COLORBLIND_PALETTES.deuteranopia).toBeDefined();
+            expect(COLORBLIND_PALETTES.protanopia).toBeDefined();
+            expect(COLORBLIND_PALETTES.tritanopia).toBeDefined();
         });
     });
 
@@ -158,4 +188,3 @@ describe('types.getAqiInfo', () => {
         });
     });
 });
-

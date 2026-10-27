@@ -207,14 +207,35 @@ h2 {
 }
 
 .sidebar {
-    font-family: var(--inter);
-    background-color: var(--bg);
-    width: 280px;
-    flex: 0 0 280px;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
+  font-family: var(--inter);
+  background-color: var(--bg);
+  width: 280px;
+  flex: 0 0 280px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden; /* Жестко отсекает горизонтальный скролл */
+  overflow-y: auto;   /* Оставляет вертикальный поток, если экран слишком низкий */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.25) transparent;
+}
+
+/* Аккуратная тонкая полоса прокрутки для Chromium/WebKit */
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.25);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.45);
 }
 
 .sidebar__header {
@@ -254,19 +275,24 @@ h2 {
   color: var(--text-muted);
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, transform 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .sidebar__settings-btn:hover {
   background-color: var(--accent-bg);
   color: var(--text-h);
-  transform: rotate(30deg);
 }
 
 .sidebar__settings-icon {
   width: 20px;
   height: 20px;
   display: block;
+  transition: transform 0.3s ease;
+  transform-origin: center;
+}
+
+.sidebar__settings-btn:hover .sidebar__settings-icon {
+  transform: rotate(45deg);
 }
 
 .sidebar__info-btn {
@@ -895,7 +921,8 @@ h2 {
     border-right: none;
     border-bottom: 1px solid var(--border);
     max-height: none;
-    overflow: visible;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .days {
@@ -956,7 +983,7 @@ h2 {
 }
 
 /* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .forecast-badge {
     top: 20px;
     left: 20px;
@@ -1128,6 +1155,268 @@ h2 {
     height: 36px;
     font-size: 14px;
   }
+
+  /* Специфично для экранов 1920x1200: просторная вертикальная сетка */
+  @media (min-height: 1000px) {
+    .sidebar {
+      padding-bottom: 24px;
+    }
+
+    .city-search,
+    .display-mode,
+    .geo-nav,
+    .date-nav,
+    .time-nav {
+      padding: 16px 18px 0;
+    }
+
+    .sidebar-mascot-container {
+      margin-top: auto;
+      padding-bottom: 12px;
+    }
+  }
+}
+
+/* ==========================================================================
+   Адаптация под 1920x1080 при масштабе 125% (1536x864) и экраны до 900px высотой
+   ========================================================================== */
+@media screen and (min-width: 769px) and (max-width: 1680px),
+       screen and (min-width: 769px) and (max-height: 900px) {
+  .sidebar {
+    width: 300px;
+    flex: 0 0 300px;
+  }
+
+  .sidebar__header {
+    padding: 12px 14px;
+  }
+
+  .sidebar__brand {
+    gap: 8px;
+  }
+
+  .sidebar__logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .sidebar__title {
+    font-size: 16.5px;
+  }
+
+  .sidebar__settings-btn,
+  .sidebar__info-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sidebar__settings-icon,
+  .sidebar__info-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .city-search,
+  .display-mode,
+  .geo-nav,
+  .date-nav,
+  .time-nav {
+    padding: 8px 12px 0;
+  }
+
+  .city-search__title,
+  .display-mode__title,
+  .geo-nav__title,
+  .date-nav__title,
+  .time-nav__title {
+    font-size: 13.5px;
+    margin: 0 0 4px;
+  }
+
+  .city-search__input {
+    height: 32px;
+    font-size: 13px;
+    padding-left: 28px;
+    background-position: 8px center;
+  }
+
+  .segmented {
+    height: 30px;
+  }
+
+  .segmented__btn {
+    height: 26px;
+    font-size: 12px;
+  }
+
+  .geo-nav__location-btn {
+    height: 32px;
+    font-size: 12.5px;
+  }
+
+  .day-card {
+    width: 30px;
+    height: 48px;
+  }
+
+  .day-card__label {
+    font-size: 10.5px;
+  }
+
+  .day-card__num {
+    font-size: 13px;
+  }
+
+  .day-card__extra {
+    font-size: 9px;
+  }
+
+  .date-nav__now-btn {
+    height: 30px;
+    font-size: 12px;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .date-nav__now-icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .times {
+    gap: 3px;
+  }
+
+  .time {
+    width: 54px;
+    height: 26px;
+    font-size: 12px;
+  }
+
+  .sidebar-mascot-container {
+    padding-bottom: 4px;
+  }
+}
+
+/* ==========================================================================
+   Адаптация под 1920x1200 при масштабе 125% (1536x960, высота от 841px до 990px)
+   ========================================================================== */
+@media screen and (min-width: 769px) and (max-width: 1680px) and (min-height: 841px),
+       screen and (min-width: 769px) and (min-height: 851px) and (max-height: 990px) {
+  .sidebar {
+    width: 310px;
+    flex: 0 0 310px;
+  }
+
+  .sidebar__header {
+    padding: 14px 16px;
+  }
+
+  .sidebar__brand {
+    gap: 10px;
+  }
+
+  .sidebar__logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  .sidebar__title {
+    font-size: 17.5px;
+  }
+
+  .sidebar__settings-btn,
+  .sidebar__info-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .sidebar__settings-icon,
+  .sidebar__info-icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  .city-search,
+  .display-mode,
+  .geo-nav,
+  .date-nav,
+  .time-nav {
+    padding: 10px 14px 0;
+  }
+
+  .city-search__title,
+  .display-mode__title,
+  .geo-nav__title,
+  .date-nav__title,
+  .time-nav__title {
+    font-size: 14.5px;
+    margin: 0 0 5px;
+  }
+
+  .city-search__input {
+    height: 34px;
+    font-size: 13.5px;
+    padding-left: 30px;
+    background-position: 9px center;
+  }
+
+  .segmented {
+    height: 32px;
+  }
+
+  .segmented__btn {
+    height: 28px;
+    font-size: 12.5px;
+  }
+
+  .geo-nav__location-btn {
+    height: 34px;
+    font-size: 13px;
+  }
+
+  .day-card {
+    width: 32px;
+    height: 50px;
+  }
+
+  .day-card__label {
+    font-size: 11px;
+  }
+
+  .day-card__num {
+    font-size: 13.5px;
+  }
+
+  .day-card__extra {
+    font-size: 9.5px;
+  }
+
+  .date-nav__now-btn {
+    height: 32px;
+    font-size: 12.5px;
+    gap: 7px;
+    margin-top: 5px;
+  }
+
+  .date-nav__now-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .times {
+    gap: 4px;
+  }
+
+  .time {
+    width: 56px;
+    height: 28px;
+    font-size: 12.5px;
+  }
+
+  .sidebar-mascot-container {
+    padding-bottom: 8px;
+  }
 }
 
 /* === Адаптивная верстка под телефоны и мобильные устройства (до 768px) === */
@@ -1160,6 +1449,9 @@ h2 {
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     border-right: 1px solid var(--border);
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
     padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
@@ -1169,6 +1461,31 @@ h2 {
 
   .sidebar.sidebar--open {
     transform: translateX(0);
+  }
+
+  /* Размытие фона сайдбара на мобильных устройствах при открытом AI-чате */
+  .sidebar--chat-open {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+  }
+
+  .sidebar--chat-open .city-search,
+  .sidebar--chat-open .display-mode,
+  .sidebar--chat-open .geo-nav,
+  .sidebar--chat-open .date-nav,
+  .sidebar--chat-open .time-nav {
+    filter: blur(8px);
+    opacity: 0.18;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .city-search,
+  .display-mode,
+  .geo-nav,
+  .date-nav,
+  .time-nav {
+    transition: filter 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .sidebar--dragging {

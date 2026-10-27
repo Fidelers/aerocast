@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const apiRoutes = require('./routes/api');
+const aiModule = require('./ai');
 const db = require('./config/db');
 
 const app = express();
@@ -21,7 +22,9 @@ app.use(cors({
     origin: (origin, callback) => {
         if (!origin) return callback(null, true);
         const cleanOrigin = String(origin).trim().replace(/\/+$/, '');
-        if (allowedOrigins.includes(cleanOrigin)) {
+        const isLocalHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin);
+        const isLocalIp = /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(cleanOrigin);
+        if (allowedOrigins.includes(cleanOrigin) || isLocalHost || isLocalIp) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -29,9 +32,11 @@ app.use(cors({
     },
     credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 app.use('/api', apiRoutes);
+app.use('/api/ai', aiModule.routes);
 
 app.get('/ping', (req, res) => {
     res.json({ message: 'Бэкенд на связи!' });

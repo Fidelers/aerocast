@@ -47,7 +47,7 @@
     font-size: 15px;
   }
 
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 18px;
   }
 }
@@ -150,7 +150,8 @@
   }
 }
 
-/* === Режим для дальтоников (цветовая слепота: дейтеранопия/протанопия) === */
+/* === Режимы доступности для людей с цветовой слепотой (дальтонизм) === */
+/* По умолчанию / Окабе */
 html[data-colorblind="true"],
 :root[data-colorblind="true"] {
   --aqi-color-excellent: #0072b2;
@@ -159,6 +160,80 @@ html[data-colorblind="true"],
   --aqi-color-poor: #e69f00;
   --aqi-color-very-poor: #d55e00;
   --aqi-color-hazardous: #7b3294;
+  --aqi-text-excellent: #ffffff;
+  --aqi-text-good: #000000;
+  --aqi-text-fair: #000000;
+  --aqi-text-poor: #000000;
+  --aqi-text-very-poor: #ffffff;
+  --aqi-text-hazardous: #ffffff;
+}
+
+/* Вид: Окабе (Okabe-Ito) */
+html[data-colorblind="true"][data-colorblind-type="okabe"],
+:root[data-colorblind="true"][data-colorblind-type="okabe"] {
+  --aqi-color-excellent: #0072b2;
+  --aqi-color-good: #56b4e9;
+  --aqi-color-fair: #f0e442;
+  --aqi-color-poor: #e69f00;
+  --aqi-color-very-poor: #d55e00;
+  --aqi-color-hazardous: #7b3294;
+  --aqi-text-excellent: #ffffff;
+  --aqi-text-good: #000000;
+  --aqi-text-fair: #000000;
+  --aqi-text-poor: #000000;
+  --aqi-text-very-poor: #ffffff;
+  --aqi-text-hazardous: #ffffff;
+}
+
+/* Вид: Дейтеранопия (слепота на зелёный спектр) */
+html[data-colorblind="true"][data-colorblind-type="deuteranopia"],
+:root[data-colorblind="true"][data-colorblind-type="deuteranopia"] {
+  --aqi-color-excellent: #1e88e5;
+  --aqi-color-good: #64b5f6;
+  --aqi-color-fair: #fff176;
+  --aqi-color-poor: #fb8c00;
+  --aqi-color-very-poor: #8e24aa;
+  --aqi-color-hazardous: #4a148c;
+  --aqi-text-excellent: #ffffff;
+  --aqi-text-good: #000000;
+  --aqi-text-fair: #000000;
+  --aqi-text-poor: #000000;
+  --aqi-text-very-poor: #ffffff;
+  --aqi-text-hazardous: #ffffff;
+}
+
+/* Вид: Протанопия (слепота на красный спектр) */
+html[data-colorblind="true"][data-colorblind-type="protanopia"],
+:root[data-colorblind="true"][data-colorblind-type="protanopia"] {
+  --aqi-color-excellent: #0077bb;
+  --aqi-color-good: #33bbee;
+  --aqi-color-fair: #eecc66;
+  --aqi-color-poor: #ee7733;
+  --aqi-color-very-poor: #ee3377;
+  --aqi-color-hazardous: #332288;
+  --aqi-text-excellent: #ffffff;
+  --aqi-text-good: #000000;
+  --aqi-text-fair: #000000;
+  --aqi-text-poor: #000000;
+  --aqi-text-very-poor: #ffffff;
+  --aqi-text-hazardous: #ffffff;
+}
+
+/* Вид: Тританопия (слепота на синий спектр) */
+html[data-colorblind="true"][data-colorblind-type="tritanopia"],
+:root[data-colorblind="true"][data-colorblind-type="tritanopia"] {
+  --aqi-color-excellent: #009e73;
+  --aqi-color-good: #66c2a5;
+  --aqi-color-fair: #fee08b;
+  --aqi-color-poor: #ff7043;
+  --aqi-color-very-poor: #e53935;
+  --aqi-color-hazardous: #880e4f;
+  --aqi-text-excellent: #ffffff;
+  --aqi-text-good: #000000;
+  --aqi-text-fair: #000000;
+  --aqi-text-poor: #ffffff;
+  --aqi-text-very-poor: #ffffff;
+  --aqi-text-hazardous: #ffffff;
 }
 
 html[data-colorblind="true"] .map-marker {
@@ -170,8 +245,8 @@ html[data-colorblind="true"] .aqi-indicator[data-level="excellent"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="excellent"],
 html[data-colorblind="true"] .aqi-modal-item__badge[data-level="excellent"],
 html[data-colorblind="true"] .scale-item[data-level="excellent"] {
-  background-color: #0072b2 !important;
-  color: #ffffff !important;
+  background-color: var(--aqi-color-excellent) !important;
+  color: var(--aqi-text-excellent) !important;
 }
 
 html[data-colorblind="true"] .map-marker.aqi-good,
@@ -179,8 +254,8 @@ html[data-colorblind="true"] .aqi-indicator[data-level="good"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="good"],
 html[data-colorblind="true"] .aqi-modal-item__badge[data-level="good"],
 html[data-colorblind="true"] .scale-item[data-level="good"] {
-  background-color: #56b4e9 !important;
-  color: #000000 !important;
+  background-color: var(--aqi-color-good) !important;
+  color: var(--aqi-text-good) !important;
 }
 
 html[data-colorblind="true"] .map-marker.aqi-fair,
@@ -188,8 +263,8 @@ html[data-colorblind="true"] .aqi-indicator[data-level="fair"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="fair"],
 html[data-colorblind="true"] .aqi-modal-item__badge[data-level="fair"],
 html[data-colorblind="true"] .scale-item[data-level="fair"] {
-  background-color: #f0e442 !important;
-  color: #000000 !important;
+  background-color: var(--aqi-color-fair) !important;
+  color: var(--aqi-text-fair) !important;
 }
 
 html[data-colorblind="true"] .map-marker.aqi-poor,
@@ -197,8 +272,8 @@ html[data-colorblind="true"] .aqi-indicator[data-level="poor"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="poor"],
 html[data-colorblind="true"] .aqi-modal-item__badge[data-level="poor"],
 html[data-colorblind="true"] .scale-item[data-level="poor"] {
-  background-color: #e69f00 !important;
-  color: #000000 !important;
+  background-color: var(--aqi-color-poor) !important;
+  color: var(--aqi-text-poor) !important;
 }
 
 html[data-colorblind="true"] .map-marker.aqi-very-poor,
@@ -206,8 +281,8 @@ html[data-colorblind="true"] .aqi-indicator[data-level="very-poor"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="very-poor"],
 html[data-colorblind="true"] .aqi-modal-item__badge[data-level="very-poor"],
 html[data-colorblind="true"] .scale-item[data-level="very-poor"] {
-  background-color: #d55e00 !important;
-  color: #ffffff !important;
+  background-color: var(--aqi-color-very-poor) !important;
+  color: var(--aqi-text-very-poor) !important;
 }
 
 html[data-colorblind="true"] .map-marker.aqi-hazardous,
@@ -215,27 +290,27 @@ html[data-colorblind="true"] .aqi-indicator[data-level="hazardous"],
 html[data-colorblind="true"] .map-popup__aqi-block[data-level="hazardous"],
 html[data-colorblind="true"] .aqi-modal-item__badge[data-level="hazardous"],
 html[data-colorblind="true"] .scale-item[data-level="hazardous"] {
-  background-color: #7b3294 !important;
-  color: #ffffff !important;
+  background-color: var(--aqi-color-hazardous) !important;
+  color: var(--aqi-text-hazardous) !important;
 }
 
 html[data-colorblind="true"] .aqi-modal-item[data-level="excellent"] {
-  border-left-color: #0072b2 !important;
+  border-left-color: var(--aqi-color-excellent) !important;
 }
 html[data-colorblind="true"] .aqi-modal-item[data-level="good"] {
-  border-left-color: #56b4e9 !important;
+  border-left-color: var(--aqi-color-good) !important;
 }
 html[data-colorblind="true"] .aqi-modal-item[data-level="fair"] {
-  border-left-color: #f0e442 !important;
+  border-left-color: var(--aqi-color-fair) !important;
 }
 html[data-colorblind="true"] .aqi-modal-item[data-level="poor"] {
-  border-left-color: #e69f00 !important;
+  border-left-color: var(--aqi-color-poor) !important;
 }
 html[data-colorblind="true"] .aqi-modal-item[data-level="very-poor"] {
-  border-left-color: #d55e00 !important;
+  border-left-color: var(--aqi-color-very-poor) !important;
 }
 html[data-colorblind="true"] .aqi-modal-item[data-level="hazardous"] {
-  border-left-color: #7b3294 !important;
+  border-left-color: var(--aqi-color-hazardous) !important;
 }
 
 html,
@@ -273,7 +348,7 @@ h1 {
     font-size: 36px;
     margin: 20px 0;
   }
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 64px;
     margin: 40px 0;
   }
@@ -286,7 +361,7 @@ h2 {
   @media (max-width: 1024px) {
     font-size: 20px;
   }
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 28px;
   }
 }
@@ -297,7 +372,7 @@ h3 {
   font-size: 18px;
   font-weight: 500;
   margin: 0;
-  @media (min-width: 1921px) {
+  @media (min-width: 1920px) {
     font-size: 22px;
   }
 }
@@ -318,7 +393,7 @@ code {
 }
 
 /* === Стили карты для 2K экранов === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .maplibregl-ctrl-top-right {
     top: 16px;
     right: 16px;
@@ -385,5 +460,3 @@ code {
     opacity: 0;
   }
 }
-
-

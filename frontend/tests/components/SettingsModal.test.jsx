@@ -1,13 +1,14 @@
 // frontend/tests/components/SettingsModal.test.jsx
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import SettingsModal from '../../src/components/SettingsModal';
+import SettingsModal, { COLORBLIND_TYPES } from '../../src/components/SettingsModal';
 
 describe('SettingsModal component (окно настроек темы и цветовой доступности)', () => {
     beforeEach(() => {
         localStorage.clear();
         document.documentElement.removeAttribute('data-theme');
         document.documentElement.removeAttribute('data-colorblind');
+        document.documentElement.removeAttribute('data-colorblind-type');
     });
 
     afterEach(() => {
@@ -196,7 +197,7 @@ describe('SettingsModal component (окно настроек темы и цве�
         const original = window.matchMedia;
         delete window.matchMedia;
         try {
-            const { container } = render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+            render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
             const themeSwitch = screen.getByRole('switch', { name: /переключить тему оформления/i });
             expect(themeSwitch.getAttribute('aria-checked')).toBe('false');
         } finally {
@@ -257,5 +258,129 @@ describe('SettingsModal component (окно настроек темы и цве�
         fireEvent.click(cbSwitch);
         expect(localStorage.getItem('aerocast_colorblind')).toBe('false');
         expect(document.documentElement.getAttribute('data-colorblind')).toBe('false');
+    });
+
+    it('19. Не отображает выбор видов дальтонизма, если режим цветовой слепоты выключен', () => {
+        render(<SettingsModal isOpen={true} onClose={vi.fn()} isColorBlind={false} />);
+        expect(screen.queryByTestId('settings-colorblind-types')).toBeNull();
+        expect(screen.queryByText(/вид дальтонизма/i)).toBeNull();
+    });
+
+    it('20. Отображает выбор видов дальтонизма только когда режим цветовой слепоты включен', () => {
+        render(<SettingsModal isOpen={true} onClose={vi.fn()} isColorBlind={true} colorBlindType="okabe" />);
+        expect(screen.getByTestId('settings-colorblind-types')).toBeTruthy();
+        expect(screen.getByRole('radio', { name: /окабе/i })).toBeTruthy();
+        expect(screen.getByRole('radio', { name: /дейтеранопия/i })).toBeTruthy();
+        expect(screen.getByRole('radio', { name: /протанопия/i })).toBeTruthy();
+        expect(screen.getByRole('radio', { name: /тританопия/i })).toBeTruthy();
+    });
+
+    it('21. Позволяет выбрать только 1 вид дальтонизма (single choice) и вызывает onColorBlindTypeChange', () => {
+        const handleTypeChange = vi.fn();
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="okabe"
+                onColorBlindTypeChange={handleTypeChange}
+            />
+        );
+
+        const okabeBtn = screen.getByRole('radio', { name: /окабе/i });
+        const deutBtn = screen.getByRole('radio', { name: /дейтеранопия/i });
+        const protBtn = screen.getByRole('radio', { name: /протанопия/i });
+        const tritBtn = screen.getByRole('radio', { name: /тританопия/i });
+
+        expect(okabeBtn.getAttribute('aria-checked')).toBe('true');
+        expect(deutBtn.getAttribute('aria-checked')).toBe('false');
+        expect(protBtn.getAttribute('aria-checked')).toBe('false');
+        expect(tritBtn.getAttribute('aria-checked')).toBe('false');
+
+        // Клик по Дейтеранопия
+        fireEvent.click(deutBtn);
+        expect(handleTypeChange).toHaveBeenCalledWith('deuteranopia');
+
+        // Клик по Протанопия
+        fireEvent.click(protBtn);
+        expect(handleTypeChange).toHaveBeenCalledWith('protanopia');
+
+        // Клик по Тританопия
+        fireEvent.click(tritBtn);
+        expect(handleTypeChange).toHaveBeenCalledWith('tritanopia');
+    });
+
+    it('22. Интерактивная палитра предпросмотра адаптируется под каждый выбранный вид дальтонизма', () => {
+        const { rerender } = render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="okabe"
+            />
+        );
+
+        const palette = screen.getByTestId('settings-preview-palette');
+        // Окабе: 0-20 -> #0072B2 -> rgb(0, 114, 178)
+        expect(palette.children[0].style.backgroundColor).toBe('rgb(0, 114, 178)');
+        expect(screen.getByText(/режим доступности: окабе/i)).toBeTruthy();
+
+        // Дейтеранопия: 0-20 -> #1E88E5 -> rgb(30, 136, 229)
+        rerender(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="deuteranopia"
+            />
+        );
+        expect(palette.children[0].style.backgroundColor).toBe('rgb(30, 136, 229)');
+        expect(screen.getByText(/режим доступности: дейтеранопия/i)).toBeTruthy();
+
+        // Протанопия: 0-20 -> #0077BB -> rgb(0, 119, 187)
+        rerender(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="protanopia"
+            />
+        );
+        expect(palette.children[0].style.backgroundColor).toBe('rgb(0, 119, 187)');
+        expect(screen.getByText(/режим доступности: протанопия/i)).toBeTruthy();
+
+        // Тританопия: 0-20 -> #009E73 -> rgb(0, 158, 115)
+        rerender(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="tritanopia"
+            />
+        );
+        expect(palette.children[0].style.backgroundColor).toBe('rgb(0, 158, 115)');
+        expect(screen.getByText(/режим доступности: тританопия/i)).toBeTruthy();
+    });
+
+    it('23. В автономном режиме переключение вида сохраняется в localStorage и data-атрибуте', () => {
+        localStorage.setItem('aerocast_colorblind', 'true');
+        render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+
+        const deutBtn = screen.getByRole('radio', { name: /дейтеранопия/i });
+        fireEvent.click(deutBtn);
+
+        expect(localStorage.getItem('aerocast_colorblind_type')).toBe('deuteranopia');
+        expect(document.documentElement.getAttribute('data-colorblind-type')).toBe('deuteranopia');
+
+        const tritBtn = screen.getByRole('radio', { name: /тританопия/i });
+        fireEvent.click(tritBtn);
+
+        expect(localStorage.getItem('aerocast_colorblind_type')).toBe('tritanopia');
+        expect(document.documentElement.getAttribute('data-colorblind-type')).toBe('tritanopia');
+    });
+
+    it('24. Экспортирует COLORBLIND_TYPES со всеми 4 видами', () => {
+        expect(COLORBLIND_TYPES).toHaveLength(4);
+        expect(COLORBLIND_TYPES.map(t => t.id)).toEqual(['okabe', 'deuteranopia', 'protanopia', 'tritanopia']);
     });
 });

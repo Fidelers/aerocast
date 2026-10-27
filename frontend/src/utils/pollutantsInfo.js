@@ -81,22 +81,52 @@ export function getPollutantMetadata(key) {
   return POLLUTANTS_METADATA[normalized] || null;
 }
 
+// Доступные палитры бейджей загрязнителей для различных видов дальтонизма
+export const POLLUTANT_COLORBLIND_PALETTES = Object.freeze({
+  okabe: Object.freeze({
+    excellent: '#0072B2',
+    good: '#56B4E9',
+    fair: '#F0E442',
+    poor: '#E69F00',
+    veryPoor: '#D55E00',
+    haz: '#7B3294'
+  }),
+  deuteranopia: Object.freeze({
+    excellent: '#1E88E5',
+    good: '#64B5F6',
+    fair: '#FFF176',
+    poor: '#FB8C00',
+    veryPoor: '#8E24AA',
+    haz: '#4A148C'
+  }),
+  protanopia: Object.freeze({
+    excellent: '#0077BB',
+    good: '#33BBEE',
+    fair: '#EECC66',
+    poor: '#EE7733',
+    veryPoor: '#EE3377',
+    haz: '#332288'
+  }),
+  tritanopia: Object.freeze({
+    excellent: '#009E73',
+    good: '#66C2A5',
+    fair: '#FEE08B',
+    poor: '#FF7043',
+    veryPoor: '#E53935',
+    haz: '#880E4F'
+  })
+});
+
 // оценка статуса вещества по европейским порогам.
-// Опция options.colorBlind=true возвращает цвета из доступной палитры Okabe-Ito,
+// Опция options.colorBlind=true возвращает цвета из доступной палитры,
 // совпадающей с палитрой types.js и CSS-оверрайдами index.css.
 export function getPollutantAssessment(key, value, options = {}) {
   const num = Number(value);
 
-  // цвета бейджей: стандартная палитра и палитра для дальтоников (Okabe-Ito)
+  // цвета бейджей: стандартная палитра или палитра для выбранного вида дальтонизма
+  const cbType = options.colorBlindType || 'okabe';
   const COLORS = options.colorBlind
-    ? {
-        excellent: '#0072B2',
-        good: '#56B4E9',
-        fair: '#F0E442',
-        poor: '#E69F00',
-        veryPoor: '#D55E00',
-        haz: '#7B3294'
-      }
+    ? (POLLUTANT_COLORBLIND_PALETTES[cbType] || POLLUTANT_COLORBLIND_PALETTES.okabe)
     : {
         excellent: '#4CAF50',
         good: '#8BC34A',

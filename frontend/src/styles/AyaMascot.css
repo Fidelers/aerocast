@@ -1,0 +1,638 @@
+/* frontend/src/styles/AyaMascot.css */
+
+/* Основной контейнер маскота */
+.aya-mascot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aya-mascot:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+/* =========================================================
+   Размеры маскота
+   ========================================================= */
+
+/* Сайдбарный размер: строго по ширине панели, скрывает вылет ушей/куртки в стороны */
+.aya-mascot--sidebar {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 8px 0 0 0; /* 8px сверху дают запас под всплытие и тень баббла */
+  overflow: hidden;   /* Блокирует горизонтальный скролл панели */
+}
+
+/* Речевой баббл аккуратно сидит над ушками */
+.aya-mascot--sidebar .aya-bubble {
+  margin-bottom: 4px;
+  max-width: 92%;
+}
+
+/* Пропорции контейнера под персонажа */
+.aya-mascot--sidebar .aya-character {
+  width: 100%;
+  padding-bottom: 78%; /* Сбалансированная высота, чтобы не растягивать экран */
+  overflow: visible;
+}
+
+/* Масштаб персонажа (крупная Ая на всю ширину) */
+.aya-mascot--sidebar .aya-video {
+  transform: scale(1.9) translateY(0%);
+  transform-origin: bottom center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: auto;
+  will-change: transform;
+}
+
+/* Компактный круглый аватар для шапки чата */
+.aya-mascot--header {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1.5px solid rgba(99, 102, 241, 0.4);
+}
+
+.aya-mascot--header .aya-character {
+  width: 100%;
+  height: 100%;
+  padding-bottom: 0;
+}
+
+.aya-mascot--header .aya-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.9) translateY(18%);
+}
+
+/* Размер для маскота под окном открытого чата */
+.aya-mascot--chat-docked {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.aya-mascot--chat-docked .aya-character {
+  width: 100%;
+  height: 250px; /* Увеличено со 175px: влезают плечи и куртка */
+  padding-bottom: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.aya-mascot--chat-docked .aya-video {
+  /* scale(1.9) + подъем вверх через translateY(-8%), привязка к низу */
+  transform: scale(1.9) translateY(0%);
+  transform-origin: bottom center;
+}
+
+.aya-mascot--chat-docked .aya-bubble {
+  position: static !important;
+  margin: 0 0 6px 0 !important; /* Уменьшен отступ, чтобы баббл сидел вплотную к ушкам */
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  font-weight: 500;
+  border-radius: 12px;
+  background: rgba(18, 22, 34, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  pointer-events: none;
+  max-width: 90%;
+  white-space: normal;
+}
+
+.aya-mascot--chat-docked .aya-bubble__arrow {
+  display: none !important;
+}
+
+/* =========================================================
+   Речевой баббл (всплывающая реплика)
+   ========================================================= */
+.aya-bubble {
+  position: relative;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 12px rgba(99, 102, 241, 0.2);
+  color: #f1f5f9;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  animation: ayaBubblePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+.aya-mascot--hover .aya-bubble {
+  border-color: rgba(99, 102, 241, 0.8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 16px rgba(99, 102, 241, 0.35);
+  transform: translateY(-2px);
+}
+
+.aya-bubble__text {
+  display: block;
+}
+
+.aya-bubble__arrow {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(99, 102, 241, 0.6);
+}
+
+@keyframes ayaBubblePop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================================================
+   Контейнер персонажа и видеослой
+   ========================================================= */
+.aya-character {
+  position: relative;
+  width: 100%;
+}
+
+/* Фоновое свечение */
+.aya-character__glow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 55%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, rgba(99, 102, 241, 0) 70%);
+  filter: blur(14px);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.aya-mascot--hover .aya-character__glow {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(99, 102, 241, 0) 70%);
+}
+
+/* Прозрачный видеоролик WebM */
+.aya-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  pointer-events: none;
+  display: block;
+  user-select: none;
+}
+
+/* Реакция на наведение курсора */
+.aya-mascot--hover {
+  transform: translateY(-2px);
+}
+
+/* =========================================================
+   Бейдж статуса под маскотом
+   ========================================================= */
+.aya-status-pill {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.aya-status-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: ayaStatusPulse 2s infinite;
+}
+
+@keyframes ayaStatusPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+}
+
+.aya-status-pill__name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.aya-status-pill__badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+
+/* Поддержка светлой темы */
+[data-theme="light"] .aya-bubble {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+}
+
+[data-theme="light"] .aya-bubble__arrow {
+  border-top-color: rgba(99, 102, 241, 0.4);
+}
+
+[data-theme="light"] .aya-mascot--hover .aya-bubble {
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+}
+
+[data-theme="light"] .aya-mascot--chat-docked .aya-bubble {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .aya-status-pill {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .aya-status-pill__name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .aya-status-pill__badge {
+  background: rgba(99, 102, 241, 0.15);
+  color: #4338ca;
+}
+
+/* =========================================================
+   Адаптация маскота под 1920x1080 (масштаб 125% / 1536x864) и экраны до 900px
+   ========================================================= */
+@media screen and (min-width: 769px) and (max-width: 1680px),
+       screen and (min-width: 769px) and (max-height: 900px) {
+  /* Сайдбарный маскот: аккуратная высота, не растягивающая экран */
+  .aya-mascot--sidebar {
+    max-width: 280px;
+    padding: 4px 0 0 0;
+  }
+
+  .aya-mascot--sidebar .aya-character {
+    width: 100%;
+    padding-bottom: 60%;
+    max-height: 180px;
+  }
+
+  .aya-mascot--sidebar .aya-video {
+    transform: scale(1.6) translateY(0%);
+    transform-origin: bottom center;
+  }
+
+  .aya-mascot--sidebar .aya-bubble {
+    font-size: 11.5px;
+    line-height: 1.3;
+    padding: 5px 12px;
+    margin-bottom: 2px;
+    border-radius: 12px;
+  }
+
+  .aya-status-pill {
+    bottom: 4px;
+    padding: 2.5px 10px;
+    gap: 5px;
+  }
+
+  .aya-status-pill__name {
+    font-size: 11px;
+  }
+
+  .aya-status-pill__badge {
+    font-size: 8.5px;
+    padding: 1px 3.5px;
+  }
+
+  /* Маскот под открытым окном чата: аккуратный и не вытесняет сообщения */
+  .aya-mascot--chat-docked {
+    max-width: 250px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .aya-mascot--chat-docked .aya-character {
+    height: 140px;
+  }
+
+  .aya-mascot--chat-docked .aya-video {
+    transform: scale(1.45) translateY(1%);
+    transform-origin: bottom center;
+  }
+
+  .aya-mascot--chat-docked .aya-bubble {
+    font-size: 10.5px !important;
+    padding: 3px 10px !important;
+    margin: 0 0 3px 0 !important;
+    border-radius: 10px;
+    line-height: 1.25 !important;
+  }
+}
+
+/* =========================================================
+   Адаптация маскота под 1920x1200 (масштаб 125% / 1536x960, высота от 841px до 990px)
+   ========================================================= */
+@media screen and (min-width: 769px) and (max-width: 1680px) and (min-height: 841px),
+       screen and (min-width: 769px) and (min-height: 851px) and (max-height: 990px) {
+  /* Сайдбарный маскот: комфортные пропорции на высоте 960px */
+  .aya-mascot--sidebar {
+    max-width: 290px;
+    padding: 6px 0 0 0;
+  }
+
+  .aya-mascot--sidebar .aya-character {
+    width: 100%;
+    padding-bottom: 66%;
+    max-height: 205px;
+  }
+
+  .aya-mascot--sidebar .aya-video {
+    transform: scale(1.68) translateY(0%);
+    transform-origin: bottom center;
+  }
+
+  .aya-mascot--sidebar .aya-bubble {
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 6px 14px;
+    margin-bottom: 3px;
+    border-radius: 13px;
+  }
+
+  .aya-status-pill {
+    bottom: 5px;
+    padding: 3px 11px;
+    gap: 6px;
+  }
+
+  .aya-status-pill__name {
+    font-size: 11.5px;
+  }
+
+  .aya-status-pill__badge {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  /* Маскот под открытым окном чата: больше деталей и куртки */
+  .aya-mascot--chat-docked {
+    max-width: 270px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .aya-mascot--chat-docked .aya-character {
+    height: 165px;
+  }
+
+  .aya-mascot--chat-docked .aya-video {
+    transform: scale(1.55) translateY(1%);
+    transform-origin: bottom center;
+  }
+
+  .aya-mascot--chat-docked .aya-bubble {
+    font-size: 11px !important;
+    padding: 4px 12px !important;
+    margin: 0 0 4px 0 !important;
+    border-radius: 11px;
+    line-height: 1.25 !important;
+  }
+}
+
+/* =========================================================
+   Адаптивная верстка маскота под мобильные устройства (до 768px)
+   ========================================================= */
+@media (max-width: 768px) {
+  /* Сайдбарный маскот на мобильных устройствах */
+  .aya-mascot--sidebar {
+    max-width: 260px;
+    padding: 6px 0 0 0;
+    margin: 0 auto;
+  }
+
+  .aya-mascot--sidebar .aya-character {
+    width: 100%;
+    padding-bottom: 74%;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  /* Пропорциональный масштаб на мобильных: персонаж не обрезан по бокам и не упирается в баббл */
+  .aya-mascot--sidebar .aya-video {
+    transform: scale(1.5) translateY(1%);
+    transform-origin: bottom center;
+  }
+
+  /* Речевой баббл на мобильном экране: аккуратный и читаемый */
+  .aya-mascot--sidebar .aya-bubble {
+    max-width: 88%;
+    font-size: 11.5px;
+    line-height: 1.3;
+    padding: 6px 12px;
+    margin-bottom: 6px;
+    border-radius: 12px;
+  }
+
+  .aya-mascot--sidebar .aya-bubble__arrow {
+    bottom: -5px;
+    border-width: 5px 5px 0 5px;
+  }
+
+  /* Бейдж статуса онлайн на мобильном */
+  .aya-status-pill {
+    bottom: 6px;
+    padding: 2.5px 10px;
+    gap: 5px;
+  }
+
+  .aya-status-pill__name {
+    font-size: 10.5px;
+  }
+
+  .aya-status-pill__badge {
+    font-size: 8.5px;
+    padding: 1px 3px;
+  }
+
+  /* Маскот под открытым окном чата на мобильном: компактный, не вытесняет сообщения */
+  .aya-mascot--chat-docked {
+    max-width: 220px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .aya-mascot--chat-docked .aya-character {
+    width: 100%;
+    height: 125px;
+    overflow: hidden;
+  }
+
+  .aya-mascot--chat-docked .aya-video {
+    transform: scale(1.3) translateY(2%);
+    transform-origin: bottom center;
+  }
+
+  .aya-mascot--chat-docked .aya-bubble {
+    margin: 0 0 5px 0 !important;
+    padding: 3px 10px !important;
+    font-size: 10.5px !important;
+    max-width: 88% !important;
+    line-height: 1.25 !important;
+  }
+}
+
+/* Ультракомпактные экраны смартфонов (до 380px) */
+@media (max-width: 380px) {
+  .aya-mascot--sidebar {
+    max-width: 230px;
+  }
+
+  .aya-mascot--sidebar .aya-video {
+    transform: scale(1.42) translateY(2%);
+  }
+
+  .aya-mascot--sidebar .aya-bubble {
+    font-size: 10.5px;
+    padding: 5px 10px;
+    margin-bottom: 5px;
+  }
+
+  .aya-mascot--chat-docked {
+    max-width: 200px;
+  }
+
+  .aya-mascot--chat-docked .aya-character {
+    height: 110px;
+  }
+
+  .aya-mascot--chat-docked .aya-video {
+    transform: scale(1.25) translateY(2%);
+  }
+}
+
+/* =========================================================
+   Оптимизация под экраны 1920x1200 и 2K мониторы (от 1920px)
+   ========================================================= */
+@media (min-width: 1920px) {
+  .aya-mascot--sidebar {
+    max-width: 330px;
+    padding: 10px 0 0 0;
+  }
+
+  .aya-mascot--sidebar .aya-character {
+    width: 100%;
+    padding-bottom: 76%;
+  }
+
+  .aya-mascot--sidebar .aya-video {
+    transform: scale(1.85) translateY(0%);
+    transform-origin: bottom center;
+  }
+
+  .aya-mascot--sidebar .aya-bubble {
+    font-size: 13.5px;
+    line-height: 1.4;
+    padding: 9px 16px;
+    border-radius: 16px;
+    margin-bottom: 4px;
+    max-width: 90%;
+  }
+
+  .aya-status-pill {
+    bottom: 8px;
+    padding: 4px 14px;
+    gap: 7px;
+  }
+
+  .aya-status-pill__name {
+    font-size: 12.5px;
+  }
+
+  .aya-status-pill__badge {
+    font-size: 10px;
+    padding: 1.5px 5px;
+  }
+
+  .aya-mascot--chat-docked {
+    max-width: 320px;
+  }
+
+  .aya-mascot--chat-docked .aya-character {
+    height: 250px;
+  }
+
+  .aya-mascot--chat-docked .aya-video {
+    transform: scale(1.8) translateY(0%);
+  }
+
+  .aya-mascot--chat-docked .aya-bubble {
+    font-size: 12px !important;
+    padding: 6px 14px !important;
+    margin: 0 0 6px 0 !important;
+    border-radius: 14px;
+  }
+}

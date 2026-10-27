@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     POLLUTANTS_METADATA,
+    POLLUTANT_COLORBLIND_PALETTES,
     normalizePollutantKey,
     getPollutantMetadata,
     getPollutantAssessment,
@@ -72,7 +73,7 @@ describe('pollutantsInfo utility', () => {
         expect(nanRes.label).toBe('нет данных');
     });
 
-    it('в режиме дальтоника (colorBlind: true) возвращает цвета палитры Okabe-Ito', () => {
+    it('в режиме дальтоника (colorBlind: true) возвращает цвета палитры Okabe-Ito по умолчанию', () => {
         const opts = { colorBlind: true };
         expect(getPollutantAssessment('pm2_5', 8, opts).color).toBe('#0072B2');   // Отлично
         expect(getPollutantAssessment('pm2_5', 18, opts).color).toBe('#56B4E9');  // Хорошо
@@ -80,6 +81,43 @@ describe('pollutantsInfo utility', () => {
         expect(getPollutantAssessment('pm2_5', 35, opts).color).toBe('#E69F00');  // Повышено
         expect(getPollutantAssessment('pm2_5', 60, opts).color).toBe('#D55E00');  // Плохо
         expect(getPollutantAssessment('pm2_5', 120, opts).color).toBe('#7B3294'); // Опасно
+    });
+
+    it('в режиме дальтоника поддерживает Дейтеранопию (deuteranopia)', () => {
+        const opts = { colorBlind: true, colorBlindType: 'deuteranopia' };
+        expect(getPollutantAssessment('pm2_5', 8, opts).color).toBe('#1E88E5');   // Отлично
+        expect(getPollutantAssessment('pm2_5', 18, opts).color).toBe('#64B5F6');  // Хорошо
+        expect(getPollutantAssessment('pm2_5', 24, opts).color).toBe('#FFF176');  // Умеренно
+        expect(getPollutantAssessment('pm2_5', 35, opts).color).toBe('#FB8C00');  // Повышено
+        expect(getPollutantAssessment('pm2_5', 60, opts).color).toBe('#8E24AA');  // Плохо
+        expect(getPollutantAssessment('pm2_5', 120, opts).color).toBe('#4A148C'); // Опасно
+    });
+
+    it('в режиме дальтоника поддерживает Протанопию (protanopia)', () => {
+        const opts = { colorBlind: true, colorBlindType: 'protanopia' };
+        expect(getPollutantAssessment('pm2_5', 8, opts).color).toBe('#0077BB');   // Отлично
+        expect(getPollutantAssessment('pm2_5', 18, opts).color).toBe('#33BBEE');  // Хорошо
+        expect(getPollutantAssessment('pm2_5', 24, opts).color).toBe('#EECC66');  // Умеренно
+        expect(getPollutantAssessment('pm2_5', 35, opts).color).toBe('#EE7733');  // Повышено
+        expect(getPollutantAssessment('pm2_5', 60, opts).color).toBe('#EE3377');  // Плохо
+        expect(getPollutantAssessment('pm2_5', 120, opts).color).toBe('#332288'); // Опасно
+    });
+
+    it('в режиме дальтоника поддерживает Тританопию (tritanopia)', () => {
+        const opts = { colorBlind: true, colorBlindType: 'tritanopia' };
+        expect(getPollutantAssessment('pm2_5', 8, opts).color).toBe('#009E73');   // Отлично
+        expect(getPollutantAssessment('pm2_5', 18, opts).color).toBe('#66C2A5');  // Хорошо
+        expect(getPollutantAssessment('pm2_5', 24, opts).color).toBe('#FEE08B');  // Умеренно
+        expect(getPollutantAssessment('pm2_5', 35, opts).color).toBe('#FF7043');  // Повышено
+        expect(getPollutantAssessment('pm2_5', 60, opts).color).toBe('#E53935');  // Плохо
+        expect(getPollutantAssessment('pm2_5', 120, opts).color).toBe('#880E4F'); // Опасно
+    });
+
+    it('экспортирует POLLUTANT_COLORBLIND_PALETTES со всеми 4 видами дальтонизма', () => {
+        expect(POLLUTANT_COLORBLIND_PALETTES.okabe).toBeDefined();
+        expect(POLLUTANT_COLORBLIND_PALETTES.deuteranopia).toBeDefined();
+        expect(POLLUTANT_COLORBLIND_PALETTES.protanopia).toBeDefined();
+        expect(POLLUTANT_COLORBLIND_PALETTES.tritanopia).toBeDefined();
     });
 
     it('в режиме дальтоника label и level остаются прежними', () => {

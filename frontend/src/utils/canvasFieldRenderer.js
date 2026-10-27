@@ -1,9 +1,3 @@
-// frontend/src/utils/canvasFieldRenderer.js — попиксельный рендерер цветового поля
-/**
- * Модуль генерации растрового изображения качества воздуха в буфере Canvas (OffscreenCanvas)
- * на основе интерполированной сетки EAQI и непрерывной RGB-шкалы проекта types.js.
- */
-
 import { interpolateGrid, latToMercator } from './idwInterpolator.js';
 
 export const DEFAULT_CANVAS_WIDTH = 150;
@@ -18,9 +12,9 @@ const COLOR_STOPS = Object.freeze([
     Object.freeze({ aqi: 38,  r: 212, g: 225, b: 87  }),  // #D4E157 жёлто-зелёный
     Object.freeze({ aqi: 42,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый
     Object.freeze({ aqi: 50,  r: 255, g: 235, b: 59  }),  // #FFEB3B жёлтый (плато, 32 ед.)
-    Object.freeze({ aqi: 55, r: 255, g: 152, b: 0   }),  // #FF9800 оранжевый
-    Object.freeze({ aqi: 77, r: 244, g: 67,  b: 54  }),  // #F44336 красный
-    Object.freeze({ aqi: 95, r: 213, g: 0,   b: 0   })   // #D50000 опасно
+    Object.freeze({ aqi: 55,  r: 255, g: 152, b: 0   }),  // #FF9800 оранжевый
+    Object.freeze({ aqi: 77,  r: 244, g: 67,  b: 54  }),  // #F44336 красный
+    Object.freeze({ aqi: 95,  r: 213, g: 0,   b: 0   })   // #D50000 опасно
 ]);
 
 // Доступные контрольные точки шкалы для людей с цветовой слепотой (палитра Okabe-Ito).
@@ -33,22 +27,56 @@ export const COLORBLIND_COLOR_STOPS = Object.freeze([
     Object.freeze({ aqi: 50,  r: 240, g: 228, b: 66  }),  // #F0E442 жёлтый (плато, 29 ед.)
     Object.freeze({ aqi: 55,  r: 213, g: 94,  b: 0   }),  // #D55E00 вермильон — очень плохо
     Object.freeze({ aqi: 77,  r: 204, g: 121, b: 167 }),  // #CC79A7 розово-пурпурный
-    Object.freeze({ aqi: 95, r: 123, g: 50,  b: 148 })   // #7B3294 фиолетовый — опасно
+    Object.freeze({ aqi: 95,  r: 123, g: 50,  b: 148 })   // #7B3294 фиолетовый — опасно
 ]);
 
-/**
- * Преобразует числовое значение AQI в RGBA-цвет с непрерывной линейной RGB-интерполяцией.
- * @param {number|null|undefined} aqi - значение индекса качества воздуха
- * @param {number} [alpha=DEFAULT_ALPHA] - альфа-канал (0..255)
- * @param {{ colorBlind?: boolean }} [options={}] - additional options; colorBlind переключает палитру на доступную (Okabe-Ito)
- * @returns {{ r: number, g: number, b: number, a: number }}
- */
+// Набор контрольных точек для 4 видов дальтонизма:
+// Окабе, Дейтеранопия, Протанопия, Тританопия.
+export const COLORBLIND_COLOR_STOPS_MAP = Object.freeze({
+    okabe: COLORBLIND_COLOR_STOPS,
+    deuteranopia: Object.freeze([
+        Object.freeze({ aqi: 0,   r: 30,  g: 136, b: 229 }),  // #1E88E5 синий — отлично
+        Object.freeze({ aqi: 30,  r: 30,  g: 136, b: 229 }),  // #1E88E5
+        Object.freeze({ aqi: 38,  r: 100, g: 181, b: 246 }),  // #64B5F6 светло-голубой — хорошо
+        Object.freeze({ aqi: 42,  r: 255, g: 241, b: 118 }),  // #FFF176 светло-жёлтый — удовлетворительно
+        Object.freeze({ aqi: 50,  r: 255, g: 241, b: 118 }),  // #FFF176
+        Object.freeze({ aqi: 55,  r: 251, g: 140, b: 0   }),  // #FB8C00 янтарный — плохо
+        Object.freeze({ aqi: 77,  r: 142, g: 36,  b: 170 }),  // #8E24AA пурпурный — очень плохо
+        Object.freeze({ aqi: 95,  r: 74,  g: 20,  b: 140 })   // #4A148C глубокий тёмно-фиолетовый — опасно
+    ]),
+    protanopia: Object.freeze([
+        Object.freeze({ aqi: 0,   r: 0,   g: 119, b: 187 }),  // #0077BB насыщенный синий — отлично
+        Object.freeze({ aqi: 30,  r: 0,   g: 119, b: 187 }),  // #0077BB
+        Object.freeze({ aqi: 38,  r: 51,  g: 187, b: 238 }),  // #33BBEE голубой / циан — хорошо
+        Object.freeze({ aqi: 42,  r: 238, g: 204, b: 102 }),  // #EECC66 песочно-жёлтый — удовлетворительно
+        Object.freeze({ aqi: 50,  r: 238, g: 204, b: 102 }),  // #EECC66
+        Object.freeze({ aqi: 55,  r: 238, g: 119, b: 51  }),  // #EE7733 оранжевый — плохо
+        Object.freeze({ aqi: 77,  r: 238, g: 51,  b: 119 }),  // #EE3377 малиновый / розовая фуксия — очень плохо
+        Object.freeze({ aqi: 95,  r: 51,  g: 34,  b: 136 })   // #332288 темный индиго — опасно
+    ]),
+    tritanopia: Object.freeze([
+        Object.freeze({ aqi: 0,   r: 0,   g: 158, b: 115 }),  // #009E73 изумрудно-зелёный — отлично
+        Object.freeze({ aqi: 30,  r: 0,   g: 158, b: 115 }),  // #009E73
+        Object.freeze({ aqi: 38,  r: 102, g: 194, b: 165 }),  // #66C2A5 морская волна — хорошо
+        Object.freeze({ aqi: 42,  r: 254, g: 224, b: 139 }),  // #FEE08B песочный — удовлетворительно
+        Object.freeze({ aqi: 50,  r: 254, g: 224, b: 139 }),  // #FEE08B
+        Object.freeze({ aqi: 55,  r: 255, g: 112, b: 67  }),  // #FF7043 коралловый — плохо
+        Object.freeze({ aqi: 77,  r: 229, g: 57,  b: 53  }),  // #E53935 ярко-красный — очень плохо
+        Object.freeze({ aqi: 95,  r: 136, g: 14,  b: 79  })   // #880E4F тёмно-вишнёвый — опасно
+    ])
+});
+
 export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA, options = {}) {
     if (aqi === null || aqi === undefined || typeof aqi !== 'number' || Number.isNaN(aqi)) {
         return { r: 0, g: 0, b: 0, a: 0 };
     }
 
-    const stops = options.colorBlind ? COLORBLIND_COLOR_STOPS : COLOR_STOPS;
+    let stops = COLOR_STOPS;
+    if (options.colorBlind) {
+        const type = options.colorBlindType || 'okabe';
+        stops = COLORBLIND_COLOR_STOPS_MAP[type] || COLORBLIND_COLOR_STOPS;
+    }
+
     const first = stops[0];
     const last = stops[stops.length - 1];
 
@@ -79,12 +107,7 @@ export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA, options = {}) {
     return { r: last.r, g: last.g, b: last.b, a: alpha };
 }
 
-/**
- * Проверяет, содержит ли сетка значения, превышающие порог загрязнения (по умолчанию > 40).
- * @param {Float32Array|Array<number>} grid - одномерный массив значений
- * @param {number} [threshold=40] - порог загрязнения (EAQI > 40)
- * @returns {boolean}
- */
+
 export function hasPollutedZones(grid, threshold = 40) {
     if (!grid) return false;
     for (let i = 0; i < grid.length; i++) {
@@ -93,23 +116,14 @@ export function hasPollutedZones(grid, threshold = 40) {
     return false;
 }
 
-/**
- * Заполняет буфер ImageData (Uint8ClampedArray) пикселями на основе массива сетки.
- * Полностью монолитный, бесшовный градиент без искусственных контуров, яиц и ступеней.
- * В режиме options.onlyPollution = true пиксели чистого воздуха (<= 40) прозрачны,
- * а загрязнение плавно проявляется для независимого пульсирования.
- *
- * @param {Float32Array|Array<number>} grid - одномерный массив значений EAQI (размера width * height)
- * @param {{ data: Uint8ClampedArray }} imgData - объект с буфером пикселей
- * @param {number} width - ширина холста
- * @param {number} height - высота холста
- * @param {Object} [options={}] - параметры (alpha, onlyPollution, pollutionThreshold, colorBlind)
- */
+
 export function renderFieldToBuffer(grid, imgData, width, height, options = {}) {
     const alpha = options.alpha !== undefined ? options.alpha : DEFAULT_ALPHA;
     const onlyPollution = options.onlyPollution === true;
     const pollutionThreshold = options.pollutionThreshold !== undefined ? options.pollutionThreshold : 40;
     const colorBlind = options.colorBlind === true;
+    const colorBlindType = options.colorBlindType || 'okabe';
+    const colorOpts = { colorBlind, colorBlindType };
     const data = imgData.data;
     const totalPixels = width * height;
 
@@ -128,7 +142,7 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
                 data[idx + 3] = 0;
                 continue;
             }
-            const baseColor = interpolateAqiColor(val, alpha, { colorBlind });
+            const baseColor = interpolateAqiColor(val, alpha, colorOpts);
             const fade = Math.min(1, (val - pollutionThreshold) / 6);
             data[idx] = baseColor.r;
             data[idx + 1] = baseColor.g;
@@ -138,7 +152,7 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
         }
 
         // Абсолютно гладкое, монолитное и естественное поле без искусственных контуров, яиц и ступеней
-        const baseColor = interpolateAqiColor(val, alpha, { colorBlind });
+        const baseColor = interpolateAqiColor(val, alpha, colorOpts);
         data[idx] = baseColor.r;
         data[idx + 1] = baseColor.g;
         data[idx + 2] = baseColor.b;
@@ -147,12 +161,7 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
 }
 
 
-/**
- * Создаёт экземпляр холста (OffscreenCanvas либо HTMLCanvasElement) с заданными размерами.
- * @param {number} [width=DEFAULT_CANVAS_WIDTH]
- * @param {number} [height=DEFAULT_CANVAS_HEIGHT]
- * @returns {OffscreenCanvas|HTMLCanvasElement|{width: number, height: number}}
- */
+
 export function createFieldCanvas(width = DEFAULT_CANVAS_WIDTH, height = DEFAULT_CANVAS_HEIGHT) {
     if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
         const canvas = document.createElement('canvas');
@@ -166,17 +175,7 @@ export function createFieldCanvas(width = DEFAULT_CANVAS_WIDTH, height = DEFAULT
     return { width, height };
 }
 
-/**
- * Клиппирует контекст Canvas по набору полигонов (например, государственным границам РФ),
- * делая все пиксели за пределами полигонов абсолютно прозрачными (alpha = 0).
- *
- * @param {CanvasRenderingContext2D} ctx - 2D контекст холста
- * @param {Array<Array<[number, number]>>} polygons - массив колец полигонов [[lon, lat], ...]
- * @param {[number, number, number, number]} bbox - [minLon, minLat, maxLon, maxLat]
- * @param {number} width - ширина холста
- * @param {number} height - высота холста
- * @param {Object} [options={}] - параметры (useMercator)
- */
+
 export function clipCanvasToPolygons(ctx, polygons, bbox, width, height, options = {}) {
     if (
         !ctx ||
@@ -233,16 +232,6 @@ export function clipCanvasToPolygons(ctx, polygons, bbox, width, height, options
     ctx.restore();
 }
 
-/**
- * Рендерит цветовое поле в буфер переданного Canvas.
- * Принимает как готовый массив сетки (Float32Array), так и массив опорных точек + BBox.
- *
- * @param {HTMLCanvasElement|OffscreenCanvas|Object} canvas - целевой холст
- * @param {Float32Array|Array<Object>} gridOrPoints - сетка значений либо массив точек
- * @param {Array<number>|Object} [bboxOrOptions={}] - [minLon, minLat, maxLon, maxLat] либо опции
- * @param {Object} [options={}] - дополнительные параметры (width, height, alpha, timeIndex, p, useMercator)
- * @returns {{ canvas: Object, width: number, height: number, grid: Float32Array, toDataUrl: Function }}
- */
 export function renderFieldToCanvas(canvas, gridOrPoints, bboxOrOptions = {}, options = {}) {
     let opts = options;
     let bbox = null;

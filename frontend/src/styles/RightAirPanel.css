@@ -578,7 +578,7 @@
 }
 
 /* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
-@media (min-width: 1921px) {
+@media (min-width: 1920px) {
   .right-air-panel {
     width: 360px;
     border-radius: 16px 0 0 0;
@@ -720,6 +720,17 @@
     font-size: 15px;
     border-radius: 10px;
   }
+
+  /* Оптимизация под экраны 1920x1200 */
+  @media (min-height: 1000px) {
+    .right-air-panel {
+      max-height: calc(100vh - 28px);
+    }
+    .general-info-card {
+      height: 330px;
+      min-height: 300px;
+    }
+  }
 }
 
 
@@ -742,6 +753,136 @@
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* ==========================================================================
+   Адаптация правой панели под 1920x1080 (масштаб 125% / 1536x864) и экраны до 900px
+   ========================================================================== */
+@media screen and (min-width: 769px) and (max-width: 1680px),
+       screen and (min-width: 769px) and (max-height: 900px) {
+  .right-air-panel {
+    width: 310px;
+    max-height: calc(100vh - 12px);
+    border-radius: 12px 0 0 0;
+  }
+
+  .panel-header {
+    padding: 6px 12px;
+  }
+
+  .panel-header__title {
+    font-size: 14px;
+  }
+
+  .panel-meta {
+    padding: 5px 12px;
+    font-size: 11px;
+  }
+
+  .aqi-summary {
+    padding: 8px 12px;
+  }
+
+  .aqi-indicator {
+    padding: 6px 12px;
+    margin-bottom: 6px;
+  }
+
+  .aqi-indicator__number {
+    font-size: 26px;
+  }
+
+  .aqi-indicator__status {
+    font-size: 14px;
+  }
+
+  .pollutant-item {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .general-info-card {
+    height: 160px;
+    min-height: 140px;
+    margin: 4px 8px 8px;
+    padding: 6px 8px;
+  }
+
+  .info-title {
+    font-size: 12px;
+  }
+
+  .info-description,
+  .info-sources,
+  .info-impact {
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+}
+
+/* ==========================================================================
+   Адаптация правой панели под 1920x1200 (масштаб 125% / 1536x960, высота от 841px до 990px)
+   ========================================================================== */
+@media screen and (min-width: 769px) and (max-width: 1680px) and (min-height: 841px),
+       screen and (min-width: 769px) and (min-height: 851px) and (max-height: 990px) {
+  .right-air-panel {
+    width: 320px;
+    max-height: calc(100vh - 16px);
+    border-radius: 14px 0 0 0;
+  }
+
+  .panel-header {
+    padding: 8px 14px;
+  }
+
+  .panel-header__title {
+    font-size: 15px;
+  }
+
+  .panel-meta {
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  .aqi-summary {
+    padding: 10px 14px;
+  }
+
+  .aqi-indicator {
+    padding: 8px 14px;
+    margin-bottom: 6px;
+  }
+
+  .aqi-indicator__number {
+    font-size: 28px;
+  }
+
+  .aqi-indicator__status {
+    font-size: 15px;
+  }
+
+  .pollutant-item {
+    padding: 6px 14px;
+    font-size: 12.5px;
+  }
+
+  .general-info-card {
+    height: 195px;
+    min-height: 170px;
+    margin: 6px 10px 10px;
+    padding: 8px 10px;
+  }
+
+  .info-title {
+    font-size: 13px;
+  }
+
+  .info-description,
+  .info-sources,
+  .info-impact {
+    font-size: 11px;
+    line-height: 1.4;
+  }
 }
 
 /* === Мобильная верстка: панель в формате Bottom Sheet (шторка снизу) === */

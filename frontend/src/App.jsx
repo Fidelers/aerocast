@@ -30,6 +30,47 @@ function App({ referenceDate } = {}) {
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+    // Реактивное текущее время: авто-синхронизация при смене минут/часов и возврате на вкладку
+    const [currentTime, setCurrentTime] = useState(() => referenceDate || new Date());
+
+    useEffect(() => {
+        if (referenceDate) {
+            setCurrentTime(referenceDate);
+            return;
+        }
+
+        const updateClock = () => {
+            setCurrentTime(new Date());
+        };
+
+        // Немедленное обновление при возврате на вкладку / фокусе окна
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                updateClock();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', updateClock);
+
+        // 1. Периодический интервал каждые 30 секунд
+        const intervalId = setInterval(updateClock, 30000);
+
+        // 2. Дополнительный точный таймер на границу следующей минуты (xx:xx:00)
+        const nowMs = Date.now();
+        const delayToNextMinute = Math.max(500, 60000 - (nowMs % 60000));
+        const timeoutId = setTimeout(updateClock, delayToNextMinute);
+
+        return () => {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', updateClock);
+        };
+    }, [referenceDate]);
+
+    const activeReferenceDate = referenceDate || currentTime;
+
     // Состояние уведомления о клике за пределы зоны покрытия цветовой сетки
     const [coverageWarning, setCoverageWarning] = useState(null);
     const [isCoverageWarningVisible, setIsCoverageWarningVisible] = useState(false);
@@ -81,6 +122,12 @@ function App({ referenceDate } = {}) {
         return localStorage.getItem('aerocast_colorblind') === 'true';
     });
 
+    // Выбранный вид дальтонизма: okabe | deuteranopia | protanopia | tritanopia
+    const [colorBlindType, setColorBlindType] = useState(() => {
+        if (typeof window === 'undefined') return 'okabe';
+        return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
+    });
+
     useEffect(() => {
         if (typeof document !== 'undefined') {
             document.documentElement.setAttribute('data-theme', theme);
@@ -91,9 +138,23 @@ function App({ referenceDate } = {}) {
     useEffect(() => {
         if (typeof document !== 'undefined') {
             document.documentElement.setAttribute('data-colorblind', isColorBlind ? 'true' : 'false');
+            document.documentElement.setAttribute('data-colorblind-type', colorBlindType);
             localStorage.setItem('aerocast_colorblind', isColorBlind ? 'true' : 'false');
+            localStorage.setItem('aerocast_colorblind_type', colorBlindType);
         }
-    }, [isColorBlind]);
+    }, [isColorBlind, colorBlindType]);
+
+    // Режим AI-ассистента: 'mascot' (маскот Ая) или 'button' (кнопка)
+    const [mascotMode, setMascotMode] = useState(() => {
+        if (typeof window === 'undefined') return 'mascot';
+        return localStorage.getItem('aerocast_mascot_mode') || 'mascot';
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('aerocast_mascot_mode', mascotMode);
+        }
+    }, [mascotMode]);
 
     // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
@@ -177,7 +238,7 @@ function App({ referenceDate } = {}) {
                     }
 
                     if (targetIndex === null) {
-                        targetIndex = findDefaultTimeIndex(data.hourly.time, referenceDate || new Date());
+                        targetIndex = findDefaultTimeIndex(data.hourly.time, activeReferenceDate);
                     }
 
                     setSelectedTimeIndex(targetIndex);
@@ -248,13 +309,13 @@ function App({ referenceDate } = {}) {
     // Определение: выбран ли прогноз (будущий день или будущий час сегодняшнего дня)
     const isForecast = useMemo(() => {
         if (!selectedIsoTime) return false;
-        return isForecastTime(selectedIsoTime, referenceDate || new Date());
-    }, [selectedIsoTime, referenceDate]);
+        return isForecastTime(selectedIsoTime, activeReferenceDate);
+    }, [selectedIsoTime, activeReferenceDate]);
 
     return (
         <div className="layout">
             <Sidebar
-                referenceDate={referenceDate}
+                referenceDate={activeReferenceDate}
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
                 onSelectTime={handleSelectTime}
@@ -273,6 +334,7 @@ function App({ referenceDate } = {}) {
                 loadError={loadError}
                 isOpen={isMobileSidebarOpen}
                 onClose={() => setIsMobileSidebarOpen(false)}
+                mascotMode={mascotMode}
             />
             <div
                 className={`sidebar-backdrop ${isMobileSidebarOpen ? 'sidebar-backdrop--visible' : ''}`}
@@ -366,6 +428,7 @@ function App({ referenceDate } = {}) {
                     activeBaseLayer={activeBaseLayer}
                     recenterTrigger={recenterTrigger}
                     isColorBlind={isColorBlind}
+                    colorBlindType={colorBlindType}
                 />
                 <LayerSwitcher
                     activeLayer={activeBaseLayer}
@@ -383,6 +446,10 @@ function App({ referenceDate } = {}) {
                 onThemeChange={setTheme}
                 isColorBlind={isColorBlind}
                 onColorBlindChange={setIsColorBlind}
+                colorBlindType={colorBlindType}
+                onColorBlindTypeChange={setColorBlindType}
+                mascotMode={mascotMode}
+                onMascotModeChange={setMascotMode}
             />
             <RightAirPanel
                 airData={airData}
@@ -391,6 +458,7 @@ function App({ referenceDate } = {}) {
                 onClose={() => setIsRightPanelOpen(false)}
                 onOpen={() => setIsRightPanelOpen(true)}
                 isColorBlind={isColorBlind}
+                colorBlindType={colorBlindType}
             />
             {!isRightPanelOpen && (
                 <button

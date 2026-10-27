@@ -25,20 +25,53 @@ const HAZARDOUS = Object.freeze({
     hex: '#D50000'
 });
 
-// Палитра для людей с цветовой слепотой (дальтоников), палитра Okabe-Ito.
-// Используется в режиме data-colorblind="true" и совпадает с CSS-оверрайдами в index.css.
-const COLORBLIND_HEX = Object.freeze({
-    none: '#9E9E9E',
-    excellent: '#0072B2',
-    good: '#56B4E9',
-    fair: '#F0E442',
-    poor: '#E69F00',
-    'very-poor': '#D55E00',
-    hazardous: '#7B3294'
+// Палитры для людей с цветовой слепотой (дальтоников).
+// Поддерживаются 4 вида: Okabe-Ito (универсальная), Дейтеранопия, Протанопия, Тританопия.
+// Используются в режиме data-colorblind="true" и совпадают с CSS-оверрайдами в index.css.
+export const COLORBLIND_PALETTES = Object.freeze({
+    okabe: Object.freeze({
+        none: '#9E9E9E',
+        excellent: '#0072B2',
+        good: '#56B4E9',
+        fair: '#F0E442',
+        poor: '#E69F00',
+        'very-poor': '#D55E00',
+        hazardous: '#7B3294'
+    }),
+    deuteranopia: Object.freeze({
+        none: '#9E9E9E',
+        excellent: '#1E88E5',
+        good: '#64B5F6',
+        fair: '#FFF176',
+        poor: '#FB8C00',
+        'very-poor': '#8E24AA',
+        hazardous: '#4A148C'
+    }),
+    protanopia: Object.freeze({
+        none: '#9E9E9E',
+        excellent: '#0077BB',
+        good: '#33BBEE',
+        fair: '#EECC66',
+        poor: '#EE7733',
+        'very-poor': '#EE3377',
+        hazardous: '#332288'
+    }),
+    tritanopia: Object.freeze({
+        none: '#9E9E9E',
+        excellent: '#009E73',
+        good: '#66C2A5',
+        fair: '#FEE08B',
+        poor: '#FF7043',
+        'very-poor': '#E53935',
+        hazardous: '#880E4F'
+    })
 });
 
+// Для обратной совместимости со старыми модулями/тестами
+export const COLORBLIND_HEX = COLORBLIND_PALETTES.okabe;
+
 // Возвращает описание уровня для числового индекса качества воздуха.
-// Опция options.colorBlind=true возвращает hex из доступной палитры Okabe-Ito.
+// Опция options.colorBlind=true возвращает hex из доступной палитры (Okabe-Ito, Deuteranopia, Protanopia, Tritanopia).
 export function getAqiInfo(aqi, options = {}) {
     if (aqi === null || aqi === undefined || Number.isNaN(aqi)) {
         return NO_DATA;
@@ -56,7 +89,9 @@ export function getAqiInfo(aqi, options = {}) {
     }
 
     if (options.colorBlind) {
-        return { ...info, hex: COLORBLIND_HEX[info.level] || info.hex };
+        const type = options.colorBlindType || 'okabe';
+        const palette = COLORBLIND_PALETTES[type] || COLORBLIND_PALETTES.okabe;
+        return { ...info, hex: palette[info.level] || info.hex };
     }
 
     return info;

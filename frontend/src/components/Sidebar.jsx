@@ -4,6 +4,8 @@ import InfoIcon from '../assets/icons/info.svg';
 import CitySearch from './CitySearch';
 import AboutModal from './AboutModal';
 import SettingsModal from './SettingsModal';
+import AiChatModal from './AiChat/AiChatModal';
+import AyaMascot from './AiChat/AyaMascot';
 import { groupTimesByDay, parseIsoTimeString, findDefaultTimeIndex } from '../utils/timeUtils';
 import '../styles/Sidebar.css';
 
@@ -21,12 +23,14 @@ function Sidebar({
   onOpenSettings,
   onLocateMe,
   isOpen = false,
-  onClose
+  onClose,
+  mascotMode = 'mascot'
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
   const [isGeoErrorVisible, setIsGeoErrorVisible] = useState(false);
 
@@ -375,9 +379,21 @@ function Sidebar({
     }
   }, [isOpen]);
 
+  // При открытии чата сбрасываем скролл сайдбара, чтобы окно чата не сдвигалось наверх
+  useEffect(() => {
+    if (isAiChatOpen && sidebarRef.current) {
+      sidebarRef.current.scrollTop = 0;
+    }
+  }, [isAiChatOpen]);
+
   // Обработка жеста утягивания сайдбара влево (за край, как шторки в мобильных приложениях)
   const startDrag = useCallback((clientX, clientY, target, pointerType = '') => {
     if (!isOpen || isClosingRef.current) return;
+
+    // При открытом чате перетаскивание сайдбара разрешено только за специальный хэндл
+    if (isAiChatOpen && !target?.closest?.('.sidebar__drag-handle')) {
+      return;
+    }
 
     // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО при целенаправленном захвате хэндла на краю
     if (pointerType === 'mouse' && !target?.closest?.('.sidebar__drag-handle')) {
@@ -614,7 +630,7 @@ function Sidebar({
   return (
     <aside
       ref={sidebarRef}
-      className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}
+      className={`sidebar ${isOpen ? 'sidebar--open' : ''} ${isAiChatOpen ? 'sidebar--chat-open' : ''}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -699,6 +715,7 @@ function Sidebar({
           )}
         </div>
       </div>
+
 
       <CitySearch
         onLocationSelect={(loc) => {
@@ -844,6 +861,44 @@ function Sidebar({
           )}
         </div>
       </section>
+
+      {isAiChatOpen ? (
+        <div className="sidebar-chat-active-container" data-testid="sidebar-chat-active-container">
+          <AiChatModal
+            isOpen={true}
+            onClose={() => setIsAiChatOpen(false)}
+            onOpenSettings={() => {
+              if (typeof onOpenSettings === 'function') onOpenSettings();
+              else setIsSettingsOpen(true);
+            }}
+            embedded={true}
+            mascotUnderChat={mascotMode === 'mascot'}
+          />
+        </div>
+      ) : mascotMode === 'button' ? (
+        <button
+          type="button"
+          className="sidebar-ai-chat-trigger"
+          onClick={() => setIsAiChatOpen(true)}
+          title='Открыть чат с AI-маскотом "Ая" (AnyModel)'
+          data-testid="open-ai-chat-btn"
+        >
+          <div className="sidebar-ai-chat-trigger__left">
+            <span className="sidebar-ai-chat-trigger__icon" aria-hidden="true">
+              💬
+            </span>
+            <span>Чат с Аей</span>
+          </div>
+        </button>
+      ) : (
+        <div className="sidebar-mascot-container" data-testid="sidebar-mascot-container">
+          <AyaMascot
+            emotion="idle"
+            size="sidebar"
+            onClick={() => setIsAiChatOpen(true)}
+          />
+        </div>
+      )}
 
       {!onOpenAbout && (
         <AboutModal
