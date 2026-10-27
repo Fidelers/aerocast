@@ -20,6 +20,15 @@
 *   **NVIDIA Driver** (установлен на хосте).
 *   **NVIDIA Container Toolkit** (необходим для проброса GPU в контейнер).
 
+### Требования на Arch-based linux
+
+*   sudo pacman -S docker docker-compose
+*   sudo systemctl enable --now docker
+*   sudo pacman -S nvidia nvidia-utils        # или nvidia-open nvidia-utils
+*   sudo pacman -S nvidia-container-toolkit
+*   sudo nvidia-ctk runtime configure --runtime=docker
+*   sudo systemctl restart docker
+
 ### Настройка
 Убедитесь, что в корне проекта находятся:
 *   `docker-compose.yml` (настроен на использование `./models` и GPU).
