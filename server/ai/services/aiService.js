@@ -4,19 +4,18 @@ const axios = require('axios');
 const aiConfig = require('../config/aiConfig');
 const promptManager = require('./promptManager');
 
+async function retry(fn, retries = 3, delay = 1000) {
+    try {
+        return await fn();
+    } catch (err) {
+        if (retries <= 0 || !err.response) throw err;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return retry(fn, retries - 1, delay * 2);
+    }
+}
 
 async function sendChatMessage({ history = [], userMessage }) {
-    const apiKey = aiConfig.apiKey;
-
-    if (!apiKey || apiKey.trim() === '' || apiKey === 'YOUR_ANYMODEL_KEY') {
-        return {
-            reply: '⚠️ API-ключ AnyModel еще не настроен. Пожалуйста, укажите ANYMODEL_API_KEY в файле server/.env и перезапустите сервер, чтобы я могла подключиться!',
-            model: aiConfig.model,
-            emotion: 'alert'
-        };
-    }
-
-    // Скользящее окно истории (не раздуваем контекст, чтобы модель не думала слишком долго)
+    // Скользящее окно истории
     const slicedHistory = Array.isArray(history) 
         ? history.slice(-aiConfig.maxHistoryMessages) 
         : [];
@@ -31,7 +30,7 @@ async function sendChatMessage({ history = [], userMessage }) {
     ];
 
     try {
-        const response = await axios.post(
+        const response = await retry(() => axios.post(
             `${aiConfig.baseURL}/chat/completions`,
             {
                 model: aiConfig.model,
@@ -41,20 +40,19 @@ async function sendChatMessage({ history = [], userMessage }) {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${apiKey.trim()}`,
                     'Content-Type': 'application/json'
                 },
                 timeout: aiConfig.timeoutMs
             }
-        );
+        ));
 
         const choice = response.data?.choices?.[0];
         let reply = choice?.message?.content || '';
 
-        // Очищаем скрытые блоки размышлений <think>...</think>, если модель выдала их в тексте
+        // Очищаем скрытые блоки размышлений <think>...</think>
         reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-        // Извлекаем и гарантированно удаляем тег настроения [mood:...], [мood:...] (с учетом русской буквы "м")
+        // Извлекаем и удаляем тег настроения
         let emotion = 'idle';
         const moodRegex = /[\[(](?:mood|мood|настроение|emotion):\s*([a-zA-Zа-яА-ЯёЁ_-]+)[\])]/i;
         const moodMatch = reply.match(moodRegex);
@@ -62,10 +60,10 @@ async function sendChatMessage({ history = [], userMessage }) {
             emotion = moodMatch[1].toLowerCase();
             reply = reply.replace(/[\[(](?:mood|мood|настроение|emotion):\s*[a-zA-Zа-яА-ЯёЁ_-]+[\])]/gi, '').trim();
         }
-        // Дополнительная страховка: удаляем любые стартовые системные теги вида [тег:значение]
+        
         reply = reply.replace(/^\[[a-zA-Zа-яА-ЯёЁ\s_-]+:[a-zA-Zа-яА-ЯёЁ\s_-]+\]\s*/i, '').trim();
 
-        // Гарантированное соблюдение лимита в 350 символов
+        // Лимит в 350 символов
         if (reply.length > 350) {
             const cutoff = Math.max(
                 reply.lastIndexOf('.', 350),
@@ -80,13 +78,12 @@ async function sendChatMessage({ history = [], userMessage }) {
             }
         }
 
-        // Если ответ пустой (например, reasoning съел лимит токенов)
         if (!reply) {
             if (choice?.finish_reason === 'length') {
-                reply = 'Ответ получился слишком длинным и оборвался на лимите токенов. Пожалуйста, задай вопрос чуть конкретнее!';
+                reply = 'Ответ получился слишком длинным и оборвался на лимите токенов.';
                 emotion = 'think';
             } else {
-                reply = 'Хм, AnyModel вернул пустой ответ. Попробуй переформулировать вопрос!';
+                reply = 'Хм, локальная модель вернула пустой ответ.';
                 emotion = 'alert';
             }
         }
@@ -98,40 +95,13 @@ async function sendChatMessage({ history = [], userMessage }) {
             usage: response.data?.usage
         };
     } catch (err) {
-        console.error('[AnyModel Error]', err.response?.data || err.message);
+        console.error('[LLM Error]', err.response?.data || err.message);
 
         const status = err.response?.status;
         const errMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
 
-        if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-            return {
-                reply: `⏳ Модель слишком долго размышляла и не успела ответить за ${Math.round(aiConfig.timeoutMs / 1000)} секунд. Для мгновенных ответов без задержек рекомендуем сменить модель на am/llama-3.2-11b-vision-instruct в server/.env!`,
-                model: aiConfig.model,
-                emotion: 'alert',
-                error: true
-            };
-        }
-
-        if (status === 401) {
-            return {
-                reply: 'Ошибка авторизации (401). Проверьте правильность ANYMODEL_API_KEY в файле server/.env.',
-                model: aiConfig.model,
-                emotion: 'alert',
-                error: true
-            };
-        }
-
-        if (status === 429) {
-            return {
-                reply: 'Ой, запросов сейчас слишком много (лимит 429). Подожди пару секунд и попробуй снова!',
-                model: aiConfig.model,
-                emotion: 'think',
-                error: true
-            };
-        }
-
         return {
-            reply: `Не удалось связаться с AnyModel (${status || 'timeout'}): ${errMsg || 'Сеть недоступна'}. Попробуй еще раз чуть позже!`,
+            reply: `Не удалось связаться с локальной моделью (${status || 'timeout'}): ${errMsg || 'Сеть недоступна'}.`,
             model: aiConfig.model,
             emotion: 'alert',
             error: true
@@ -140,52 +110,9 @@ async function sendChatMessage({ history = [], userMessage }) {
 }
 
 async function transcribeAudio({ audioBase64, mimeType = 'audio/webm' }) {
-    const apiKey = aiConfig.apiKey;
-
-    if (!apiKey || apiKey.trim() === '' || apiKey === 'YOUR_ANYMODEL_KEY') {
-        throw new Error('API-ключ AnyModel не настроен для транскрипции аудио.');
-    }
-
-    const cleanBase64 = String(audioBase64 || '').replace(/^data:audio\/[a-z0-9_-]+;base64,/i, '');
-    const buffer = Buffer.from(cleanBase64, 'base64');
-
-    if (buffer.length === 0) {
-        throw new Error('Пустой аудиофайл.');
-    }
-
-    const extension = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'webm';
-    const blob = new Blob([buffer], { type: mimeType });
-
-    const formData = new FormData();
-    formData.append('file', blob, `voice.${extension}`);
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'ru');
-
-    try {
-        const res = await fetch(`${aiConfig.baseURL}/audio/transcriptions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey.trim()}`
-            },
-            body: formData,
-            signal: AbortSignal.timeout(aiConfig.timeoutMs)
-        });
-
-        if (!res.ok) {
-            const errJson = await res.json().catch(() => ({}));
-            throw new Error(errJson.error?.message || errJson.error || `HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        const text = (data.text || '').trim();
-        if (!text) {
-            throw new Error('Транскрипция вернула пустой результат.');
-        }
-        return text;
-    } catch (err) {
-        console.error('aiService transcribeAudio error:', err.message);
-        throw new Error(`Ошибка транскрипции: ${err.message}`);
-    }
+    // В локальном llama-server нет встроенной транскрипции Whisper, 
+    // если она не настроена отдельно. Оставим заглушку или ошибку.
+    throw new Error('Транскрипция аудио пока не поддерживается локальной моделью.');
 }
 
 module.exports = {

@@ -6,3 +6,4 @@
 /server/cache.db*
 /server/coverage/
 /frontend/coverage/
+/models/

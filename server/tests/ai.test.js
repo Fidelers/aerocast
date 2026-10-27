@@ -4,7 +4,7 @@ const request = require('supertest');
 const app = require('../server');
 const aiService = require('../ai/services/aiService');
 
-describe('AI Module & AnyModel endpoints', () => {
+describe('AI Module & Local LLM endpoints', () => {
     afterAll(async () => {
         await app.stopServer();
     });
@@ -29,7 +29,7 @@ describe('AI Module & AnyModel endpoints', () => {
             expect(res.body.error).toBeDefined();
         });
 
-        it('корректно обрабатывает мокнутый успешный ответ AnyModel', async () => {
+        it('корректно обрабатывает мокнутый успешный ответ Local LLM', async () => {
             const spy = jest.spyOn(aiService, 'sendChatMessage').mockResolvedValueOnce({
                 reply: 'Привет! Я Ани, чем могу помочь?',
                 model: 'am/free',

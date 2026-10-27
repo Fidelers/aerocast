@@ -288,3 +288,24 @@ npm run test:coverage    # отчёт о покрытии кода (v8)
 - `tests/components/Test.test.jsx` — отладочный компонент проверки связи и доступности бэкенда.
 - `tests/utils/timeUtils.test.js` — утилиты группировки дат и 3-часовой сетки замеров.
 - `tests/types.test.js` — классификация AQI / EAQI по уровням, числовым диапазонам, подписям и цветам.
+
+
+## Локальная LLM (Llama 3.2 3B)
+
+Проект использует локальную модель Llama 3.2 3B через llama-server (Docker).
+При первом запуске Docker Compose автоматически скачает модель (~2GB) в папку models/.
+
+### Требования
+- Docker Desktop + WSL2 (на Windows).
+- NVIDIA Driver + 
+vidia-container-toolkit для ускорения GPU.
+
+### Инструкция
+1. Скопируйте .env.example в .env (в папке server/).
+2. Запустите проект:
+   `ash
+   docker compose up --build
+   `
+3. Сервер запустится на http://localhost:3000. Локальная LLM будет доступна автоматически.
+
+*Примечание: Если GPU отсутствует, llama-server будет работать на CPU, но медленнее.*
