@@ -21,7 +21,7 @@ services:
     volumes:
       - ./models:/models
     command: >
-      -m /models/Qwen2.5-3B-Instruct-Q4_K_M.gguf
+      -m /models/gemma-4-E2B-it-Q4_K_M.gguf
       --host 0.0.0.0
       --port 8080
       -ngl 99
