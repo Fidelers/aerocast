@@ -6,9 +6,4 @@
 /server/data/cache.db*
 /server/coverage/
 /frontend/coverage/
-<<<<<<< Updated upstream
 /models/
-=======
-/server/data/cache.db*
-/models/
->>>>>>> Stashed changes
