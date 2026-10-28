@@ -1,16 +1,16 @@
-# LLM Configuration Guide: Qwen 2.5 3B
+# LLM Configuration Guide: gemma-4-E2B-it-Q4_K_M
 
 Этот документ содержит руководство по настройке локальной LLM для проекта AeroCast.
 
-## 1. Локальная модель: Qwen 2.5 3B Instruct
-Для проекта используется модель **Qwen 2.5 3B Instruct** (квантизация Q4_K_M), которая оптимизирована для работы на железе среднего уровня (например, GTX 1660 Super) и обладает высокой стабильностью при работе с русским языком.
+## 1. Локальная модель: gemma-4-E2B-it-Q4_K_M
+Для проекта используется модель **gemma-4-E2B-it-Q4_K_M** (квантизация Q4_K_M), которая оптимизирована для работы на железе среднего уровня и обладает высокой стабильностью при работе с русским языком.
 
 ### Загрузка модели
 1. Создайте папку `models/` в корне проекта.
 2. Скачайте файл модели по ссылке ниже с впн:
-   [Скачать Qwen2.5-3B-Instruct-Q4_K_M.gguf](https://huggingface.co/lmstudio-community/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf)
+   [Скачать gemma-4-E2B-it-Q4_K_M.gguf](https://huggingface.co/lmstudio-community/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf?download=true)
 3. Переместите скачанный файл в папку `models/`.
-4. Убедитесь, что файл называется **точно**: `Qwen2.5-3B-Instruct-Q4_K_M.gguf`.
+4. Убедитесь, что файл называется **точно**: `gemma-4-E2B-it-Q4_K_M.gguf`.
 
 ## 2. Настройка Docker
 Проект использует Docker Compose для оркестрации бэкенда и `llama-server`.
@@ -45,13 +45,13 @@
    ```env
    LLM_BASE_URL=http://llama-server:8080/v1
    LLM_API_KEY=not-needed
-   LLM_MODEL=qwen2.5-3b
+   LLM_MODEL=gemma-4-E2B-it-Q4_K_M
    LLM_MAX_TOKENS=2000
    LLM_TEMPERATURE=0.2
    LLM_TIMEOUT_MS=75000
    LLM_MAX_HISTORY=4
    ```
-3. В файле `docker-compose.yml` убедитесь что указано `/models/Qwen2.5-3B-Instruct-Q4_K_M.gguf`, или чёткое название файла вашей модели если используйте другую
+3. В файле `docker-compose.yml` убедитесь что указано `/models/gemma-4-E2B-it-Q4_K_M.gguf`, или чёткое название файла вашей модели если используйте другую
 
 
 ## 4. Запуск проекта
