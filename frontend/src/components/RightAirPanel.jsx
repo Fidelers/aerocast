@@ -32,7 +32,8 @@ export default function RightAirPanel({
   isColorBlind = false,
   colorBlindType = 'okabe',
   initialGridMode = '2x3',
-  initialPinnedKey = null
+  initialPinnedKey = null,
+  onOpenDynamicsModal,
 }) {
   const [selectedKey, setSelectedKey] = useState(initialPinnedKey || 'pm2_5');
   const [pinnedKey, setPinnedKey] = useState(initialPinnedKey);
@@ -400,7 +401,7 @@ export default function RightAirPanel({
         </button>
       </div>
 
-      {/* Мета-информация: координаты, время, источник */}
+{/* Мета-информация: координаты, время, источник */}
       <div className="panel-meta">
         <div className="panel-meta__item"><strong>Координаты:</strong> {lat}, {lon}</div>
         <div className="panel-meta__item"><strong>Время:</strong>{' '}
@@ -414,7 +415,25 @@ export default function RightAirPanel({
 
       {/* Показатель AQI: цветовой индикатор, оценка и рекомендация */}
       <div className="aqi-summary">
-        <div className="aqi-indicator" data-level={aqiInfo.level} style={{ backgroundColor: aqiInfo.hex }}>
+        <div
+          className="aqi-indicator aqi-indicator--interactive"
+          data-level={aqiInfo.level}
+          style={{ backgroundColor: aqiInfo.hex }}
+          role="button"
+          tabIndex={0}
+          title="Нажмите, чтобы открыть график динамики за выбранный день"
+          onClick={() => {
+            if (!didDragRef.current && typeof onOpenDynamicsModal === 'function') {
+              onOpenDynamicsModal();
+            }
+          }}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && typeof onOpenDynamicsModal === 'function') {
+              e.preventDefault();
+              onOpenDynamicsModal();
+            }
+          }}
+        >
           <span className="aqi-indicator__number">{aqi !== null ? aqi : '—'}</span>
           <span className="aqi-indicator__label">{aqiInfo.label}</span>
         </div>
@@ -422,7 +441,7 @@ export default function RightAirPanel({
           <div className="aqi-recommendation">{aqiRecommendationText}</div>
         )}
       </div>
-
+      
       {/* Шкала уровней AQI */}
       <div className="scale-section">
         <h4 className="scale-section__title">Шкала уровней AQI</h4>
