@@ -171,14 +171,21 @@ export default function AiChatModal({
   const isCancelledRef = useRef(false);
   const messagesRef = useRef(messages);
   const inputMessageRef = useRef(inputMessage);
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  const requestQueueRef = useRef([]);
+  const isRequestingRef = useRef(false);
+  const dialogGenerationRef = useRef(0);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     inputMessageRef.current = inputMessage;
   }, [inputMessage]);
+
+  // Единая точка добавления сообщений: ref обновляется сразу, чтобы история
+  // для следующего запроса была актуальной без ожидания рендера.
+  const appendMessage = useCallback((message) => {
+    messagesRef.current = [...messagesRef.current, message];
+    setMessages(messagesRef.current);
+  }, []);
 
   const toggleSound = () => {
     setIsSoundEnabled((prev) => {
@@ -192,68 +199,132 @@ export default function AiChatModal({
     });
   };
 
-  const handleSendMessage = useCallback(async (e, directText = null) => {
+  // Последовательная обработка очереди: даже если пользователь отправил
+  // несколько сообщений подряд, ответы придут в том же порядке.
+  const processQueue = useCallback(async () => {
+    if (isRequestingRef.current) return;
+    isRequestingRef.current = true;
+
+    try {
+      while (requestQueueRef.current.length > 0) {
+        const job = requestQueueRef.current.shift();
+
+        // Задачи из старого диалога после «Начать новый диалог» игнорируем
+        if (job.generation !== dialogGenerationRef.current) continue;
+
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        abortControllerRef.current = controller;
+
+        setIsLoading(true);
+
+        try {
+          // Собираем последние реплики для контекста (ровно до 4 реплик: 2 пары вопрос-ответ)
+          const historyPayload = messagesRef.current
+            .filter((m) => m.id !== 'init-1' && !m.isError && m.id !== job.userMessageId)
+            .slice(-4)
+            .map((m) => ({ role: m.role, content: m.content }));
+
+          const response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: job.text,
+              history: historyPayload
+            }),
+            ...(controller ? { signal: controller.signal } : {})
+          });
+
+          // Пока ждали ответ, пользователь начал новый диалог — ответ не нужен
+          if (job.generation !== dialogGenerationRef.current) continue;
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Ошибка сервера (${response.status})`);
+          }
+
+          const data = await response.json();
+
+          if (job.generation !== dialogGenerationRef.current) continue;
+
+          appendMessage({
+            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            role: 'assistant',
+            content: data.reply || 'Ответ не получен.',
+            emotion: data.emotion || 'idle',
+            timestamp: Date.now()
+          });
+        } catch (err) {
+          if (err?.name === 'AbortError') continue;
+          if (job.generation !== dialogGenerationRef.current) continue;
+
+          console.error('AI chat error:', err);
+          appendMessage({
+            id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            role: 'assistant',
+            isError: true,
+            content: `Ошибка соединения: ${err.message}. Проверьте сервер и настройки AnyModel.`,
+            timestamp: Date.now()
+          });
+        } finally {
+          if (abortControllerRef.current === controller) {
+            abortControllerRef.current = null;
+          }
+        }
+      }
+    } finally {
+      isRequestingRef.current = false;
+      setIsLoading(false);
+    }
+  }, [appendMessage]);
+
+  const handleSendMessage = useCallback((e, directText = null) => {
     e?.preventDefault?.();
     const rawText = typeof directText === 'string' ? directText : inputMessageRef.current;
     const trimmed = rawText.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed) return;
 
     const userMsg = {
-      id: `u-${Date.now()}`,
+      id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       role: 'user',
       content: trimmed,
       timestamp: Date.now()
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    // Сообщение сразу показываем в чате, а запрос ставим в очередь,
+    // чтобы можно было писать следующее, не дожидаясь ответа.
+    appendMessage(userMsg);
     setInputMessage('');
-    setIsLoading(true);
+    inputMessageRef.current = '';
 
-    try {
-      // Собираем последние реплики для контекста (ровно до 4 реплик: 2 пары вопрос-ответ)
-      const historyPayload = messagesRef.current
-        .filter((m) => m.id !== 'init-1' && !m.isError)
-        .slice(-4)
-        .map((m) => ({ role: m.role, content: m.content }));
+    requestQueueRef.current.push({
+      text: trimmed,
+      userMessageId: userMsg.id,
+      generation: dialogGenerationRef.current
+    });
 
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: trimmed,
-          history: historyPayload
-        })
-      });
+    void processQueue();
+  }, [appendMessage, processQueue]);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Ошибка сервера (${response.status})`);
+  // Новый диалог: сбрасываем очередь и отменяем незавершенный запрос,
+  // чтобы его ответ не попал в новый чат.
+  const handleNewDialog = useCallback(() => {
+    dialogGenerationRef.current += 1;
+    requestQueueRef.current = [];
+
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch {
+        // ignore
       }
-
-      const data = await response.json();
-      const assistantMsg = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: data.reply || 'Ответ не получен.',
-        emotion: data.emotion || 'idle',
-        timestamp: Date.now()
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
-      console.error('AI chat error:', err);
-      const errorMsg = {
-        id: `err-${Date.now()}`,
-        role: 'assistant',
-        isError: true,
-        content: `Ошибка соединения: ${err.message}. Проверьте сервер и настройки AnyModel.`,
-        timestamp: Date.now()
-      };
-      setMessages((prev) => [...prev, errorMsg]);
-    } finally {
-      setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  }, [isLoading]);
+
+    messagesRef.current = [INITIAL_GREETING];
+    setMessages(messagesRef.current);
+    setInputMessage('');
+    inputMessageRef.current = '';
+  }, []);
 
   // Конвертация аудио blob в base64
   const blobToBase64 = useCallback((blob) => {
@@ -324,20 +395,17 @@ export default function AiChatModal({
       await handleSendMessage(null, transcribedText);
     } catch (err) {
       console.warn('Backend audio transcribe error:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err-voice-${Date.now()}`,
-          role: 'assistant',
-          isError: true,
-          content: `Ошибка распознавания аудио: ${err.message}.`,
-          timestamp: Date.now()
-        }
-      ]);
+      appendMessage({
+        id: `err-voice-${Date.now()}`,
+        role: 'assistant',
+        isError: true,
+        content: `Ошибка распознавания аудио: ${err.message}.`,
+        timestamp: Date.now()
+      });
     } finally {
       setIsTranscribing(false);
     }
-  }, [blobToBase64, handleSendMessage]);
+  }, [appendMessage, blobToBase64, handleSendMessage]);
 
   // Отмена голосового ввода без отправки сообщения
   const handleCancelVoice = useCallback(() => {
@@ -374,11 +442,12 @@ export default function AiChatModal({
 
     setIsListening(false);
     setInputMessage('');
+    inputMessageRef.current = '';
   }, []);
 
   // Включение / остановка голосового ввода по клику на микрофон
   const handleToggleVoice = useCallback(async () => {
-    if (isLoading || isTranscribing) return;
+    if (isTranscribing) return;
 
     // Пользователь нажал микрофон во время записи -> останавливаем и отправляем надиктованное
     if (isListening) {
@@ -409,7 +478,7 @@ export default function AiChatModal({
           'Запрос разрешения на микрофон не поддерживается в текущем окружении. Браузер требует безопасное соединение (HTTPS или http://localhost:5173).',
         timestamp: Date.now()
       };
-      setMessages((prev) => [...prev, unsupportedMsg]);
+      appendMessage(unsupportedMsg);
       return;
     }
 
@@ -433,7 +502,7 @@ export default function AiChatModal({
         content: errorText,
         timestamp: Date.now()
       };
-      setMessages((prev) => [...prev, deniedMsg]);
+      appendMessage(deniedMsg);
       return;
     }
 
@@ -496,7 +565,7 @@ export default function AiChatModal({
                 'Доступ к микрофону заблокирован. Разрешите доступ к микрофону в настройках браузера для Aerocast.',
               timestamp: Date.now()
             };
-            setMessages((prev) => [...prev, errMsg]);
+            appendMessage(errMsg);
           }
           setIsListening(false);
         };
@@ -596,8 +665,8 @@ export default function AiChatModal({
         'Разрешение на микрофон получено, однако ваш браузер не поддерживает распознавание речи (Web Speech API). Для работы голосового ввода рекомендуются Google Chrome, Microsoft Edge или Яндекс.Браузер.',
       timestamp: Date.now()
     };
-    setMessages((prev) => [...prev, fallbackMsg]);
-  }, [isLoading, isTranscribing, isListening, handleSendMessage, sendVoiceBlobToBackend]);
+    appendMessage(fallbackMsg);
+  }, [appendMessage, isTranscribing, isListening, handleSendMessage, sendVoiceBlobToBackend]);
 
   // Остановка записи при закрытии окна
   useEffect(() => {
@@ -683,7 +752,7 @@ export default function AiChatModal({
             <button
               type="button"
               className="ai-chat-header__btn"
-              onClick={() => setMessages([INITIAL_GREETING])}
+              onClick={handleNewDialog}
               title="Начать новый диалог"
               aria-label="Начать новый диалог"
             >
@@ -752,10 +821,19 @@ export default function AiChatModal({
               value={inputMessage}
               onChange={(e) => {
                 if (isListening) handleCancelVoice();
+                inputMessageRef.current = e.target.value;
                 setInputMessage(e.target.value);
               }}
-              placeholder={isTranscribing ? "Распознавание речи..." : isListening ? "Слушаю вас, говорите..." : "Спроси что-нибудь..."}
-              disabled={isLoading || isTranscribing}
+              placeholder={
+                isTranscribing
+                  ? 'Распознавание речи...'
+                  : isListening
+                  ? 'Слушаю вас, говорите...'
+                  : isLoading
+                  ? 'Ая отвечает... можно написать ещё'
+                  : 'Спроси что-нибудь...'
+              }
+              disabled={isTranscribing}
               maxLength={600}
             />
             {isListening && (
@@ -777,7 +855,7 @@ export default function AiChatModal({
               type="button"
               className={`ai-chat-mic-btn ${isListening ? 'ai-chat-mic-btn--listening' : ''}`}
               onClick={handleToggleVoice}
-              disabled={isLoading || isTranscribing}
+              disabled={isTranscribing}
               title={isListening ? "Остановить запись и отправить" : "Голосовой ввод"}
               aria-label={isListening ? "Остановить запись и отправить" : "Включить голосовой ввод"}
               data-testid="ai-chat-mic-btn"
@@ -791,7 +869,7 @@ export default function AiChatModal({
             <button
               type="submit"
               className="ai-chat-send-btn"
-              disabled={!inputMessage.trim() || isLoading || isTranscribing}
+              disabled={!inputMessage.trim() || isTranscribing}
               title="Отправить (Enter)"
               aria-label="Отправить сообщение"
             >

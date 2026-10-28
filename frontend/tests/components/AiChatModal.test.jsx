@@ -197,4 +197,79 @@ describe('AiChatModal Component', () => {
     // scrollIntoView не должен вызываться на элементах, чтобы верстка не прыгала наверх
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
+
+  it('позволяет отправить несколько сообщений подряд и отвечает по порядку', async () => {
+    let resolveFirst;
+    const firstResponse = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    global.fetch = vi
+      .fn()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(async () => ({
+        ok: true,
+        json: async () => ({ reply: 'Ответ 2', emotion: 'idle' })
+      }));
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Первое сообщение');
+    await userEvent.keyboard('{Enter}');
+
+    // Пока Ая отвечает, поле ввода остается доступным
+    expect(input.disabled).toBe(false);
+
+    await userEvent.type(input, 'Второе сообщение');
+    await userEvent.keyboard('{Enter}');
+
+    expect(screen.getByText('Первое сообщение')).toBeDefined();
+    expect(screen.getByText('Второе сообщение')).toBeDefined();
+    // Второй запрос еще не ушел, пока не получен первый ответ
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    resolveFirst({
+      ok: true,
+      json: async () => ({ reply: 'Ответ 1', emotion: 'idle' })
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Ответ 1')).toBeDefined();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Ответ 2')).toBeDefined();
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('не добавляет ответ в чат после начала нового диалога', async () => {
+    let resolveFirst;
+    const firstResponse = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    global.fetch = vi.fn().mockImplementationOnce(() => firstResponse);
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Старое сообщение');
+    await userEvent.keyboard('{Enter}');
+
+    await userEvent.click(screen.getByLabelText('Начать новый диалог'));
+    expect(screen.queryByText('Старое сообщение')).toBeNull();
+
+    resolveFirst({
+      ok: true,
+      json: async () => ({ reply: 'Старый ответ', emotion: 'idle' })
+    });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByText('Старый ответ')).toBeNull();
+  });
 });
