@@ -56,8 +56,83 @@ describe('SidebarCoverage — граничные случаи и полное п
             window.isSecureContext = origSecure;
         });
 
-        it('переключается на ipwho.is при сбое /api/locate-me в небезопасном контексте', async () => {
+        it('сначала пробует GPS даже при isSecureContext === false', async () => {
             const onLocationSelect = vi.fn();
+
+            const origSecure = window.isSecureContext;
+            const origGeo = globalThis.navigator.geolocation;
+            window.isSecureContext = false;
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn((success) => {
+                    success({ coords: { latitude: 54.1, longitude: 86.2 } });
+                })
+            };
+
+            const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+            try {
+                render(
+                    <Sidebar
+                        airData={mockAirData}
+                        isOpen={true}
+                        onLocationSelect={onLocationSelect}
+                    />
+                );
+
+                await act(async () => {
+                    fireEvent.click(screen.getByText('Моё местоположение'));
+                });
+
+                expect(globalThis.navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+                expect(onLocationSelect).toHaveBeenCalledWith(54.1, 86.2, '');
+                expect(fetchSpy).not.toHaveBeenCalled();
+            } finally {
+                window.isSecureContext = origSecure;
+                if (origGeo === undefined) {
+                    delete globalThis.navigator.geolocation;
+                } else {
+                    globalThis.navigator.geolocation = origGeo;
+                }
+            }
+        });
+
+        it('игнорирует статический fallback бекенда и пробует браузерный IP-сервис', async () => {
+            const onLocationSelect = vi.fn();
+
+            const origSecure = window.isSecureContext;
+            window.isSecureContext = false;
+
+            vi.spyOn(globalThis, 'fetch')
+                .mockResolvedValueOnce({
+                    ok: true,
+                    headers: { get: (name) => (name.toLowerCase() === 'x-geo-fallback' ? '1' : null) },
+                    json: async () => ({ latitude: 53.7596, longitude: 87.1467, city: 'Новокузнецк' })
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ success: true, latitude: 59.93, longitude: 30.33, city: 'Санкт-Петербург' })
+                });
+
+            try {
+                render(
+                    <Sidebar
+                        airData={mockAirData}
+                        isOpen={true}
+                        onLocationSelect={onLocationSelect}
+                    />
+                );
+
+                await act(async () => {
+                    fireEvent.click(screen.getByText('Моё местоположение'));
+                });
+
+                expect(onLocationSelect).toHaveBeenCalledWith(59.93, 30.33, 'Санкт-Петербург');
+            } finally {
+                window.isSecureContext = origSecure;
+            }
+        });
+
+        it('переключается на ipwho.is при сбое /api/locate-me в небезопасном контексте', async () => {            const onLocationSelect = vi.fn();
             const onClose = vi.fn();
 
             const origSecure = window.isSecureContext;

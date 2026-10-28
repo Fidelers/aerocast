@@ -548,6 +548,47 @@ describe('Controller: airController.getAirQuality', () => {
             });
         });
 
+        it('использует публичный IP клиента из X-Forwarded-For', async () => {
+            req = { headers: { 'x-forwarded-for': '8.8.8.8, 10.0.0.1' } };
+            axios.get.mockResolvedValueOnce({
+                data: { success: true, latitude: 1.1, longitude: 2.2, city: 'Тест' }
+            });
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/8.8.8.8', { timeout: 3500 });
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 1.1,
+                longitude: 2.2,
+                city: 'Тест'
+            });
+        });
+
+        it('игнорирует приватный IP и запрашивает геолокацию по IP сервера', async () => {
+            req = { headers: { 'x-forwarded-for': '192.168.1.25' } };
+            axios.get.mockResolvedValueOnce({
+                data: { success: true, latitude: 3.3, longitude: 4.4, city: 'Локальный' }
+            });
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/', { timeout: 3500 });
+        });
+
+        it('помечает статический fallback заголовком X-Geo-Fallback', async () => {
+            res.set = jest.fn();
+            axios.get.mockRejectedValue(new Error('both services down'));
+
+            await airController.locateByIp(req, res);
+
+            expect(res.set).toHaveBeenCalledWith('X-Geo-Fallback', '1');
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 53.7596,
+                longitude: 87.1467,
+                city: 'Новокузнецк'
+            });
+        });
+
         it('должен возвращать 500 при непредвиденной ошибке, если сбой происходит вне внутренних try/catch', async () => {
             axios.get.mockRejectedValue(new Error('both services down'));
             // Первый вызов res.json (фолбэк по умолчанию) выбрасывает ошибку,

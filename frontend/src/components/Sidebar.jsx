@@ -39,6 +39,8 @@ function Sidebar({
 
   const geoErrorTimerRef = useRef(null);
   const geoFadeTimerRef = useRef(null);
+  const geoWatchdogRef = useRef(null);
+  const geoAttemptIdRef = useRef(0);
 
   // Очистка всех таймеров ошибки геолокации
   const clearGeoTimers = () => {
@@ -52,10 +54,19 @@ function Sidebar({
     }
   };
 
+  // Страховочный таймер на случай, если браузер не вызвал ни success, ни error
+  const clearGeoWatchdog = () => {
+    if (geoWatchdogRef.current) {
+      clearTimeout(geoWatchdogRef.current);
+      geoWatchdogRef.current = null;
+    }
+  };
+
   // Очистка таймеров ошибки при размонтировании
   useEffect(() => {
     return () => {
       clearGeoTimers();
+      clearGeoWatchdog();
     };
   }, []);
 
@@ -236,8 +247,10 @@ function Sidebar({
     try {
       const res = await fetch('/api/locate-me');
       if (res.ok) {
+        const isFallback = typeof res.headers?.get === 'function'
+          && res.headers.get('x-geo-fallback') === '1';
         const data = await res.json();
-        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        if (!isFallback && data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
           return {
             latitude: data.latitude,
             longitude: data.longitude,
@@ -269,10 +282,11 @@ function Sidebar({
     return null;
   };
 
-  // Клик по кнопке местоположения 
+  // Клик по кнопке местоположения
   const handleLocationClick = async () => {
     // Сброс существующей ошибки и таймеров
     clearGeoTimers();
+    clearGeoWatchdog();
     setGeoError(null);
     setIsGeoErrorVisible(false);
 
@@ -282,7 +296,14 @@ function Sidebar({
 
     setIsGeoLoading(true);
 
+    // Идентификатор попытки: защищает от «гонки» GPS и IP-фоллбэка
+    const attemptId = ++geoAttemptIdRef.current;
+    let finished = false;
+
     const applyLocationSuccess = (lat, lon, cityName = '') => {
+      if (attemptId !== geoAttemptIdRef.current) return;
+      finished = true;
+      clearGeoWatchdog();
       clearGeoTimers();
       setGeoError(null);
       setIsGeoErrorVisible(false);
@@ -295,60 +316,81 @@ function Sidebar({
       }
     };
 
-    if (typeof window !== 'undefined' && window.isSecureContext === false) {
-      try {
-        const ipLoc = await fetchIpLocation();
-        if (ipLoc) {
-          applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
-          return;
-        }
-      } catch {
-        // fallback failed
-      }
-      setGeoErrorWithTimeout('Не удалось определить местоположение. Попробуйте поиск города.');
-      setIsGeoLoading(false);
-      return;
-    }
+    // Фоллбэк по IP запускается только если GPS недоступен, запрещён или не ответил
+    const fallbackToIp = async (gpsErrorMessage) => {
+      if (finished || attemptId !== geoAttemptIdRef.current) return;
+      finished = true;
+      clearGeoWatchdog();
 
-    if (!navigator.geolocation) {
-      setGeoErrorWithTimeout('Геолокация не поддерживается вашим браузером');
-      setIsGeoLoading(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        applyLocationSuccess(position.coords.latitude, position.coords.longitude, '');
-      },
-      (err) => {
-        let message = 'Не удалось определить местоположение.';
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            message += ' Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.';
-            break;
-          case err.POSITION_UNAVAILABLE:
-            message += ' Информация о местоположении недоступна.';
-            break;
-          case err.TIMEOUT:
-            message += ' Превышено время ожидания ответа от GPS.';
-            break;
-        }
-        setGeoErrorWithTimeout(message);
+      if (gpsErrorMessage) {
+        setGeoErrorWithTimeout(gpsErrorMessage);
         setIsGeoLoading(false);
+      }
 
-        // Попытка фонового IP-фоллбэка при ошибке GPS на мобильных
-        fetchIpLocation()
-          .then((ipLoc) => {
-            if (ipLoc) {
-              applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
-            }
-          })
-          .catch(() => {
-            // ignore
-          });
-      },
-      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false }
-    );
+      const ipLoc = await fetchIpLocation();
+      if (attemptId !== geoAttemptIdRef.current) return;
+
+      if (ipLoc) {
+        applyLocationSuccess(ipLoc.latitude, ipLoc.longitude, ipLoc.city);
+        return;
+      }
+
+      setIsGeoLoading(false);
+      if (!gpsErrorMessage) {
+        setGeoErrorWithTimeout('Не удалось определить местоположение. Попробуйте поиск города.');
+      }
+    };
+
+    // 1. Всегда сначала пробуем GPS браузера, даже в небезопасном контексте:
+    //    если браузер запретит геолокацию — автоматически перейдём на IP.
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      await fallbackToIp('Не удалось определить местоположение. Попробуйте поиск города. Геолокация не поддерживается вашим браузером.');
+      return;
+    }
+
+    const isInsecure = typeof window !== 'undefined' && window.isSecureContext === false;
+
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          applyLocationSuccess(position.coords.latitude, position.coords.longitude, '');
+        },
+        (err) => {
+          let message = 'Не удалось определить местоположение.';
+          switch (err?.code) {
+            case 1:
+              message += ' Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.';
+              break;
+            case 2:
+              message += ' Информация о местоположении недоступна.';
+              break;
+            case 3:
+              message += ' Превышено время ожидания ответа от GPS.';
+              break;
+          }
+          if (isInsecure) {
+            message += ' Для точной геолокации откройте сайт по HTTPS или на localhost.';
+          }
+          fallbackToIp(message);
+        },
+        { timeout: 8000, maximumAge: 0, enableHighAccuracy: true }
+      );
+    } catch {
+      // Некоторые браузеры бросают исключение в небезопасном контексте
+      await fallbackToIp(
+        isInsecure
+          ? 'Геолокация недоступна по HTTP. Для точного определения откройте сайт по HTTPS или на localhost.'
+          : 'Не удалось получить доступ к геолокации. Используем приблизительное местоположение по IP.'
+      );
+      return;
+    }
+
+    // 2. Страховка: если браузер не вызвал ни success, ни error
+    if (!finished) {
+      geoWatchdogRef.current = setTimeout(() => {
+        fallbackToIp('Браузер не ответил на запрос геолокации. Используем приблизительное местоположение по IP.');
+      }, 9000);
+    }
   };
 
   const sidebarRef = useRef(null);

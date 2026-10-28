@@ -159,12 +159,40 @@ async function getAirQuality(req, res) {
     }
 }
 
+function normalizeIp(value) {
+    if (!value) return '';
+    return String(value).split(',')[0].trim().replace(/^::ffff:/i, '');
+}
+
+function isPrivateIp(ip) {
+    if (!ip) return true;
+    if (ip === '::1' || ip === '127.0.0.1' || ip === '0.0.0.0') return true;
+    if (ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('169.254.')) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+    if (/^(fc|fd|fe80:)/i.test(ip)) return true;
+    return false;
+}
+
+// Публичный IP клиента (важно, если бекенд развёрнут отдельно от пользователя).
+// Для локальной сети/прокси вернём пустую строку — тогда геолокация пойдёт по IP сервера.
+function getClientIp(req) {
+    const forwarded = req?.headers?.['x-forwarded-for'];
+    const candidate = normalizeIp(forwarded)
+        || normalizeIp(req?.ip)
+        || normalizeIp(req?.socket?.remoteAddress);
+
+    return isPrivateIp(candidate) ? '' : candidate;
+}
+
 async function locateByIp(req, res) {
     try {
         const axios = require('axios');
-        // 1. Попытка через ipwho.is
+        const clientIp = getClientIp(req);
+
+        // 1. Попытка через ipwho.is (по IP клиента, если он известен)
         try {
-            const resp = await axios.get('https://ipwho.is/', { timeout: 3500 });
+            const url = clientIp ? `https://ipwho.is/${encodeURIComponent(clientIp)}` : 'https://ipwho.is/';
+            const resp = await axios.get(url, { timeout: 3500 });
             if (resp.data && resp.data.success && typeof resp.data.latitude === 'number' && typeof resp.data.longitude === 'number') {
                 return res.json({
                     latitude: resp.data.latitude,
@@ -178,7 +206,8 @@ async function locateByIp(req, res) {
 
         // 2. Попытка через ipapi.co
         try {
-            const resp = await axios.get('https://ipapi.co/json/', { timeout: 3500 });
+            const url = clientIp ? `https://ipapi.co/${encodeURIComponent(clientIp)}/json/` : 'https://ipapi.co/json/';
+            const resp = await axios.get(url, { timeout: 3500 });
             if (resp.data && typeof resp.data.latitude === 'number' && typeof resp.data.longitude === 'number') {
                 return res.json({
                     latitude: resp.data.latitude,
@@ -190,7 +219,12 @@ async function locateByIp(req, res) {
             // fallback
         }
 
-        // 3. Fallback по умолчанию (Новокузнецк)
+        // 3. Fallback по умолчанию (Новокузнецк).
+        // Помечаем ответ заголовком, чтобы фронтенд мог попробовать браузерный IP-сервис
+        // и не принимать этот «статический» город за реальный результат геолокации.
+        if (typeof res.set === 'function') {
+            res.set('X-Geo-Fallback', '1');
+        }
         return res.json({
             latitude: 53.7596,
             longitude: 87.1467,
