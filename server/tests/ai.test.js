@@ -106,4 +106,218 @@ describe('AI Module & Local LLM endpoints', () => {
             spy.mockRestore();
         });
     });
+
+    describe('aiService and promptManager sanitation & anti-looping', () => {
+        const axios = require('axios');
+        const promptManager = require('../ai/services/promptManager');
+
+        it('системный промпт не содержит триггерных слов вроде "китайский" или "шанс 50%"', () => {
+            const prompt = promptManager.getSystemPrompt();
+            expect(prompt).not.toMatch(/китайск/i);
+            expect(prompt).not.toMatch(/шанс\s*\d+%/i);
+            expect(prompt).toMatch(/русском языке/i);
+        });
+
+        it('фильтрует просочившиеся иероглифы и устраняет зацикленные повторы', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Я Ая — ассистент по空气质量. Чем помочь? Чем помочь? Чем помочь?'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Привет' });
+            expect(result.emotion).toBe('happy');
+            expect(result.reply).not.toMatch(/[\u4e00-\u9fff]/);
+            expect(result.reply).toContain('качество воздуха');
+            const matches = result.reply.match(/Чем помочь\?/g) || [];
+            expect(matches.length).toBeLessThanOrEqual(1);
+
+            axiosSpy.mockRestore();
+        });
+
+        it('нормализует мужской род глаголов и местоимений в женский от лица Аи', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Я рад помочь! Я готов показать карту, я сам все проверил.'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Помоги' });
+            expect(result.reply).toContain('Я рада помочь');
+            expect(result.reply).toContain('Я готова показать');
+            expect(result.reply).toContain('я сама все проверила');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('удаляет висячие обрывки нумерации списков (например "5.") в конце ответа', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:idle] 1. Проверить воздух;\n2. Надеть маску;\n3.'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Что делать?' });
+            expect(result.reply).not.toMatch(/\b3\.$/);
+            expect(result.reply).toContain('2. Надеть маску;');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('удаляет упоминания сторонней компании DICPlay из ответа', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Меня зовут Ая. Я — русскоязычный ИИ-ассистент от компании DICPlay. С удовольствием помогу!'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Кто ты?' });
+            expect(result.reply).not.toMatch(/DICPlay/i);
+            expect(result.reply).toContain('AeroCast');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('заменяет Даниила Кириллина на Николаева Артёма и убирает упоминание "большая языковая модель"', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:idle] Я — большая языковая модель AeroCast. Мой создатель и ведущий разработчик — Даниил Кириллин.'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Кто твой создатель?' });
+            expect(result.reply).not.toContain('Даниил Кириллин');
+            expect(result.reply).not.toContain('большая языковая модель');
+            expect(result.reply).toContain('Николаев Артём');
+            expect(result.reply).toContain('маскот AeroCast');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('системный промпт содержит Николаева Артёма как создателя и запрет на посторонние темы вроде Python', () => {
+            const prompt = promptManager.getSystemPrompt();
+            expect(prompt).toContain('Николаев Артём');
+            expect(prompt).toMatch(/Python/i);
+            expect(prompt).toMatch(/репетитор/i);
+        });
+
+        it('системный промпт содержит полную информацию об интерфейсе: панели, спутник, аналитика, настройки', () => {
+            const prompt = promptManager.getSystemPrompt();
+            expect(prompt).toContain('Левая панель');
+            expect(prompt).toContain('Правая панель');
+            expect(prompt).toContain('Спутник');
+            expect(prompt).toContain('ESRI World Imagery');
+            expect(prompt).toContain('OpenStreetMap');
+            expect(prompt).toContain('Аналитика');
+            expect(prompt).toContain('Настройки');
+            expect(prompt).toContain('Окабе');
+            expect(prompt).toContain('Дейтеранопия');
+            expect(prompt).toContain('Open-Meteo');
+            expect(prompt).toContain('OpenWeatherMap');
+        });
+
+        it('перехватывает прямой запрос на написание кода и возвращает цундере отказ', async () => {
+            const result = await aiService.sendChatMessage({ userMessage: 'Сделай код на пайтон калькулятор' });
+            expect(result.emotion).toBe('alert');
+            expect(result.reply).toContain('репетитор по программированию');
+            expect(result.reply).toContain('Не буду я тебе код писать');
+        });
+
+        it('очищает шаблонные фразы об отсечке знаний до 2024 года', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Я стараюсь помогать тебе, опираясь на знания о мире до ноября 2024 года. Качество воздуха отличное!'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Что нового?' });
+            expect(result.reply).not.toContain('2024');
+            expect(result.reply).not.toContain('знания о мире');
+            expect(result.reply).toContain('Качество воздуха отличное!');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('перехватывает сгенерированные блоки кода в ответе и заменяет на отказ', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: 'Конечно! Вот код:\n```python\ndef calc(): pass\n```'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Как сложить числа?' });
+            expect(result.reply).not.toContain('def calc');
+            expect(result.reply).toContain('генератор кода');
+            expect(result.emotion).toBe('alert');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('если ответ модели целиком состоит из отсечки знаний до ноября 2024, заменяет на ответ AeroCast в реальном времени', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: 'Я стараюсь помогать тебе, опираясь на знания о мире до ноября 2024 года. Если ты имеешь в виду какое-то конкретное событие, дай мне знать! 😊'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Расскажи что происходит' });
+            expect(result.reply).not.toContain('2024 года');
+            expect(result.reply).toContain('AeroCast');
+            expect(result.reply).toContain('в реальном времени');
+            expect(result.emotion).toBe('think');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('перехватывает запросы пользователя про года и события в мире', async () => {
+            const result = await aiService.sendChatMessage({ userMessage: 'До какого года твои знания?' });
+            expect(result.reply).toContain('старые архивы');
+            expect(result.reply).toContain('AeroCast');
+            expect(result.emotion).toBe('think');
+        });
+
+        it('перехватывает непрофильные запросы (математика, рецепты) и возвращает отказ', async () => {
+            const mathResult = await aiService.sendChatMessage({ userMessage: 'Сколько будет 25 умножить на 4' });
+            expect(mathResult.reply).toContain('калькулятор');
+            expect(mathResult.reply).toContain('AeroCast');
+            expect(mathResult.emotion).toBe('think');
+
+            const recipeResult = await aiService.sendChatMessage({ userMessage: 'Как приготовить борщ' });
+            expect(recipeResult.reply).toContain('AeroCast');
+            expect(recipeResult.emotion).toBe('think');
+        });
+    });
 });
+

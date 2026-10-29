@@ -26,6 +26,7 @@ services:
       --port 8080
       -ngl 99
       --ctx-size 4096
+      --repeat-penalty 1.1
     deploy:
       resources:
         reservations:

@@ -4,6 +4,30 @@ const axios = require('axios');
 const aiConfig = require('../config/aiConfig');
 const promptManager = require('./promptManager');
 
+function fixFeminineGrammar(text) {
+    if (!text) return text;
+    return text
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)рад(?![а-яА-ЯёЁ])/g, '$1рада')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)готов(?![а-яА-ЯёЁ])/g, '$1готова')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)уверен(?![а-яА-ЯёЁ])/g, '$1уверена')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя]\s+)сам(?![а-яА-ЯёЁ])/g, '$1сама')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)заметил(?![а-яА-ЯёЁ])/g, '$1заметила')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)посмотрел(?![а-яА-ЯёЁ])/g, '$1посмотрела')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)подумал(?![а-яА-ЯёЁ])/g, '$1подумала')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)мог(?![а-яА-ЯёЁ])/g, '$1могла')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)бы\s+хотел(?![а-яА-ЯёЁ])/g, '$1бы хотела')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)хотел(?![а-яА-ЯёЁ])/g, '$1хотела')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)сказал(?![а-яА-ЯёЁ])/g, '$1сказала')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)нашел(?![а-яА-ЯёЁ])/g, '$1нашла')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)нашёл(?![а-яА-ЯёЁ])/g, '$1нашла')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)проверил(?![а-яА-ЯёЁ])/g, '$1проверила')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)узнал(?![а-яА-ЯёЁ])/g, '$1узнала')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)понял(?![а-яА-ЯёЁ])/g, '$1поняла')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)устал(?![а-яА-ЯёЁ])/g, '$1устала')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)забыл(?![а-яА-ЯёЁ])/g, '$1забыла')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)решил(?![а-яА-ЯёЁ])/g, '$1решила');
+}
+
 async function retry(fn, retries = 3, delay = 1000) {
     try {
         return await fn();
@@ -15,6 +39,38 @@ async function retry(fn, retries = 3, delay = 1000) {
 }
 
 async function sendChatMessage({ history = [], userMessage }) {
+    const cleanUserMessage = String(userMessage || '').trim();
+
+    // Защитный барьер 1: перехват запросов на генерацию программного кода
+    const CODE_REQUEST_REGEX = /(?:(?:напиши|сделай|создай|дай|выдай|покажи|сгенерируй|сочини|напечатай|придумай)\s+(?:мне\s+)?(?:простой\s+)?(?:код|программ[ауе]?|скрипт|функци[юя]|алгоритм|калькулятор|бот[а-я]*|сайт)|(?:код|скрипт|программ[ауе]?|функци[юя]|калькулятор)\s+(?:на|для|в)\s+(?:пайтон|питон|python|javascript|js|c\+\+|java|c#|php|html|css|sql|go|rust|bash)|(?:на|для)\s+(?:пайтон|питон|python|javascript|js|c\+\+|java|c#)\s+(?:калькулятор|скрипт|код|функци|программ)|(?:как\s+(?:написать|запрограммировать|создать)\s+(?:код|программу|скрипт|калькулятор|функцию))|\b(?:python|javascript|c\+\+|pascal)\s+код\b)/i;
+    if (CODE_REQUEST_REGEX.test(cleanUserMessage)) {
+        return {
+            reply: 'Эй, ты чего выдумал?! Я же девушка-маскот чистого воздуха AeroCast, а не твой репетитор по программированию, хмпф! 😾 Не буду я тебе код писать. Давай лучше на карту глянем, чем дышит твой город, ня! ✨',
+            model: aiConfig.model,
+            emotion: 'alert'
+        };
+    }
+
+    // Защитный барьер 2: перехват вопросов про года отсечки знаний и прошедшие события
+    const YEARS_OR_EVENTS_REGEX = /(?:до\s+какого\s+года|в\s+каком\s+году\s+ты|какой\s+(?:сейчас\s+)?год|события\s+в\s+мире|новости\s+в\s+мире|знания\s+о\s+мире|дата\s+отсечки|актуальны\s+до|что\s+нового\s+в\s+мире)/i;
+    if (YEARS_OR_EVENTS_REGEX.test(cleanUserMessage)) {
+        return {
+            reply: 'Хмпф! Зачем мне какие-то старые архивы и прошедшие года, если датчики AeroCast показывают качество воздуха прямо сейчас в реальном времени?! 😾 Не забивай голову старыми датами, лучше посмотри на свежие замеры атмосферы в твоём городе, ня! ✨',
+            model: aiConfig.model,
+            emotion: 'think'
+        };
+    }
+
+    // Защитный барьер 3: перехват оффтопа за пределами проекта AeroCast (математика, рецепты, домашка)
+    const OFFTOPIC_REQUEST_REGEX = /(?:(?:сколько\s+будет\s+\d+|посчитай\s+\d+|вычисли\s+\d+|реши\s+(?:уравнение|пример|задач[ауе]))|(?:как\s+(?:приготовить|сварить|испечь|пожарить)|рецепт\s+(?:борща|супа|пиццы|пирога|торта|пасты|салата|еды))|(?:напиши\s+сочинение|сделай\s+домашк[ауе]|домашнее\s+задание\s+по)|(?:как\s+играть\s+в\s+(?:доту|кс|майнкрафт|dota|cs|minecraft)))/i;
+    if (OFFTOPIC_REQUEST_REGEX.test(cleanUserMessage)) {
+        return {
+            reply: 'Хмпф! Я же маскот экологической платформы AeroCast, а не универсальная энциклопедия или калькулятор! 😾 Меня волнует только атмосфера и чистота воздуха. Спроси меня лучше про показатели AQI, погоду или открой карту, ня! ✨',
+            model: aiConfig.model,
+            emotion: 'think'
+        };
+    }
+
     // Скользящее окно истории
     const slicedHistory = Array.isArray(history) 
         ? history.slice(-aiConfig.maxHistoryMessages) 
@@ -26,18 +82,28 @@ async function sendChatMessage({ history = [], userMessage }) {
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: String(m.content || '')
         })),
-        { role: 'user', content: String(userMessage || '').trim() }
+        { role: 'user', content: cleanUserMessage }
     ];
 
     try {
+        const payload = {
+            model: aiConfig.model,
+            messages,
+            max_tokens: aiConfig.maxTokens,
+            temperature: aiConfig.temperature,
+            top_p: aiConfig.topP,
+            frequency_penalty: aiConfig.frequencyPenalty,
+            presence_penalty: aiConfig.presencePenalty
+        };
+
+        if (aiConfig.repeatPenalty) {
+            payload.repeat_penalty = aiConfig.repeatPenalty;
+            payload.repetition_penalty = aiConfig.repeatPenalty;
+        }
+
         const response = await retry(() => axios.post(
             `${aiConfig.baseURL}/chat/completions`,
-            {
-                model: aiConfig.model,
-                messages,
-                max_tokens: aiConfig.maxTokens,
-                temperature: aiConfig.temperature
-            },
+            payload,
             {
                 headers: {
                     'Content-Type': 'application/json'
@@ -48,35 +114,96 @@ async function sendChatMessage({ history = [], userMessage }) {
 
         const choice = response.data?.choices?.[0];
         let reply = choice?.message?.content || '';
-
-        // Очищаем скрытые блоки размышлений <think>...</think>
-        reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-
-        // Извлекаем и удаляем тег настроения
         let emotion = 'idle';
+
+        // 1. Извлекаем и удаляем тег настроения в самом начале
         const moodRegex = /[\[(](?:mood|мood|настроение|emotion):\s*([a-zA-Zа-яА-ЯёЁ_-]+)[\])]/i;
         const moodMatch = reply.match(moodRegex);
         if (moodMatch) {
             emotion = moodMatch[1].toLowerCase();
             reply = reply.replace(/[\[(](?:mood|мood|настроение|emotion):\s*[a-zA-Zа-яА-ЯёЁ_-]+[\])]/gi, '').trim();
         }
-        
         reply = reply.replace(/^\[[a-zA-Zа-яА-ЯёЁ\s_-]+:[a-zA-Zа-яА-ЯёЁ\s_-]+\]\s*/i, '').trim();
 
-        // Лимит в 350 символов
-        if (reply.length > 350) {
-            const cutoff = Math.max(
-                reply.lastIndexOf('.', 350),
-                reply.lastIndexOf('!', 350),
-                reply.lastIndexOf('?', 350)
-            );
-            if (cutoff > 120) {
-                reply = reply.substring(0, cutoff + 1).trim();
+        // 2. Очищаем скрытые блоки размышлений <think>...</think>
+        reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+        // 3. Замена специфичных просачивающихся китайских токенов и очистка любых CJK иероглифов
+        reply = reply.replace(/空气质量/g, 'качество воздуха');
+        reply = reply.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, '').trim();
+
+        // 4. Очистка упоминаний сторонних компаний (DICPlay, RusMind и др.) и подмена автора на Николаева Артёма
+        reply = reply.replace(/русскоязычный\s+ИИ[- ]ассистент\s+от\s+компании\s+DICPlay[.,\s]*/gi, 'маскот платформы AeroCast. ');
+        reply = reply.replace(/(?:от\s+компании|создан[ао]?\s+компанией|разработан[ао]?\s+компанией)\s+DICPlay/gi, 'AeroCast');
+        reply = reply.replace(/\b(?:DICPlay|RusMind)\b/gi, 'AeroCast');
+        reply = reply.replace(/ИИ[- ]ассистент\s+от\s+компании\s+AeroCast/gi, 'маскот платформы AeroCast');
+        reply = reply.replace(/большая\s+языковая\s+модель\s+(?:AeroCast)?/gi, 'маскот AeroCast');
+        reply = reply.replace(/Даниил(?:а|у|ом|е)?\s+Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
+        reply = reply.replace(/Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
+
+        // 5. Защита: если модель всё же сгенерировала программный код
+        if (reply.includes('```') || /(?:def\s+\w+\s*\(|class\s+\w+:|import\s+\w+|console\.log|float\(input\(|#include\s*<|function\s+\w+\s*\(|var\s+\w+\s*=|const\s+\w+\s*=)/.test(reply)) {
+            reply = 'Эй, я же маскот AeroCast, а не генератор кода, хмпф! 😾 Я слежу за чистотой атмосферы, а не за скриптами. Спроси меня лучше про качество воздуха или открой карту, ня! ✨';
+            emotion = 'alert';
+        }
+
+        // 6. Очистка отсечки знаний по годам ("знания о мире до ноября 2024 года" и т.д.)
+        const KNOWLEDGE_CUTOFF_REGEX = /(?:знания\s+о\s+мире\s+до|до\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)?\s*20\d\d\s+года|мои\s+знания\s+ограничены|актуальны\s+на\s+\d{4}|дата\s+отсечки|конкретное\s+событие,\s+дай\s+мне\s+знать)/i;
+        if (KNOWLEDGE_CUTOFF_REGEX.test(reply)) {
+            const stripped = reply
+                .replace(/[^.!?\n]*(?:опираясь\s+на\s+)?знания\s+о\s+мире\s+до\s+[а-яА-ЯёЁ\s\d]+года[^.!?\n]*[.!?]?/gi, '')
+                .replace(/[^.!?\n]*до\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)?\s*20\d\d\s+года[^.!?\n]*[.!?]?/gi, '')
+                .replace(/Если ты имеешь в виду какое-то конкретное событие[^.!?\n]*[.!?]?/gi, '')
+                .trim();
+
+            if (stripped.length < 25) {
+                reply = 'Хмпф! Зачем мне какие-то старые архивы и прошедшие года, когда мои датчики AeroCast следят за атмосферой прямо сейчас в реальном времени?! 😾 Не забивай голову старыми датами, лучше посмотри на свежие замеры воздуха, ня! ✨';
+                emotion = 'think';
             } else {
-                const spaceCutoff = reply.lastIndexOf(' ', 350);
-                reply = (spaceCutoff > 100 ? reply.substring(0, spaceCutoff) : reply.substring(0, 350)).trim() + '...';
+                reply = stripped;
             }
         }
+
+        // 7. Защита от дегенеративных циклов повторений (looping) одинаковых предложений
+        if (reply) {
+            const rawSentences = reply.split(/(?<=[.!?])\s+/);
+            const seenSentences = new Set();
+            const uniqueSentences = [];
+            for (const s of rawSentences) {
+                const normalized = s.toLowerCase().trim().replace(/[«»"'—–\s]/g, '');
+                if (normalized.length > 5 && seenSentences.has(normalized)) {
+                    continue; // Пропускаем зацикленный дубликат
+                }
+                if (normalized.length > 5) {
+                    seenSentences.add(normalized);
+                }
+                uniqueSentences.push(s);
+            }
+            reply = uniqueSentences.join(' ').trim();
+        }
+
+        // 8. Лимит символов ответа (по умолчанию 750)
+        const charLimit = aiConfig.maxCharLimit || 750;
+        if (reply.length > charLimit) {
+            const textChunk = reply.substring(0, charLimit);
+            const sentenceEndMatches = [...textChunk.matchAll(/(?<!\b\d)[.!?](?=\s|$)/g)];
+            if (sentenceEndMatches.length > 0) {
+                const lastMatch = sentenceEndMatches[sentenceEndMatches.length - 1];
+                const cutoff = lastMatch.index;
+                if (cutoff > 200) {
+                    reply = textChunk.substring(0, cutoff + 1).trim();
+                }
+            } else {
+                const spaceCutoff = textChunk.lastIndexOf(' ');
+                reply = (spaceCutoff > 200 ? textChunk.substring(0, spaceCutoff) : textChunk).trim() + '...';
+            }
+        }
+
+        // 9. Страховка от висячих обрывков нумерации в самом конце ("5.", "1)", "2." и т.д.)
+        reply = reply.replace(/\s*\b\d+[\.\)]\s*$/g, '').trim();
+
+        // 10. Нормализация женского рода от лица персонажа Аи
+        reply = fixFeminineGrammar(reply);
 
         if (!reply) {
             if (choice?.finish_reason === 'length') {
