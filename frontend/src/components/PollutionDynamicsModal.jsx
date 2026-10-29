@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import DynamicsChart from './DynamicsChart';
 import '../styles/RightAirPanel.css';
+import { parseIsoTimeString } from '../utils/timeUtils';
+
 //измеряемые загрязнители
 const POLLUTANTS_CONFIG = [
   { key: 'pm2_5', label: 'PM2.5', color: '#3b82f6' },
@@ -11,6 +13,41 @@ const POLLUTANTS_CONFIG = [
   { key: 'carbon_monoxide', label: 'CO', color: '#6366f1' },
 ];
 
+
+// форматирование даты в нужный формат
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(`${dateStr}`);
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      weekday: 'short',
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+};
+
+
+const buildHourRecord = (isoTime, idx, hourlyData, isCurrent) => {
+  const parsed = parseIsoTimeString(isoTime);
+  return {
+    time: isoTime,
+    hourLabel: parsed?.timeStr || isoTime.split('T')[1]?.slice(0, 5) || '00:00',
+    isCurrent,
+    aqi: hourlyData.european_aqi?.[idx] ?? null,
+    european_aqi: hourlyData.european_aqi?.[idx] ?? null,
+    pm2_5: hourlyData.pm2_5?.[idx] ?? null,
+    pm10: hourlyData.pm10?.[idx] ?? null,
+    nitrogen_dioxide: hourlyData.nitrogen_dioxide?.[idx] ?? null,
+    sulphur_dioxide: hourlyData.sulphur_dioxide?.[idx] ?? null,
+    ozone: hourlyData.ozone?.[idx] ?? null,
+    carbon_monoxide: hourlyData.carbon_monoxide?.[idx] ?? null,
+  };
+};
+
+
 export default function PollutionDynamicsModal({
   isOpen = false,
   onClose,
@@ -20,6 +57,7 @@ export default function PollutionDynamicsModal({
   isColorBlind = false,
   colorBlindType = 'okabe',
 }) {
+
   // закрыть чтоб на ескейп
   useEffect(() => {
     if (!isOpen) return;
@@ -33,7 +71,9 @@ export default function PollutionDynamicsModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
-    //блокировка прокрутки фона страницы при открытом окне
+
+
+  //блокировка прокрутки фона страницы при открытом окне
   useEffect(() => {
     if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
@@ -56,45 +96,31 @@ export default function PollutionDynamicsModal({
 
   // определяем выбранный день
   const currentIso = airData.hourly.time[safeIdx] || '';
-  const selectedDateStr = currentIso.split('T')[0] || '';
+  const parsedCurrent = parseIsoTimeString(currentIso);
+  const selectedDateStr = parsedCurrent?.dateStr || currentIso.split('T')[0] || '';
 
   // фильтруем ровно 24 часа за выбранные сутки
   const dayData = [];
   let activeHourInDay = 0;
 
   airData.hourly.time.forEach((t, idx) => {
-    if (typeof t === 'string' && t.startsWith(selectedDateStr)) {
-      if (idx === safeIdx) {
+    const parsed = parseIsoTimeString(t);
+    if (parsed && parsed.dateStr === selectedDateStr) {
+      const isCurrent = idx === safeIdx;
+      if (isCurrent) {
         activeHourInDay = dayData.length;
       }
-      const hourLabel = t.split('T')[1]?.slice(0, 5) || '00:00';
-      dayData.push({
-        time: t,
-        hourLabel,
-        aqi: airData.hourly.european_aqi?.[idx] ?? null,
-        european_aqi: airData.hourly.european_aqi?.[idx] ?? null,
-        pm2_5: airData.hourly.pm2_5?.[idx] ?? null,
-        pm10: airData.hourly.pm10?.[idx] ?? null,
-        nitrogen_dioxide: airData.hourly.nitrogen_dioxide?.[idx] ?? null,
-        sulphur_dioxide: airData.hourly.sulphur_dioxide?.[idx] ?? null,
-        ozone: airData.hourly.ozone?.[idx] ?? null,
-        carbon_monoxide: airData.hourly.carbon_monoxide?.[idx] ?? null,
-      });
+      dayData.push(buildHourRecord(t, idx, airData.hourly, isCurrent));
     }
   });
 
-  const finalDayData = dayData.length > 0 ? dayData : airData.hourly.time.slice(0, 24).map((t, idx) => ({
-    time: t,
-    hourLabel: t.split('T')[1]?.slice(0, 5) || '00:00',
-    aqi: airData.hourly.european_aqi?.[idx] ?? null,
-    european_aqi: airData.hourly.european_aqi?.[idx] ?? null,
-    pm2_5: airData.hourly.pm2_5?.[idx] ?? null,
-    pm10: airData.hourly.pm10?.[idx] ?? null,
-    nitrogen_dioxide: airData.hourly.nitrogen_dioxide?.[idx] ?? null,
-    sulphur_dioxide: airData.hourly.sulphur_dioxide?.[idx] ?? null,
-    ozone: airData.hourly.ozone?.[idx] ?? null,
-    carbon_monoxide: airData.hourly.carbon_monoxide?.[idx] ?? null,
-  }));
+  // Если фильтрация не дала результатов, берём первые 24 часа
+  const finalDayData =
+    dayData.length > 0
+      ? dayData
+      : airData.hourly.time.slice(0, 24).map((t, idx) =>
+          buildHourRecord(t, idx, airData.hourly, idx === safeIdx)
+        );
 
   // координаты для шапки
   const latVal = coords?.lat ?? airData?.latitude;
@@ -118,14 +144,14 @@ export default function PollutionDynamicsModal({
         <div className="dynamics-modal-header">
           <h2>Суточная динамика качества воздуха</h2>
           <div className="dynamics-modal-meta">
-            <span>Дата: {selectedDateStr}</span>
+            <span>Дата: {formatDate(selectedDateStr)}</span>
             {latStr && lonStr && <span>Координаты: {latStr}, {lonStr}</span>}
           </div>
           <button
             type="button"
             className="dynamics-modal-close"
             onClick={onClose}
-            aria-label="Закрыть"
+            aria-label="Закрыть окно"
           >
             ×
           </button>
