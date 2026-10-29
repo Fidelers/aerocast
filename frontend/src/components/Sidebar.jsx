@@ -931,6 +931,7 @@ function Sidebar({
             onColorBlindTypeChange={onColorBlindTypeChange}
             theme={theme}
             onThemeChange={onThemeChange}
+            onLocationSelect={onLocationSelect}
           />
         </div>
       ) : mascotMode === 'button' ? (

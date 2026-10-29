@@ -660,6 +660,103 @@ describe('AI Module & Local LLM endpoints', () => {
 
             axiosSpy.mockRestore();
         });
+
+        it('распознает тег [action:set_location:Москва] и геокодирует город', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_location:Москва] Перемещаемся в столицу, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Перейди в Москву' });
+            expect(result.action).toBeDefined();
+            expect(result.action.type).toBe('set_location');
+            expect(result.action.lat).toBeCloseTo(55.75, 1);
+            expect(result.action.lon).toBeCloseTo(37.61, 1);
+            expect(result.action.cityName).toContain('Москва');
+            expect(result.reply).not.toContain('[action:');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('дополняет action перехода к городу по фразе пользователя ("перейди в Казань")', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Конечно, открываю город на карте, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Перейди в Казань пожалуйста' });
+            expect(result.action).toBeDefined();
+            expect(result.action.type).toBe('set_location');
+            expect(result.action.lat).toBeCloseTo(55.78, 1);
+            expect(result.action.lon).toBeCloseTo(49.12, 1);
+            expect(result.action.cityName).toContain('Казань');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('распознает инфинитив "переместить в Екатеринбург" и извлекает город из реплики модели', async () => {
+            // Модель ответила фразой без тега действия, как на пользовательском скриншоте
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: 'Секундочку! Перемещаюсь в Екатеринбург, смотрю показатели качества воздуха, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'переместить в Екатеринбург' });
+            expect(result.action).toBeDefined();
+            expect(result.action.type).toBe('set_location');
+            expect(result.action.lat).toBeCloseTo(56.85, 1);
+            expect(result.action.lon).toBeCloseTo(60.61, 1);
+            expect(result.action.cityName).toContain('Екатеринбург');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('срабатывает защитный fallback при оффлайне LLM для перехода к городу', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValue(new Error('Connection refused'));
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Покажи Сочи' });
+            expect(result.action).toBeDefined();
+            expect(result.action.type).toBe('set_location');
+            expect(result.action.lat).toBeCloseTo(43.59, 1);
+            expect(result.action.lon).toBeCloseTo(39.72, 1);
+            expect(result.reply).toContain('Сочи');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('если город не найден, сообщает об этом пользователю и не выполняет переход', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_location:НесуществующийГород12345] Летим туда!'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Перейди в НесуществующийГород12345' });
+            expect(result.action).toBeNull();
+            expect(result.reply).toContain('не нашла');
+            expect(result.emotion).toBe('alert');
+
+            axiosSpy.mockRestore();
+        });
     });
 });
 

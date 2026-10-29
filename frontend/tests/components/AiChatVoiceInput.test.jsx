@@ -1,7 +1,7 @@
 // frontend/tests/components/AiChatVoiceInput.test.jsx
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AiChatModal from '../../src/components/AiChat/AiChatModal';
 
@@ -55,6 +55,7 @@ describe('AiChatModal Voice Input (Голосовой ввод)', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     delete window.SpeechRecognition;
     delete window.webkitSpeechRecognition;
@@ -128,6 +129,7 @@ describe('AiChatModal Voice Input (Голосовой ввод)', () => {
     expect(mockRecognitionInstance).not.toBeNull();
     expect(mockRecognitionInstance.start).toHaveBeenCalled();
     expect(mockRecognitionInstance.lang).toBe('ru-RU');
+    expect(mockRecognitionInstance.continuous).toBe(true);
 
     // Кнопка переходит в режим записи
     expect(micBtn.classList.contains('ai-chat-mic-btn--listening')).toBe(true);
@@ -155,6 +157,64 @@ describe('AiChatModal Voice Input (Голосовой ввод)', () => {
     await waitFor(() => {
       expect(input.value).toBe('Какая сейчас погода');
     });
+  });
+
+  it('корректно склеивает несколько последовательных фраз с паузами через пробел', async () => {
+    window.SpeechRecognition = MockSpeechRecognition;
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+
+    // Симулируем несколько последовательных порций речи (паузы между фразами)
+    mockRecognitionInstance.onresult({
+      resultIndex: 0,
+      results: [
+        Object.assign([{ transcript: 'Спасибо' }], { isFinal: true }),
+        Object.assign([{ transcript: 'можешь переместиться в' }], { isFinal: true }),
+        Object.assign([{ transcript: 'Екатеринбург' }], { isFinal: false })
+      ]
+    });
+
+    const input = screen.getByRole('textbox');
+    await waitFor(() => {
+      expect(input.value).toBe('Спасибо можешь переместиться в Екатеринбург');
+    });
+  });
+
+  it('автоматически вызывает stop() по истечении 3 секунд тишины после надиктованного текста', async () => {
+    vi.useFakeTimers();
+    window.SpeechRecognition = MockSpeechRecognition;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'Поняла', emotion: 'idle' })
+    });
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    fireEvent.click(micBtn);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockRecognitionInstance).not.toBeNull();
+
+    mockRecognitionInstance.onresult({
+      resultIndex: 0,
+      results: [
+        Object.assign([{ transcript: 'Покажи карту' }], { isFinal: true })
+      ]
+    });
+
+    expect(mockRecognitionInstance.stop).not.toHaveBeenCalled();
+
+    // Проматываем 3 секунды тишины
+    vi.advanceTimersByTime(3000);
+
+    expect(mockRecognitionInstance.stop).toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 
   it('после окончания речи автоматически отправляет финальный текст нейросети', async () => {

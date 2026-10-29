@@ -615,4 +615,99 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText(/Возвращаю стандартную цветовую гамму/i)).toBeDefined();
     });
   });
+
+  it('вызывает onLocationSelect при получении действия set_location с координатами', async () => {
+    const handleLocationSelect = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Перемещаемся в Москву, ня! ✨',
+        emotion: 'happy',
+        action: {
+          type: 'set_location',
+          lat: 55.75204,
+          lon: 37.61781,
+          cityName: 'Москва, Россия'
+        }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLocationSelect={handleLocationSelect}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Перейди в Москву');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleLocationSelect).toHaveBeenCalledWith({
+        lat: 55.75204,
+        lon: 37.61781,
+        display_name: 'Москва, Россия'
+      });
+      expect(screen.getByText(/Перемещаемся в Москву/i)).toBeDefined();
+    });
+  });
+
+  it('перемещается к городу через клиентский fallback при недоступности сервера', async () => {
+    const handleLocationSelect = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLocationSelect={handleLocationSelect}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Перейди в Казань');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleLocationSelect).toHaveBeenCalled();
+      const calledArg = handleLocationSelect.mock.calls[0][0];
+      expect(calledArg.lat).toBeCloseTo(55.78, 1);
+      expect(calledArg.lon).toBeCloseTo(49.12, 1);
+      expect(screen.getByText(/Перемещаемся в Казань/i)).toBeDefined();
+    });
+  });
+
+  it('перемещается к Екатеринбургу по реплике Аи, если сервер вернул ответ без action', async () => {
+    const handleLocationSelect = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Секундочку! Перемещаюсь в Екатеринбург, смотрю показатели качества воздуха, ня! ✨',
+        emotion: 'happy',
+        action: null // модель не приложила тег
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLocationSelect={handleLocationSelect}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'переместить в Екатеринбург');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleLocationSelect).toHaveBeenCalled();
+      const calledArg = handleLocationSelect.mock.calls[0][0];
+      expect(calledArg.lat).toBeCloseTo(56.85, 1);
+      expect(calledArg.lon).toBeCloseTo(60.61, 1);
+      expect(screen.getByText(/Перемещаюсь в Екатеринбург/i)).toBeDefined();
+    });
+  });
 });

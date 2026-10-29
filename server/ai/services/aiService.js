@@ -3,6 +3,7 @@
 const axios = require('axios');
 const aiConfig = require('../config/aiConfig');
 const promptManager = require('./promptManager');
+const geocodingService = require('../../services/geocodingService');
 
 function fixFeminineGrammar(text) {
     if (!text) return text;
@@ -205,6 +206,128 @@ function detectActionFromReply(replyText) {
     return null;
 }
 
+/**
+ * Распознает запрос пользователя на перемещение к городу или проверку воздуха в городе
+ */
+function extractCityIntent(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.trim();
+
+    if (/^(?:какие\s+города|как\s+найти|где\s+найти|кто\s+ты|кто\s+тебя)\b/i.test(clean)) {
+        return null;
+    }
+    if (/(?:т[её]мн|светл|ночн|дневн)\s+(?:тем[ау]|режим)/i.test(clean)) return null;
+    if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп)/i.test(clean)) return null;
+
+    // 1. Паттерны навигации: любые формы глаголов перемещения
+    const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
+    const navMatch = clean.match(NAV_REGEX);
+    if (navMatch) {
+        let city = navMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        if (city.length >= 2 && city.length <= 40) {
+            return city;
+        }
+    }
+
+    // 2. Паттерны замеров воздуха / погоды / вопросов о городе
+    const AIR_CITY_REGEX = /(?:(?:что(?:\s+там)?(?:\s+(?:с\s+воздухом|по\s+воздуху))?|как(?:\s+там)?(?:\s+(?:воздух|погода))?|качество\s+воздуха|воздух|погода|замеры)\s+(?:пожалуйста\s+)?(?:в|во|на)\s+)(?:город\s+)?(.+)$/i;
+    const airMatch = clean.match(AIR_CITY_REGEX);
+    if (airMatch) {
+        let city = airMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        if (city.length >= 2 && city.length <= 40) {
+            return city;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Извлекает город из реплики модели (если модель подтвердила перемещение в тексте, но опустила тег)
+ */
+function extractCityFromReply(replyText) {
+    if (!replyText || typeof replyText !== 'string') return null;
+    const clean = replyText.trim();
+    const replyMatch = clean.match(/(?:перемещаюсь|перемещаемся|открываю|летим|перелетаем|перехожу|переходим|показываю)\s+(?:в|во|на)?\s*(?:город\s+)?([а-яёА-ЯЁa-zA-Z0-9\s-]+?)(?:,|\.|\!|\?|\s+смотрю|\s+проверяю|\s+глянем|\s+на\s+карте)/i);
+    if (replyMatch) {
+        let city = replyMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+        if (city.length >= 2 && city.length <= 40) {
+            return city;
+        }
+    }
+    return null;
+}
+
+/**
+ * Генерирует варианты нормализации падежей (аккузатив, препозитив) для поиска в геокодере
+ */
+function getCityCandidates(raw) {
+    if (!raw || typeof raw !== 'string') return [];
+    let clean = raw.trim().replace(/^(?:в|во|на|к|до)\s+/i, '').replace(/[.,!?;:()]+$/, '').trim();
+
+    const lower = clean.toLowerCase();
+    if (lower === 'питер' || lower === 'питере' || lower === 'спб') return ['Санкт-Петербург', 'Питер'];
+    if (lower === 'мск' || lower === 'москве' || lower === 'москву') return ['Москва'];
+    if (lower === 'екб') return ['Екатеринбург'];
+    if (lower === 'нск') return ['Новосибирск'];
+
+    const candidates = [clean];
+
+    // Проверяем распространенные падежные трансформации для русских городов
+    if (/[а-яА-ЯёЁ]{3,}у$/i.test(clean)) {
+        candidates.push(clean.replace(/у$/i, 'а')); // Москву -> Москва, Самару -> Самара
+        candidates.push(clean.replace(/у$/i, ''));
+    }
+    if (/[а-яА-ЯёЁ]{3,}ю$/i.test(clean)) {
+        candidates.push(clean.replace(/ю$/i, 'я'));
+    }
+    if (/[а-яА-ЯёЁ]{3,}е$/i.test(clean)) {
+        candidates.push(clean.replace(/е$/i, ''));  // Новосибирске -> Новосибирск, Ростове -> Ростов
+        candidates.push(clean.replace(/е$/i, 'а')); // Самаре -> Самара, Москве -> Москва, Туле -> Тула
+        candidates.push(clean.replace(/е$/i, 'ь')); // Твери -> Тверь
+    }
+    if (/[а-яА-ЯёЁ]{3,}и$/i.test(clean)) {
+        candidates.push(clean.replace(/и$/i, 'ь')); // Казани -> Казань, Твери -> Тверь, Перми -> Пермь
+        candidates.push(clean.replace(/и$/i, 'я'));
+        candidates.push(clean.replace(/и$/i, 'а'));
+    }
+
+    return Array.from(new Set(candidates));
+}
+
+/**
+ * Выполняет геокодирование города через geocodingService с падежной нормализацией
+ */
+async function resolveCity(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    const candidates = getCityCandidates(raw);
+    for (const cand of candidates) {
+        try {
+            const results = await geocodingService.search(cand);
+            if (results && results.length > 0) {
+                const exactMatch = results.find(r => {
+                    const mainPart = (r.display_name.split(',')[0] || '').trim().toLowerCase();
+                    return mainPart === cand.toLowerCase();
+                });
+                const ruResult = results.find(r => r.display_name.includes('Россия'));
+                const chosen = exactMatch || ruResult || results[0];
+                return {
+                    query: raw,
+                    resolvedCandidate: cand,
+                    lat: Number(chosen.lat),
+                    lon: Number(chosen.lon),
+                    cityName: chosen.display_name
+                };
+            }
+        } catch (e) {
+            // try next candidate
+        }
+    }
+    return null;
+}
+
 async function retry(fn, retries = 3, delay = 1000) {
     try {
         return await fn();
@@ -302,29 +425,45 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         }
         reply = reply.replace(/^\[[a-zA-Zа-яА-ЯёЁ\s_-]+:[a-zA-Zа-яА-ЯёЁ\s_-]+\]\s*/i, '').trim();
 
-        // 1.1 Извлекаем и удаляем интерактивный тег действия (переключение слоев карты и др.)
+        // 1.1 Извлекаем и удаляем интерактивный тег действия (переключение слоев карты, дальтонизм, города и др.)
         let action = null;
-        const actionRegex = /[\[(]action:\s*([a-zA-Z0-9_-]+)(?::([a-zA-Z0-9_-]+))?[\])]/i;
+        const actionRegex = /[\[(]action:\s*([a-zA-Z0-9_-]+)(?::([^\]\)\n]+))?[\])]/i;
         const actionMatch = reply.match(actionRegex);
         if (actionMatch) {
             const actType = actionMatch[1].toLowerCase();
-            const actVal = (actionMatch[2] || '').toLowerCase();
+            const actVal = (actionMatch[2] || '').trim();
+            const actValLower = actVal.toLowerCase();
             if (actType === 'set_layer' || actType === 'map_layer' || actType === 'layer') {
-                if (actVal === 'satellite' || actVal === 'osm') {
-                    action = { type: 'set_base_layer', layer: actVal };
+                if (actValLower === 'satellite' || actValLower === 'osm') {
+                    action = { type: 'set_base_layer', layer: actValLower };
                 }
             } else if (actType === 'set_colorblind' || actType === 'colorblind') {
-                if (actVal === 'off' || actVal === 'false' || actVal === 'disable' || actVal === 'disabled') {
+                if (actValLower === 'off' || actValLower === 'false' || actValLower === 'disable' || actValLower === 'disabled') {
                     action = { type: 'set_colorblind', enabled: false };
-                } else if (['okabe', 'deuteranopia', 'protanopia', 'tritanopia'].includes(actVal)) {
-                    action = { type: 'set_colorblind', enabled: true, colorBlindType: actVal };
+                } else if (['okabe', 'deuteranopia', 'protanopia', 'tritanopia'].includes(actValLower)) {
+                    action = { type: 'set_colorblind', enabled: true, colorBlindType: actValLower };
                 }
             } else if (actType === 'set_theme' || actType === 'theme') {
-                if (actVal === 'dark' || actVal === 'light') {
-                    action = { type: 'set_theme', theme: actVal };
+                if (actValLower === 'dark' || actValLower === 'light') {
+                    action = { type: 'set_theme', theme: actValLower };
+                }
+            } else if (actType === 'set_location' || actType === 'navigate_city' || actType === 'city' || actType === 'location') {
+                if (actVal) {
+                    const resolved = await resolveCity(actVal);
+                    if (resolved) {
+                        action = {
+                            type: 'set_location',
+                            lat: resolved.lat,
+                            lon: resolved.lon,
+                            cityName: resolved.cityName
+                        };
+                    } else {
+                        reply = `Хмпф! Я обыскала карту, но города "${actVal}" не нашла! 😾 Проверь название или выбери другой город, ня! ✨`;
+                        emotion = 'alert';
+                    }
                 }
             }
-            reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)?[\])]/gi, '').trim();
+            reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[^\]\)\n]+)?[\])]/gi, '').trim();
         }
 
         // Если пользователь запросил нереализованный вид дальтонизма — строго сообщаем об этом
@@ -355,6 +494,38 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                 const detectedLayer = detectMapLayerIntent(cleanUserMessage);
                 if (detectedLayer) {
                     action = { type: 'set_base_layer', layer: detectedLayer };
+                }
+            }
+
+            // Если модель не сгенерировала тег действия, но пользователь просил перейти к городу:
+            if (!action) {
+                const cityQuery = extractCityIntent(cleanUserMessage);
+                if (cityQuery) {
+                    const resolved = await resolveCity(cityQuery);
+                    if (resolved) {
+                        action = {
+                            type: 'set_location',
+                            lat: resolved.lat,
+                            lon: resolved.lon,
+                            cityName: resolved.cityName
+                        };
+                    }
+                }
+            }
+
+            // Если модель подтвердила перемещение в город в тексте ответа (но опустила тег):
+            if (!action) {
+                const cityFromReply = extractCityFromReply(reply);
+                if (cityFromReply) {
+                    const resolved = await resolveCity(cityFromReply);
+                    if (resolved) {
+                        action = {
+                            type: 'set_location',
+                            lat: resolved.lat,
+                            lon: resolved.lon,
+                            cityName: resolved.cityName
+                        };
+                    }
                 }
             }
 
@@ -524,6 +695,32 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             };
         }
 
+        // Fallback для перехода к городу при оффлайне/сбое LLM
+        const fallbackCity = extractCityIntent(cleanUserMessage);
+        if (fallbackCity) {
+            const resolved = await resolveCity(fallbackCity);
+            if (resolved) {
+                return {
+                    reply: `Секундочку! Перемещаемся в ${resolved.cityName.split(',')[0]}, смотрю свежие замеры воздуха, ня! ✨`,
+                    model: aiConfig.model,
+                    emotion: 'happy',
+                    action: {
+                        type: 'set_location',
+                        lat: resolved.lat,
+                        lon: resolved.lon,
+                        cityName: resolved.cityName
+                    }
+                };
+            } else {
+                return {
+                    reply: `Хмпф! Я обыскала карту, но города "${fallbackCity}" не нашла! 😾 Проверь название или выбери другой город, ня! ✨`,
+                    model: aiConfig.model,
+                    emotion: 'alert',
+                    action: null
+                };
+            }
+        }
+
         const status = err.response?.status;
         const errMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
 
@@ -548,5 +745,8 @@ module.exports = {
     detectMapLayerIntent,
     detectColorBlindIntent,
     detectThemeIntent,
-    detectActionFromReply
+    detectActionFromReply,
+    extractCityIntent,
+    extractCityFromReply,
+    resolveCity
 };

@@ -182,6 +182,79 @@ function detectClientThemeIntent(text) {
   return null;
 }
 
+const KNOWN_CLIENT_CITIES = {
+  'москва': { lat: 55.75204, lon: 37.61781, name: 'Москва, Россия' },
+  'санкт-петербург': { lat: 59.93863, lon: 30.31413, name: 'Санкт-Петербург, Россия' },
+  'питер': { lat: 59.93863, lon: 30.31413, name: 'Санкт-Петербург, Россия' },
+  'казань': { lat: 55.78874, lon: 49.12214, name: 'Казань, Татарстан, Россия' },
+  'сочи': { lat: 43.59699, lon: 39.72477, name: 'Сочи, Краснодарский край, Россия' },
+  'новосибирск': { lat: 55.02259, lon: 82.93175, name: 'Новосибирск, Россия' },
+  'екатеринбург': { lat: 56.85733, lon: 60.61529, name: 'Екатеринбург, Россия' },
+  'самара': { lat: 53.20767, lon: 50.13553, name: 'Самара, Россия' },
+  'краснодар': { lat: 45.04534, lon: 38.98178, name: 'Краснодар, Россия' },
+  'владивосток': { lat: 43.10562, lon: 131.87354, name: 'Владивосток, Россия' },
+  'ростов-на-дону': { lat: 47.23135, lon: 39.72328, name: 'Ростов-на-Дону, Россия' },
+  'ростов': { lat: 47.23135, lon: 39.72328, name: 'Ростов-на-Дону, Россия' },
+  'уфа': { lat: 54.74306, lon: 55.96779, name: 'Уфа, Башкортостан, Россия' }
+};
+
+function detectClientCityIntent(text) {
+  if (!text || typeof text !== 'string') return null;
+  const clean = text.trim();
+
+  if (/^(?:какие\s+города|как\s+найти|где\s+найти|кто\s+ты|кто\s+тебя)\b/i.test(clean)) return null;
+  if (/(?:т[её]мн|светл|ночн|дневн)\s+(?:тем[ау]|режим)/i.test(clean)) return null;
+  if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп)/i.test(clean)) return null;
+
+  const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
+  const navMatch = clean.match(NAV_REGEX);
+  let cityRaw = navMatch ? navMatch[1] : null;
+
+  if (!cityRaw) {
+    const AIR_CITY_REGEX = /(?:(?:что(?:\s+там)?(?:\s+(?:с\s+воздухом|по\s+воздуху))?|как(?:\s+там)?(?:\s+(?:воздух|погода))?|качество\s+воздуха|воздух|погода|замеры)\s+(?:пожалуйста\s+)?(?:в|во|на)\s+)(?:город\s+)?(.+)$/i;
+    const airMatch = clean.match(AIR_CITY_REGEX);
+    cityRaw = airMatch ? airMatch[1] : null;
+  }
+
+  if (cityRaw) {
+    let cleanCity = cityRaw.trim().replace(/[.,!?;:()]+$/, '').replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+    cleanCity = cleanCity.replace(/^(?:в|во|на|к|до)\s+/i, '').trim();
+    const lower = cleanCity.toLowerCase();
+    if (KNOWN_CLIENT_CITIES[lower]) {
+      return { raw: cleanCity, ...KNOWN_CLIENT_CITIES[lower] };
+    }
+    const normalized = lower.replace(/у$/i, 'а').replace(/е$/i, '').replace(/и$/i, 'ь');
+    if (KNOWN_CLIENT_CITIES[normalized]) {
+      return { raw: cleanCity, ...KNOWN_CLIENT_CITIES[normalized] };
+    }
+    const normalizedA = lower.replace(/е$/i, 'а').replace(/и$/i, 'я');
+    if (KNOWN_CLIENT_CITIES[normalizedA]) {
+      return { raw: cleanCity, ...KNOWN_CLIENT_CITIES[normalizedA] };
+    }
+    if (cleanCity.length >= 2 && cleanCity.length <= 40) {
+      return { raw: cleanCity };
+    }
+  }
+
+  return null;
+}
+
+function detectClientCityFromReply(replyText) {
+  if (!replyText || typeof replyText !== 'string') return null;
+  const clean = replyText.trim();
+  const replyMatch = clean.match(/(?:перемещаюсь|перемещаемся|открываю|летим|перелетаем|перехожу|переходим|показываю)\s+(?:в|во|на)?\s*(?:город\s+)?([а-яёА-ЯЁa-zA-Z0-9\s-]+?)(?:,|\.|\!|\?|\s+смотрю|\s+проверяю|\s+глянем|\s+на\s+карте)/i);
+  if (replyMatch) {
+    const rawCity = replyMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+    const lower = rawCity.toLowerCase();
+    if (KNOWN_CLIENT_CITIES[lower]) return { raw: rawCity, ...KNOWN_CLIENT_CITIES[lower] };
+    const norm = lower.replace(/у$/i, 'а').replace(/е$/i, '').replace(/и$/i, 'ь');
+    if (KNOWN_CLIENT_CITIES[norm]) return { raw: rawCity, ...KNOWN_CLIENT_CITIES[norm] };
+    const normA = lower.replace(/е$/i, 'а').replace(/и$/i, 'я');
+    if (KNOWN_CLIENT_CITIES[normA]) return { raw: rawCity, ...KNOWN_CLIENT_CITIES[normA] };
+  }
+  return null;
+}
+
 export default function AiChatModal({
   isOpen,
   onClose,
@@ -195,7 +268,8 @@ export default function AiChatModal({
   colorBlindType,
   onColorBlindTypeChange,
   theme,
-  onThemeChange
+  onThemeChange,
+  onLocationSelect
 }) {
   const [messages, setMessages] = useState([INITIAL_GREETING]);
   const [inputMessage, setInputMessage] = useState('');
@@ -292,6 +366,8 @@ export default function AiChatModal({
 
   // Состояние и ссылки для голосового ввода (Web Speech API + MediaRecorder fallback)
   const [isListening, setIsListening] = useState(false);
+  const isListeningRef = useRef(false);
+  const silenceTimerRef = useRef(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const recognitionRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -310,6 +386,7 @@ export default function AiChatModal({
   const onColorBlindChangeRef = useRef(onColorBlindChange);
   const onColorBlindTypeChangeRef = useRef(onColorBlindTypeChange);
   const onThemeChangeRef = useRef(onThemeChange);
+  const onLocationSelectRef = useRef(onLocationSelect);
   const isColorBlindRef = useRef(isColorBlind);
   const colorBlindTypeRef = useRef(colorBlindType);
   const themeRef = useRef(theme);
@@ -333,6 +410,10 @@ export default function AiChatModal({
   useEffect(() => {
     onThemeChangeRef.current = onThemeChange;
   }, [onThemeChange]);
+
+  useEffect(() => {
+    onLocationSelectRef.current = onLocationSelect;
+  }, [onLocationSelect]);
 
   useEffect(() => {
     isColorBlindRef.current = isColorBlind;
@@ -450,6 +531,29 @@ export default function AiChatModal({
             }
           }
 
+          // Интерактивное перемещение к городу по команде от AI
+          if (data?.action?.type === 'set_location' && data.action.lat != null && data.action.lon != null) {
+            if (typeof onLocationSelectRef.current === 'function') {
+              onLocationSelectRef.current({
+                lat: Number(data.action.lat),
+                lon: Number(data.action.lon),
+                display_name: data.action.cityName || data.action.name
+              });
+            }
+          } else if (!data?.action) {
+            // Клиентская страховка: если в тексте ответа или вопросе подтвержден переход к городу
+            const clientCity = detectClientCityIntent(job.text) || (data?.reply ? detectClientCityFromReply(data.reply) : null);
+            if (clientCity && clientCity.lat != null && clientCity.lon != null) {
+              if (typeof onLocationSelectRef.current === 'function') {
+                onLocationSelectRef.current({
+                  lat: Number(clientCity.lat),
+                  lon: Number(clientCity.lon),
+                  display_name: clientCity.name || clientCity.raw
+                });
+              }
+            }
+          }
+
           appendMessage({
             id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             role: 'assistant',
@@ -548,6 +652,26 @@ export default function AiChatModal({
             continue;
           }
 
+          // Клиентский fallback: переход к городу при сбое сетевого запроса
+          const fallbackCity = detectClientCityIntent(job.text);
+          if (fallbackCity && fallbackCity.lat != null && fallbackCity.lon != null) {
+            if (typeof onLocationSelectRef.current === 'function') {
+              onLocationSelectRef.current({
+                lat: Number(fallbackCity.lat),
+                lon: Number(fallbackCity.lon),
+                display_name: fallbackCity.name || fallbackCity.raw
+              });
+            }
+            appendMessage({
+              id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              role: 'assistant',
+              content: `Секундочку! Перемещаемся в ${fallbackCity.name ? fallbackCity.name.split(',')[0] : fallbackCity.raw}, смотрю свежие замеры воздуха, ня! ✨`,
+              emotion: 'happy',
+              timestamp: Date.now()
+            });
+            continue;
+          }
+
           console.error('AI chat error:', err);
           appendMessage({
             id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -570,6 +694,34 @@ export default function AiChatModal({
 
   const handleSendMessage = useCallback((e, directText = null) => {
     e?.preventDefault?.();
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (isListeningRef.current && !directText) {
+      isCancelledRef.current = true;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
+        mediaRecorderRef.current = null;
+      }
+      setIsListening(false);
+      isListeningRef.current = false;
+    }
+
     const rawText = typeof directText === 'string' ? directText : inputMessageRef.current;
     const trimmed = rawText.trim();
     if (!trimmed) return;
@@ -704,6 +856,11 @@ export default function AiChatModal({
     transcriptRef.current = '';
     audioChunksRef.current = [];
 
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
@@ -732,6 +889,7 @@ export default function AiChatModal({
     }
 
     setIsListening(false);
+    isListeningRef.current = false;
     setInputMessage('');
     inputMessageRef.current = '';
   }, []);
@@ -740,8 +898,13 @@ export default function AiChatModal({
   const handleToggleVoice = useCallback(async () => {
     if (isTranscribing) return;
 
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
     // Пользователь нажал микрофон во время записи -> останавливаем и отправляем надиктованное
-    if (isListening) {
+    if (isListeningRef.current) {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -819,34 +982,79 @@ export default function AiChatModal({
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
-        recognition.continuous = false;
+        // continuous = true позволяет пользователю делать естественные паузы между фразами
+        // и договаривать предложения без преждевременного обрыва
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
+        const resetSilenceTimer = () => {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+          // Если уже есть надиктованный текст, даем пользователю 3 секунды спокойной тишины перед автоотправкой
+          if (transcriptRef.current.trim().length > 0) {
+            silenceTimerRef.current = setTimeout(() => {
+              if (isListeningRef.current && recognitionRef.current) {
+                try {
+                  recognitionRef.current.stop();
+                } catch {
+                  // ignore
+                }
+              }
+            }, 3000);
+          }
+        };
+
         recognition.onstart = () => {
           setIsListening(true);
+          isListeningRef.current = true;
+        };
+
+        // Сброс таймера при обнаружении звука или речи пользователя
+        recognition.onsoundstart = () => {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+        };
+
+        recognition.onspeechstart = () => {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
         };
 
         recognition.onresult = (event) => {
-          let interim = '';
           let final = '';
+          let interim = '';
 
           for (let i = 0; i < event.results.length; ++i) {
             const item = event.results[i];
+            const phrase = (item[0]?.transcript || '').trim();
+            if (!phrase) continue;
             if (item.isFinal) {
-              final += item[0].transcript;
+              final = final ? `${final} ${phrase}` : phrase;
             } else {
-              interim += item[0].transcript;
+              interim = interim ? `${interim} ${phrase}` : phrase;
             }
           }
 
-          const currentText = final || interim;
-          transcriptRef.current = final || currentText;
+          const currentText = (final && interim ? `${final} ${interim}` : (final || interim)).trim();
+          transcriptRef.current = currentText;
           setInputMessage(currentText);
+
+          resetSilenceTimer();
         };
 
         recognition.onerror = (event) => {
           console.warn('SpeechRecognition error:', event.error);
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             const errMsg = {
               id: `err-mic-${Date.now()}`,
@@ -859,10 +1067,18 @@ export default function AiChatModal({
             appendMessage(errMsg);
           }
           setIsListening(false);
+          isListeningRef.current = false;
         };
 
         recognition.onend = () => {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
           setIsListening(false);
+          isListeningRef.current = false;
+          recognitionRef.current = null;
+
           const textToSend = transcriptRef.current.trim();
           transcriptRef.current = '';
 
@@ -876,6 +1092,7 @@ export default function AiChatModal({
       } catch (err) {
         console.error('Failed to start speech recognition:', err);
         setIsListening(false);
+        isListeningRef.current = false;
       }
       return;
     }
@@ -903,10 +1120,12 @@ export default function AiChatModal({
 
         recorder.onstart = () => {
           setIsListening(true);
+          isListeningRef.current = true;
         };
 
         recorder.onstop = async () => {
           setIsListening(false);
+          isListeningRef.current = false;
           try {
             stream.getTracks().forEach((track) => track.stop());
           } catch {
@@ -938,6 +1157,7 @@ export default function AiChatModal({
           // ignore
         }
         setIsListening(false);
+        isListeningRef.current = false;
       }
       return;
     }
@@ -981,6 +1201,16 @@ export default function AiChatModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, isListening, handleCancelVoice]);
+
+  // Очистка таймеров тишины при размонтировании
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
