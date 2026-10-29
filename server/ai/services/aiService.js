@@ -28,6 +28,30 @@ function fixFeminineGrammar(text) {
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)решил(?![а-яА-ЯёЁ])/g, '$1решила');
 }
 
+/**
+ * Распознает явное намерение пользователя переключить слой карты:
+ * 'satellite' — спутниковые снимки ESRI World Imagery
+ * 'osm' — схема OpenStreetMap
+ */
+function detectMapLayerIntent(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.toLowerCase().trim();
+
+    // 1. Возврат на обычную карту (схему OpenStreetMap) или отключение спутника
+    const TO_OSM_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:со\s+)?спутник[а-я]*|(?:переключи(?:сь|ть)?\s+со\s+спутник[а-я]*)|(?:переключи(?:сь|ть)?|верни(?:ть)?|поставь|покажи|включи(?:ть)?|открой|перейди)\s+(?:мне\s+)?(?:на\s+)?(?:обычн(?:ую|ый)|стандартн(?:ую|ый)|схему|карту|osm|улицы|вектор)(?:\s+карту)?|^(?:обычная\s+карта|схема|верни\s+карту|карту|выключи\s+спутник|убери\s+спутник)$/i;
+    if (TO_OSM_REGEX.test(clean)) {
+        return 'osm';
+    }
+
+    // 2. Переключение на спутниковые снимки
+    const TO_SATELLITE_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|покажи|открой|сделай|перейди|хочу|вруби|запусти)\s+(?:мне\s+)?(?:на\s+)?(?:спутник(?:овую\s+карту|\s+карту|\s+слой)?|космос|снимок\s+со\s+спутника)|^(?:спутник|со\s+спутника|спутниковая\s+карта|включи\s+спутник)$/i;
+    if (TO_SATELLITE_REGEX.test(clean)) {
+        return 'satellite';
+    }
+
+    return null;
+}
+
 async function retry(fn, retries = 3, delay = 1000) {
     try {
         return await fn();
@@ -125,6 +149,29 @@ async function sendChatMessage({ history = [], userMessage }) {
         }
         reply = reply.replace(/^\[[a-zA-Zа-яА-ЯёЁ\s_-]+:[a-zA-Zа-яА-ЯёЁ\s_-]+\]\s*/i, '').trim();
 
+        // 1.1 Извлекаем и удаляем интерактивный тег действия (переключение слоев карты и др.)
+        let action = null;
+        const actionRegex = /[\[(]action:\s*([a-zA-Z0-9_-]+)(?::([a-zA-Z0-9_-]+))?[\])]/i;
+        const actionMatch = reply.match(actionRegex);
+        if (actionMatch) {
+            const actType = actionMatch[1].toLowerCase();
+            const actVal = (actionMatch[2] || '').toLowerCase();
+            if (actType === 'set_layer' || actType === 'map_layer' || actType === 'layer') {
+                if (actVal === 'satellite' || actVal === 'osm') {
+                    action = { type: 'set_base_layer', layer: actVal };
+                }
+            }
+            reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)?[\])]/gi, '').trim();
+        }
+
+        // Если модель не сгенерировала тег действия, но пользователь явно просил переключить слой:
+        if (!action) {
+            const detectedLayer = detectMapLayerIntent(cleanUserMessage);
+            if (detectedLayer) {
+                action = { type: 'set_base_layer', layer: detectedLayer };
+            }
+        }
+
         // 2. Очищаем скрытые блоки размышлений <think>...</think>
         reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
@@ -219,10 +266,24 @@ async function sendChatMessage({ history = [], userMessage }) {
             reply: reply.trim(),
             model: response.data?.model || aiConfig.model,
             emotion,
+            action,
             usage: response.data?.usage
         };
     } catch (err) {
         console.error('[LLM Error]', err.response?.data || err.message);
+
+        // Защитная обработка: если локальная LLM выключена/недоступна, но запрос был на переключение карты
+        const fallbackLayer = detectMapLayerIntent(cleanUserMessage);
+        if (fallbackLayer) {
+            return {
+                reply: fallbackLayer === 'satellite'
+                    ? 'Секундочку! Переключаю карту на спутниковые снимки ESRI, смотри как здорово видно местность из космоса, ня! ✨'
+                    : 'Как скажешь! Возвращаю привычную схему OpenStreetMap, ня! ✨',
+                model: aiConfig.model,
+                emotion: 'happy',
+                action: { type: 'set_base_layer', layer: fallbackLayer }
+            };
+        }
 
         const status = err.response?.status;
         const errMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
@@ -244,5 +305,6 @@ async function transcribeAudio({ audioBase64, mimeType = 'audio/webm' }) {
 
 module.exports = {
     sendChatMessage,
-    transcribeAudio
+    transcribeAudio,
+    detectMapLayerIntent
 };

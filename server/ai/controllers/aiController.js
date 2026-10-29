@@ -5,7 +5,7 @@ const aiConfig = require('../config/aiConfig');
 
 
 async function handleChat(req, res) {
-    const { message, history } = req.body;
+    const { message, history, currentLayer } = req.body;
 
     if (!message || typeof message !== 'string' || !message.trim()) {
         return res.status(400).json({ error: 'Поле message обязательно и не должно быть пустым.' });
@@ -14,13 +14,15 @@ async function handleChat(req, res) {
     try {
         const result = await aiService.sendChatMessage({
             userMessage: message.trim(),
-            history: Array.isArray(history) ? history : []
+            history: Array.isArray(history) ? history : [],
+            currentLayer
         });
 
         res.json({
             reply: result.reply,
             model: result.model,
             emotion: result.emotion || 'idle',
+            action: result.action || null,
             timestamp: Date.now()
         });
     } catch (err) {

@@ -272,4 +272,89 @@ describe('AiChatModal Component', () => {
 
     expect(screen.queryByText('Старый ответ')).toBeNull();
   });
+
+  it('вызывает onBaseLayerChange("satellite") при получении action от AI', async () => {
+    const handleBaseLayerChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Переключаю на спутник, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_base_layer', layer: 'satellite' }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        activeBaseLayer="osm"
+        onBaseLayerChange={handleBaseLayerChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи спутник');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Переключаю на спутник, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleBaseLayerChange).toHaveBeenCalledWith('satellite');
+  });
+
+  it('вызывает onBaseLayerChange("osm") при получении команды возврата на схему', async () => {
+    const handleBaseLayerChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Возвращаю схему OpenStreetMap, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_base_layer', layer: 'osm' }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        activeBaseLayer="satellite"
+        onBaseLayerChange={handleBaseLayerChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Верни обычную карту');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Возвращаю схему OpenStreetMap, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleBaseLayerChange).toHaveBeenCalledWith('osm');
+  });
+
+  it('переключает карту через клиентский fallback при недоступности сервера', async () => {
+    const handleBaseLayerChange = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        activeBaseLayer="osm"
+        onBaseLayerChange={handleBaseLayerChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Переключи на спутник');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleBaseLayerChange).toHaveBeenCalledWith('satellite');
+      expect(screen.getByText(/Переключаю карту на спутниковые снимки ESRI/i)).toBeDefined();
+    });
+  });
 });

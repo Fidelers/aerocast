@@ -339,6 +339,8 @@ function App({ referenceDate } = {}) {
                 isOpen={isMobileSidebarOpen}
                 onClose={() => setIsMobileSidebarOpen(false)}
                 mascotMode={mascotMode}
+                activeBaseLayer={activeBaseLayer}
+                onBaseLayerChange={handleBaseLayerChange}
             />
             <div
                 className={`sidebar-backdrop ${isMobileSidebarOpen ? 'sidebar-backdrop--visible' : ''}`}

@@ -29,6 +29,24 @@ describe('AI Module & Local LLM endpoints', () => {
             expect(res.body.error).toBeDefined();
         });
 
+        it('корректно возвращает action при переключении слоев карты', async () => {
+            const spy = jest.spyOn(aiService, 'sendChatMessage').mockResolvedValueOnce({
+                reply: 'Включаю спутник, ня!',
+                model: 'gemma-4-E2B-it-Q4_K_M',
+                emotion: 'happy',
+                action: { type: 'set_base_layer', layer: 'satellite' }
+            });
+
+            const res = await request(app)
+                .post('/api/ai/chat')
+                .send({ message: 'Включи спутник', currentLayer: 'osm' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.action).toEqual({ type: 'set_base_layer', layer: 'satellite' });
+            expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentLayer: 'osm' }));
+            spy.mockRestore();
+        });
+
         it('корректно обрабатывает мокнутый успешный ответ Local LLM', async () => {
             const spy = jest.spyOn(aiService, 'sendChatMessage').mockResolvedValueOnce({
                 reply: 'Привет! Я Ани, чем могу помочь?',
@@ -317,6 +335,75 @@ describe('AI Module & Local LLM endpoints', () => {
             const recipeResult = await aiService.sendChatMessage({ userMessage: 'Как приготовить борщ' });
             expect(recipeResult.reply).toContain('AeroCast');
             expect(recipeResult.emotion).toBe('think');
+        });
+
+        it('распознает тег [action:set_layer:satellite] и возвращает action, удаляя тег из ответа', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_layer:satellite] Переключаю на спутниковые снимки, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Переключи на спутник' });
+            expect(result.emotion).toBe('happy');
+            expect(result.reply).toBe('Переключаю на спутниковые снимки, ня! ✨');
+            expect(result.reply).not.toContain('[action:');
+            expect(result.action).toEqual({ type: 'set_base_layer', layer: 'satellite' });
+
+            axiosSpy.mockRestore();
+        });
+
+        it('распознает тег [action:set_layer:osm] при возврате на обычную карту', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_layer:osm] Возвращаю схему OpenStreetMap, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Верни обычную карту' });
+            expect(result.reply).toBe('Возвращаю схему OpenStreetMap, ня! ✨');
+            expect(result.action).toEqual({ type: 'set_base_layer', layer: 'osm' });
+
+            axiosSpy.mockRestore();
+        });
+
+        it('дополняет action по намерению пользователя, если модель забыла вставить тег', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Секундочку, перехожу на спутник!'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Включи спутник' });
+            expect(result.action).toEqual({ type: 'set_base_layer', layer: 'satellite' });
+
+            axiosSpy.mockRestore();
+        });
+
+        it('срабатывает защитный fallback при сбое/оффлайне LLM для запросов смены слоя', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValueOnce(new Error('Connection refused'));
+
+            const satResult = await aiService.sendChatMessage({ userMessage: 'Включи спутник' });
+            expect(satResult.action).toEqual({ type: 'set_base_layer', layer: 'satellite' });
+            expect(satResult.reply).toContain('Переключаю карту на спутниковые снимки');
+
+            const osmResult = await aiService.sendChatMessage({ userMessage: 'Верни обычную карту' });
+            expect(osmResult.action).toEqual({ type: 'set_base_layer', layer: 'osm' });
+            expect(osmResult.reply).toContain('Возвращаю привычную схему');
+
+            axiosSpy.mockRestore();
         });
     });
 });

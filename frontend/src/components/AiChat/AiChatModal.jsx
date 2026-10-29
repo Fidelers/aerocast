@@ -60,12 +60,30 @@ function formatMessageContent(text) {
   });
 }
 
+
+function detectClientMapLayerIntent(text) {
+  if (!text || typeof text !== 'string') return null;
+  const clean = text.toLowerCase().trim();
+
+  // 1. Возврат на схему или отключение спутника
+  const TO_OSM_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:со\s+)?спутник[а-я]*|(?:переключи(?:сь|ть)?\s+со\s+спутник[а-я]*)|(?:переключи(?:сь|ть)?|верни(?:ть)?|поставь|покажи|включи(?:ть)?|открой|перейди)\s+(?:мне\s+)?(?:на\s+)?(?:обычн(?:ую|ый)|стандартн(?:ую|ый)|схему|карту|osm|улицы|вектор)(?:\s+карту)?|^(?:обычная\s+карта|схема|верни\s+карту|карту|выключи\s+спутник|убери\s+спутник)$/i;
+  if (TO_OSM_REGEX.test(clean)) return 'osm';
+
+  // 2. Переключение на спутник
+  const TO_SATELLITE_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|покажи|открой|сделай|перейди|хочу|вруби|запусти)\s+(?:мне\s+)?(?:на\s+)?(?:спутник(?:овую\s+карту|\s+карту|\s+слой)?|космос|снимок\s+со\s+спутника)|^(?:спутник|со\s+спутника|спутниковая\s+карта|включи\s+спутник)$/i;
+  if (TO_SATELLITE_REGEX.test(clean)) return 'satellite';
+
+  return null;
+}
+
 export default function AiChatModal({
   isOpen,
   onClose,
   onOpenSettings,
   embedded = false,
-  mascotUnderChat = false
+  mascotUnderChat = false,
+  activeBaseLayer = 'osm',
+  onBaseLayerChange
 }) {
   const [messages, setMessages] = useState([INITIAL_GREETING]);
   const [inputMessage, setInputMessage] = useState('');
@@ -175,6 +193,16 @@ export default function AiChatModal({
   const isRequestingRef = useRef(false);
   const dialogGenerationRef = useRef(0);
   const abortControllerRef = useRef(null);
+  const onBaseLayerChangeRef = useRef(onBaseLayerChange);
+  const activeBaseLayerRef = useRef(activeBaseLayer);
+
+  useEffect(() => {
+    onBaseLayerChangeRef.current = onBaseLayerChange;
+  }, [onBaseLayerChange]);
+
+  useEffect(() => {
+    activeBaseLayerRef.current = activeBaseLayer;
+  }, [activeBaseLayer]);
 
   useEffect(() => {
     inputMessageRef.current = inputMessage;
@@ -229,7 +257,8 @@ export default function AiChatModal({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: job.text,
-              history: historyPayload
+              history: historyPayload,
+              currentLayer: activeBaseLayerRef.current
             }),
             ...(controller ? { signal: controller.signal } : {})
           });
@@ -246,6 +275,13 @@ export default function AiChatModal({
 
           if (job.generation !== dialogGenerationRef.current) continue;
 
+          // Интерактивное переключение карты по команде от AI
+          if (data?.action?.type === 'set_base_layer' && data.action.layer) {
+            if (typeof onBaseLayerChangeRef.current === 'function') {
+              onBaseLayerChangeRef.current(data.action.layer);
+            }
+          }
+
           appendMessage({
             id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             role: 'assistant',
@@ -256,6 +292,24 @@ export default function AiChatModal({
         } catch (err) {
           if (err?.name === 'AbortError') continue;
           if (job.generation !== dialogGenerationRef.current) continue;
+
+          // Клиентский fallback: переключение карты при сбое сетевого запроса
+          const fallbackLayer = detectClientMapLayerIntent(job.text);
+          if (fallbackLayer) {
+            if (typeof onBaseLayerChangeRef.current === 'function') {
+              onBaseLayerChangeRef.current(fallbackLayer);
+            }
+            appendMessage({
+              id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              role: 'assistant',
+              content: fallbackLayer === 'satellite'
+                ? 'Секундочку! Переключаю карту на спутниковые снимки ESRI, смотри как здорово видно местность из космоса, ня! ✨'
+                : 'Как скажешь! Возвращаю привычную схему OpenStreetMap, ня! ✨',
+              emotion: 'happy',
+              timestamp: Date.now()
+            });
+            continue;
+          }
 
           console.error('AI chat error:', err);
           appendMessage({

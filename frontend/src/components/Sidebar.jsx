@@ -24,7 +24,9 @@ function Sidebar({
   onLocateMe,
   isOpen = false,
   onClose,
-  mascotMode = 'mascot'
+  mascotMode = 'mascot',
+  activeBaseLayer = 'osm',
+  onBaseLayerChange
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -915,6 +917,8 @@ function Sidebar({
             }}
             embedded={true}
             mascotUnderChat={mascotMode === 'mascot'}
+            activeBaseLayer={activeBaseLayer}
+            onBaseLayerChange={onBaseLayerChange}
           />
         </div>
       ) : mascotMode === 'button' ? (
