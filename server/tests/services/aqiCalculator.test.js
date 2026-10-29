@@ -1,4 +1,3 @@
-// tests/services/aqiCalculator.test.js — тесты расчёта AQI
 const { interpolate, getSubIndex, calculateEAQI, BREAKPOINTS } = require('../../services/aqiCalculator');
 
 describe('Service: aqiCalculator', () => {
@@ -38,9 +37,9 @@ describe('Service: aqiCalculator', () => {
         const mockBreakpoints = [0, 10, 20, 30, 40, 50];
 
         it('должен находить подходящий интервал и вычислять под-индекс', () => {
-            expect(getSubIndex(5, mockBreakpoints)).toBe(10); // Интервал 0-10 -> Индексы 0-20
-            expect(getSubIndex(15, mockBreakpoints)).toBe(30); // Интервал 10-20 -> Индексы 20-40
-            expect(getSubIndex(25, mockBreakpoints)).toBe(50); // Интервал 20-30 -> Индексы 40-60
+            expect(getSubIndex(5, mockBreakpoints)).toBe(10);
+            expect(getSubIndex(15, mockBreakpoints)).toBe(30);
+            expect(getSubIndex(25, mockBreakpoints)).toBe(50);
         });
 
         it('должен точно попадать в граничные точки порогов', () => {
@@ -128,7 +127,6 @@ describe('Service: aqiCalculator', () => {
         });
 
         it('должен безопасно игнорировать лишние поля (например, co из backupAirService)', () => {
-            // backupAirService передаёт { pm10, pm2_5, co, no2, so2, o3 }
             const aqi = calculateEAQI({
                 pm10: 22.0,
                 pm2_5: 12.3,

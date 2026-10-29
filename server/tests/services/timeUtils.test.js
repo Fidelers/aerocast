@@ -1,4 +1,3 @@
-// tests/services/timeUtils.test.js — тесты утилит работы со временем
 const timeUtils = require('../../services/timeUtils');
 
 describe('Service: timeUtils', () => {
@@ -69,16 +68,16 @@ describe('Service: timeUtils', () => {
 
     describe('isToday(timestampOrDate, referenceDate)', () => {
         it('возвращает true, если метка времени относится к тому же дню в Europe/Moscow', () => {
-            const ref = 1789862400 * 1000; // 2026-09-20
-            const sameDay = ref + 3600 * 1000; // на 1 час позже
+            const ref = 1789862400 * 1000;
+            const sameDay = ref + 3600 * 1000;
             expect(timeUtils.isToday(sameDay, ref)).toBe(true);
             expect(timeUtils.isToday('2026-09-20', ref)).toBe(true);
         });
 
         it('возвращает false, если метка времени из другого дня (вчера / завтра)', () => {
-            const ref = 1789862400 * 1000; // 2026-09-20
-            const yesterday = ref - 24 * 3600 * 1000; // 2026-09-19
-            const tomorrow = ref + 24 * 3600 * 1000; // 2026-09-21
+            const ref = 1789862400 * 1000;
+            const yesterday = ref - 24 * 3600 * 1000;
+            const tomorrow = ref + 24 * 3600 * 1000;
             expect(timeUtils.isToday(yesterday, ref)).toBe(false);
             expect(timeUtils.isToday(tomorrow, ref)).toBe(false);
             expect(timeUtils.isToday('2026-09-19', ref)).toBe(false);
@@ -91,11 +90,11 @@ describe('Service: timeUtils', () => {
         });
 
         it('корректно обрабатывает объект Date как временную метку', () => {
-            const ref = 1789862400 * 1000; // 2026-09-20
-            const sameDay = new Date(ref + 3600 * 1000); // на 1 час позже
+            const ref = 1789862400 * 1000;
+            const sameDay = new Date(ref + 3600 * 1000);
             expect(timeUtils.isToday(sameDay, ref)).toBe(true);
 
-            const otherDay = new Date(ref - 24 * 3600 * 1000); // вчера
+            const otherDay = new Date(ref - 24 * 3600 * 1000);
             expect(timeUtils.isToday(otherDay, ref)).toBe(false);
         });
     });

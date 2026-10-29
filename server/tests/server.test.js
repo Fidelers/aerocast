@@ -347,20 +347,17 @@ describe('Server: Root configuration', () => {
 
             const freshApp = require('../server');
 
-            // Проверяем регистрацию слушателей
             expect(handlers['SIGINT']).toBeDefined();
             expect(handlers['SIGTERM']).toBeDefined();
             expect(handlers['unhandledRejection']).toBeDefined();
             expect(handlers['uncaughtException']).toBeDefined();
 
-            // Вызываем слушатель unhandledRejection
             handlers['unhandledRejection']('Promise rejected test reason');
             expect(consoleErrorSpy).toHaveBeenCalledWith(
                 'Unhandled Promise Rejection:',
                 'Promise rejected test reason'
             );
 
-            // Вызываем слушатель uncaughtException
             const uncaughtError = new Error('Uncaught exception test');
             handlers['uncaughtException'](uncaughtError);
             expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -368,11 +365,9 @@ describe('Server: Root configuration', () => {
                 uncaughtError
             );
 
-            // Вызываем слушатель SIGINT
             await handlers['SIGINT']();
             expect(exitSpy).toHaveBeenCalledWith(0);
 
-            // Вызываем слушатель SIGTERM
             await handlers['SIGTERM']();
 
             await freshApp.stopServer();
@@ -391,7 +386,6 @@ describe('Server: Root configuration', () => {
 
             require('../server');
 
-            // Даем промису startServer().catch() выполниться
             await new Promise((resolve) => setImmediate(resolve));
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(

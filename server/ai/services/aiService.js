@@ -1,5 +1,3 @@
-// server/ai/services/aiService.js
-
 const axios = require('axios');
 const aiConfig = require('../config/aiConfig');
 const promptManager = require('./promptManager');
@@ -29,11 +27,7 @@ function fixFeminineGrammar(text) {
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)решил(?![а-яА-ЯёЁ])/g, '$1решила');
 }
 
-/**
- * Распознает явное намерение пользователя переключить слой карты:
- * 'satellite' — спутниковые снимки ESRI World Imagery
- * 'osm' — схема OpenStreetMap
- */
+// Распознает переключение слоя карты: 'satellite' (ESRI) или 'osm' (OpenStreetMap)
 function detectMapLayerIntent(text) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
@@ -55,12 +49,7 @@ function detectMapLayerIntent(text) {
     return null;
 }
 
-/**
- * Распознает команду переключения режима доступности для дальтоников:
- * { enabled: false } — выключение
- * { enabled: true, colorBlindType: 'okabe' | 'deuteranopia' | 'protanopia' | 'tritanopia' } — включение
- * { unsupported: true, requested?: string } — запрос нереализованного вида
- */
+// Распознает команды режима дальтонизма: отключение, 4 поддерживаемых типа или неподдерживаемый вид
 function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
@@ -83,7 +72,6 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
     const isContextCb = Boolean(isColorBlind) || /(?:дальтонизм|палитр|гамм|цветов|окабе|дейтераноп|протаноп|тританоп)/i.test(historyText);
     const hasPronounOff = hasOffWord && /(?:его|е[её]|это|этот|режим|палитру|доступность)/i.test(clean);
 
-    // 1. Выключение режима дальтонизма
     if ((hasOffWord && (hasCbWord || /(?:окабе|дейтераноп|протаноп|тританоп)/i.test(clean))) ||
         hasReturnNormalColors ||
         (hasPronounOff && isContextCb) ||
@@ -97,7 +85,6 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
         return { unsupported: true };
     }
 
-    // Проверяем паттерны вида: "режим дальтонизма [название]", "палитра [название]", "дальтонизм [название]"
     const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+дальтонизма\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
     const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
     if (specMatch) {
@@ -111,13 +98,12 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
         }
     }
 
-    // 2. Явное указание одного из 4 поддерживаемых видов
     if (/(?:дейтераноп[а-я]*|deuteranop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'deuteranopia' };
     if (/(?:протаноп[а-я]*|protanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'protanopia' };
     if (/(?:тританоп[а-я]*|tritanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'tritanopia' };
     if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
 
-    // 3. Запрос на включение дальтонизма без указания типа -> Окабе по умолчанию
+    // Без указания типа включается палитра Окабе по умолчанию
     if ((hasOnWord && hasCbWord) || /^(?:дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
         return { enabled: true, colorBlindType: 'okabe' };
     }
@@ -125,11 +111,7 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
     return null;
 }
 
-/**
- * Распознает команду переключения темы оформления (тёмная / светлая):
- * 'dark' — тёмная тема
- * 'light' — светлая тема
- */
+// Распознает команду переключения темы оформления ('dark' или 'light')
 function detectThemeIntent(text) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
@@ -155,9 +137,7 @@ function detectThemeIntent(text) {
     return null;
 }
 
-/**
- * Распознает подтверждение действия в тексте ответа модели (если модель забыла тег [action:...])
- */
+// Распознает подтверждение действия в тексте ответа модели при отсутствии тега [action:...]
 function detectActionFromReply(replyText) {
     if (!replyText || typeof replyText !== 'string') return null;
     const clean = replyText.toLowerCase();
@@ -167,12 +147,10 @@ function detectActionFromReply(replyText) {
         return null;
     }
 
-    // Выключение дальтонизма
     if (/(?:выключаю\s+(?:режим\s+)?дальтонизма|отключаю\s+(?:режим\s+)?дальтонизма|выключаю\s+дальтонизм|отключаю\s+дальтонизм|возвращаю\s+стандартную\s+цветовую|возвращаю\s+стандартные\s+цвета|возвращаю\s+обычные\s+цвета|выключаю\s+его,\s+возвращаю)/i.test(clean)) {
         return { type: 'set_colorblind', enabled: false };
     }
 
-    // Включение конкретной палитры дальтонизма
     const hasSwitchAction = /(?:включаю|переключаю|активирую|ставлю)/i.test(clean);
     if (hasSwitchAction && /(?:дейтераноп)/i.test(clean)) {
         return { type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' };
@@ -187,7 +165,6 @@ function detectActionFromReply(replyText) {
         return { type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' };
     }
 
-    // Темы оформления
     if (hasSwitchAction && /(?:т[её]мн(?:ую|ый)|ночн(?:ую|ой))\s+(?:тему|режим)/i.test(clean)) {
         return { type: 'set_theme', theme: 'dark' };
     }
@@ -195,7 +172,6 @@ function detectActionFromReply(replyText) {
         return { type: 'set_theme', theme: 'light' };
     }
 
-    // Карта
     if (hasSwitchAction && /(?:спутник)/i.test(clean)) {
         return { type: 'set_base_layer', layer: 'satellite' };
     }
@@ -206,6 +182,7 @@ function detectActionFromReply(replyText) {
     return null;
 }
 
+// Распознает запрос пользователя на перемещение к городу или проверку воздуха
 function toAccusativeCity(name) {
     if (!name || typeof name !== 'string') return 'выбранный город';
     const base = name.split(',')[0].trim();
@@ -222,9 +199,6 @@ function isNotCityName(str) {
     return false;
 }
 
-/**
- * Распознает запрос пользователя на перемещение к городу или проверку воздуха в городе
- */
 function extractCityIntent(text) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.trim();
@@ -244,19 +218,16 @@ function extractCityIntent(text) {
     // Снимаем вежливые вводные слова в начале («можешь пожалуйста сказать», «подскажи пожалуйста», «скажи», «хочу узнать»)
     let stripped = clean.replace(/^(?:(?:можешь|можете)(?:\s+ли)?(?:\s+пожалуйста|\s+пж|\s+плиз)?\s+(?:сказать|подсказать|рассказать|узнать|проверить|глянуть|посмотреть|показать)|подскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|скажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|расскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|пожалуйста\s+|пж\s+|плиз\s+|хочу\s+узнать|интересно|дай\s+знать|проверь(?:те)?)\s+/i, '').trim();
 
-    // 1. Паттерны навигации: любые формы глаголов перемещения
     const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
-    let navMatch = stripped.match(NAV_REGEX) || clean.match(NAV_REGEX);
+    const navMatch = clean.match(NAV_REGEX);
     if (navMatch) {
         let city = navMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
         city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
-        city = city.replace(/^(?:в|во|на|к|до)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
-        if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
+        if (city.length >= 2 && city.length <= 40) {
             return city;
         }
     }
 
-    // 2. Паттерны замеров воздуха / аналитики / погоды / вопросов о городе
     const AIR_CITY_REGEX = /(?:(?:что(?:\s+там|\s+сейчас|\s+тут)*(?:\s+(?:с\s+воздухом|по\s+воздуху|с\s+аналитикой|по\s+аналитике|с\s+замерами|по\s+замерам))?|как(?:\s+там|\s+сейчас)?\s+(?:воздух|дышится|погода)|качество\s+воздуха|какая\s+аналитика|какой(?:\s+там|\s+сейчас)?\s+воздух|чем\s+дышат|воздух|погода|замеры|аналитика)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+)(?:город\s+)?(.+)$/i;
     let airMatch = stripped.match(AIR_CITY_REGEX) || clean.match(AIR_CITY_REGEX);
     if (airMatch) {
@@ -268,7 +239,6 @@ function extractCityIntent(text) {
         }
     }
 
-    // 3. Формат: "про воздух в Москве", "про аналитику в Казани"
     const PRO_CITY_REGEX = /(?:про\s+(?:воздух|аналитику|погоду|замеры)\s+(?:в|во|на|по)\s+)(?:город\s+)?(.+)$/i;
     let proMatch = stripped.match(PRO_CITY_REGEX) || clean.match(PRO_CITY_REGEX);
     if (proMatch) {
@@ -280,7 +250,6 @@ function extractCityIntent(text) {
         }
     }
 
-    // 4. Поиск упоминания города внутри сложного предложения: "в Новокузнецке", "по воздуху в Самаре мне бы хотелось..."
     const CAP_CITY_REGEX = /(?:^|\s)(?:в|во|на|к|до)\s+(?:городе\s+|город\s+)?([А-ЯЁ][а-яё\-]+(?:\s+[А-ЯЁ][а-яё\-]+)?)/g;
     let inMatch;
     while ((inMatch = CAP_CITY_REGEX.exec(clean)) !== null) {
@@ -295,9 +264,7 @@ function extractCityIntent(text) {
     return null;
 }
 
-/**
- * Извлекает город из реплики модели (если модель подтвердила перемещение в тексте, но опустила тег)
- */
+// Извлекает город из реплики модели при отсутствии тега действия
 function extractCityFromReply(replyText) {
     if (!replyText || typeof replyText !== 'string') return null;
     const clean = replyText.trim();
@@ -311,9 +278,7 @@ function extractCityFromReply(replyText) {
     return null;
 }
 
-/**
- * Генерирует варианты нормализации падежей (аккузатив, препозитив) для поиска в геокодере
- */
+// Варианты падежной нормализации (винительный, предложный) для геокодера
 function getCityCandidates(raw) {
     if (!raw || typeof raw !== 'string') return [];
     let clean = raw.trim().replace(/^(?:в|во|на|к|до)\s+/i, '').replace(/[.,!?;:()]+$/, '').trim();
@@ -326,7 +291,6 @@ function getCityCandidates(raw) {
 
     const candidates = [clean];
 
-    // Проверяем распространенные падежные трансформации для русских городов
     if (/[а-яА-ЯёЁ]{3,}у$/i.test(clean)) {
         candidates.push(clean.replace(/у$/i, 'а')); // Москву -> Москва, Самару -> Самара
         candidates.push(clean.replace(/у$/i, ''));
@@ -379,9 +343,7 @@ const KNOWN_CITIES = {
     'ярославль': { lat: 57.62987, lon: 39.87368, cityName: 'Ярославль, Россия' }
 };
 
-/**
- * Выполняет геокодирование города через geocodingService с падежной нормализацией
- */
+// Геокодирование города через geocodingService с перебором падежных форм
 async function resolveCity(raw) {
     if (!raw || typeof raw !== 'string') return null;
     if (isNotCityName(raw)) return null;
@@ -417,7 +379,6 @@ async function resolveCity(raw) {
                 };
             }
         } catch (e) {
-            // try next candidate
         }
     }
     return null;
@@ -596,7 +557,7 @@ function generatePointAnalyticsReply(pointAnalytics, cleanUserMessage) {
 async function sendChatMessage({ history = [], userMessage, currentLayer, isColorBlind, colorBlindType, theme, pointAnalytics, isFollowUpAnalytics = false }) {
     const cleanUserMessage = String(userMessage || '').trim();
 
-    // Защитный барьер 1: перехват запросов на генерацию программного кода
+    // Перехват запросов на генерацию программного кода
     const CODE_REQUEST_REGEX = /(?:(?:напиши|сделай|создай|дай|выдай|покажи|сгенерируй|сочини|напечатай|придумай)\s+(?:мне\s+)?(?:простой\s+)?(?:код|программ[ауе]?|скрипт|функци[юя]|алгоритм|калькулятор|бот[а-я]*|сайт)|(?:код|скрипт|программ[ауе]?|функци[юя]|калькулятор)\s+(?:на|для|в)\s+(?:пайтон|питон|python|javascript|js|c\+\+|java|c#|php|html|css|sql|go|rust|bash)|(?:на|для)\s+(?:пайтон|питон|python|javascript|js|c\+\+|java|c#)\s+(?:калькулятор|скрипт|код|функци|программ)|(?:как\s+(?:написать|запрограммировать|создать)\s+(?:код|программу|скрипт|калькулятор|функцию))|\b(?:python|javascript|c\+\+|pascal)\s+код\b)/i;
     if (CODE_REQUEST_REGEX.test(cleanUserMessage)) {
         return {
@@ -606,9 +567,9 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         };
     }
 
-    // Защитный барьер 2 & 3: экологический контекст защищает от ложных срабатываний
     const isEnvironmental = /(?:aqi|аки|эаки|eaqi|воздух|погод|замер|прогноз|день|дня|дней|суточн|средн|максим|миним|пик|прошл|предыдущ|вчера|позавчера|раньше|архив|истори|концентрац|температур|загрязн|пм|pm|газ|эколог|смог|чист|атмосфер)/i.test(cleanUserMessage);
 
+    // Перехват вопросов про года отсечки знаний и прошедшие события
     const YEARS_OR_EVENTS_REGEX = /(?:до\s+какого\s+года|в\s+каком\s+году\s+ты|какой\s+(?:сейчас\s+)?год|события\s+в\s+мире|новости\s+в\s+мире|знания\s+о\s+мире|дата\s+отсечки|актуальны\s+до|что\s+нового\s+в\s+мире)/i;
     if (!isEnvironmental && YEARS_OR_EVENTS_REGEX.test(cleanUserMessage)) {
         return {
@@ -617,6 +578,8 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             emotion: 'think'
         };
     }
+
+    // Перехват оффтопа (математика, рецепты, домашние задания)
     const OFFTOPIC_REQUEST_REGEX = /(?:(?:сколько\s+будет\s+\d+|посчитай\s+\d+|вычисли\s+\d+|реши\s+(?:уравнение|пример|задач[ауе]))|(?:как\s+(?:приготовить|сварить|испечь|пожарить)|рецепт\s+(?:борща|супа|пиццы|пирога|торта|пасты|салата|еды))|(?:напиши\s+сочинение|сделай\s+домашк[ауе]|домашнее\s+задание\s+по)|(?:как\s+играть\s+в\s+(?:доту|кс|майнкрафт|dota|cs|minecraft)))/i;
     if (!isEnvironmental && OFFTOPIC_REQUEST_REGEX.test(cleanUserMessage)) {
         return {
@@ -626,7 +589,6 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         };
     }
 
-    // Скользящее окно истории
     const slicedHistory = Array.isArray(history) 
         ? history.slice(-aiConfig.maxHistoryMessages) 
         : [];
@@ -682,7 +644,6 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         let reply = choice?.message?.content || '';
         let emotion = 'idle';
 
-        // 1. Извлекаем и удаляем тег настроения в самом начале
         const moodRegex = /[\[(](?:mood|мood|настроение|emotion):\s*([a-zA-Zа-яА-ЯёЁ_-]+)[\])]/i;
         const moodMatch = reply.match(moodRegex);
         if (moodMatch) {
@@ -691,7 +652,6 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         }
         reply = reply.replace(/^\[[a-zA-Zа-яА-ЯёЁ\s_-]+:[a-zA-Zа-яА-ЯёЁ\s_-]+\]\s*/i, '').trim();
 
-        // 1.1 Извлекаем и удаляем интерактивный тег действия (переключение слоев карты, дальтонизм, города и др.)
         let action = null;
         const actionRegex = /[\[(]action:\s*([a-zA-Z0-9_-]+)(?::([^\]\)\n]+))?[\])]/i;
         const actionMatch = reply.match(actionRegex);
@@ -734,7 +694,6 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[^\]\)\n]+)?[\])]/gi, '').trim();
         }
 
-        // Если пользователь запросил нереализованный вид дальтонизма — строго сообщаем об этом
         const cbIntent = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
         if (cbIntent?.unsupported) {
             action = null;
@@ -749,7 +708,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                 }
             }
 
-            // Если модель не сгенерировала тег действия, но пользователь явно просил переключить тему оформления:
+            // Fallback: определение темы оформления из сообщения пользователя
             if (!action) {
                 const detectedTheme = detectThemeIntent(cleanUserMessage);
                 if (detectedTheme) {
@@ -757,7 +716,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                 }
             }
 
-            // Если модель не сгенерировала тег действия, но пользователь явно просил переключить слой:
+            // Fallback: определение слоя карты из сообщения пользователя
             if (!action) {
                 const detectedLayer = detectMapLayerIntent(cleanUserMessage);
                 if (detectedLayer) {
@@ -797,7 +756,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                 }
             }
 
-            // Если модель подтвердила действие в тексте ответа, но забыла вставить тег [action:...]:
+            // Fallback: определение действий из текста ответа модели
             if (!action) {
                 const detectedFromReply = detectActionFromReply(reply);
                 if (detectedFromReply) {
@@ -835,14 +794,14 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             }
         }
 
-        // 2. Очищаем скрытые блоки размышлений <think>...</think>
+        // Очистка скрытых блоков размышлений CoT (<think>...</think>)
         reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-        // 3. Замена специфичных просачивающихся китайских токенов и очистка любых CJK иероглифов
+        // Фильтрация китайских токенов и CJK-иероглифов из базовой модели
         reply = reply.replace(/空气质量/g, 'качество воздуха');
         reply = reply.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, '').trim();
 
-        // 4. Очистка упоминаний сторонних компаний (DICPlay, RusMind и др.) и подмена автора на Николаева Артёма
+        // Замена упоминаний сторонних вендоров и подмена автора на Николаева Артёма
         reply = reply.replace(/русскоязычный\s+ИИ[- ]ассистент\s+от\s+компании\s+DICPlay[.,\s]*/gi, 'маскот платформы AeroCast. ');
         reply = reply.replace(/(?:от\s+компании|создан[ао]?\s+компанией|разработан[ао]?\s+компанией)\s+DICPlay/gi, 'AeroCast');
         reply = reply.replace(/\b(?:DICPlay|RusMind)\b/gi, 'AeroCast');
@@ -851,13 +810,12 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         reply = reply.replace(/Даниил(?:а|у|ом|е)?\s+Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
         reply = reply.replace(/Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
 
-        // 5. Защита: если модель всё же сгенерировала программный код
         if (reply.includes('```') || /(?:def\s+\w+\s*\(|class\s+\w+:|import\s+\w+|console\.log|float\(input\(|#include\s*<|function\s+\w+\s*\(|var\s+\w+\s*=|const\s+\w+\s*=)/.test(reply)) {
             reply = 'Эй, я же маскот AeroCast, а не генератор кода, хмпф! 😾 Я слежу за чистотой атмосферы, а не за скриптами. Спроси меня лучше про качество воздуха или открой карту, ня! ✨';
             emotion = 'alert';
         }
 
-        // 6. Очистка отсечки знаний по годам ("знания о мире до ноября 2024 года" и т.д.)
+        // Очистка шаблонных фраз модели об отсечке знаний по годам
         const KNOWLEDGE_CUTOFF_REGEX = /(?:знания\s+о\s+мире\s+до|до\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)?\s*20\d\d\s+года|мои\s+знания\s+ограничены|актуальны\s+на\s+\d{4}|дата\s+отсечки|конкретное\s+событие,\s+дай\s+мне\s+знать)/i;
         if (KNOWLEDGE_CUTOFF_REGEX.test(reply)) {
             const stripped = reply
@@ -874,7 +832,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             }
         }
 
-        // 7. Защита от дегенеративных циклов повторений (looping) одинаковых предложений
+        // Защита от зацикливания повторяющихся предложений
         if (reply) {
             const rawSentences = reply.split(/(?<=[.!?])\s+/);
             const seenSentences = new Set();
@@ -882,7 +840,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             for (const s of rawSentences) {
                 const normalized = s.toLowerCase().trim().replace(/[«»"'—–\s]/g, '');
                 if (normalized.length > 5 && seenSentences.has(normalized)) {
-                    continue; // Пропускаем зацикленный дубликат
+                    continue;
                 }
                 if (normalized.length > 5) {
                     seenSentences.add(normalized);
@@ -892,7 +850,6 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             reply = uniqueSentences.join(' ').trim();
         }
 
-        // 8. Лимит символов ответа (по умолчанию 750)
         const charLimit = aiConfig.maxCharLimit || 750;
         if (reply.length > charLimit) {
             const textChunk = reply.substring(0, charLimit);
@@ -909,10 +866,9 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             }
         }
 
-        // 9. Страховка от висячих обрывков нумерации в самом конце ("5.", "1)", "2." и т.д.)
+        // Удаление оборванных номеров списков в конце ответа ("1)", "2.")
         reply = reply.replace(/\s*\b\d+[\.\)]\s*$/g, '').trim();
 
-        // 10. Нормализация женского рода от лица персонажа Аи
         reply = fixFeminineGrammar(reply);
 
         if (!reply) {
@@ -935,7 +891,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
     } catch (err) {
         console.error('[LLM Error]', err.response?.data || err.message);
 
-        // Защитная обработка: если локальная LLM выключена/недоступна, но запрос был на переключение карты
+        // Оффлайн-fallback: переключение карты при сбое или недоступности LLM
         const fallbackLayer = detectMapLayerIntent(cleanUserMessage);
         if (fallbackLayer) {
             return {
@@ -948,7 +904,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             };
         }
 
-        // Fallback для смены дальтонизма при оффлайне/сбое LLM
+        // Оффлайн-fallback: переключение режима дальтонизма при сбое LLM
         const fallbackCB = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
         if (fallbackCB?.unsupported) {
             return {
@@ -979,7 +935,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
             };
         }
 
-        // Fallback для смены темы оформления при оффлайне/сбое LLM
+        // Оффлайн-fallback: переключение темы оформления при сбое LLM
         const fallbackTheme = detectThemeIntent(cleanUserMessage);
         if (fallbackTheme) {
             return {

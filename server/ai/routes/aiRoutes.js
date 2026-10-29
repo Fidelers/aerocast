@@ -1,10 +1,7 @@
-// server/ai/routes/aiRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const aiController = require('../controllers/aiController');
 
-// Обработчик ошибок
 const asyncHandler = (fn) => async (req, res, next) => {
     try {
         await fn(req, res, next);

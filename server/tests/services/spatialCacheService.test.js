@@ -2,7 +2,6 @@ const spatialCacheService = require('../../services/spatialCacheService');
 const dbConfig = require('../../config/db');
 const timeUtils = require('../../services/timeUtils');
 
-// Мокаем модуль базы данных SQLite
 jest.mock('../../config/db', () => ({
     getDB: jest.fn()
 }));
@@ -16,7 +15,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
             run: jest.fn()
         };
         dbConfig.getDB.mockReturnValue(mockDb);
-        // Фиксируем системное время для стабильности проверки TTL
         jest.useFakeTimers().setSystemTime(new Date('2026-10-09T12:00:00Z'));
     });
 
@@ -52,7 +50,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
         });
 
         it('корректно квантует отрицательные географические координаты', () => {
-            // Сидней: -33.8688, 151.2093
             const result = spatialCacheService.quantizeCoordinates(-33.8688, 151.2093, 0.2);
             expect(result.qLat).toBe('-33.80');
             expect(result.qLon).toBe('151.20');
@@ -110,7 +107,7 @@ describe('Service: spatialCacheService (Пространственное кэш�
         it('возвращает null, если запись в кэше просрочена и ignoreTTL = false', async () => {
             mockDb.get.mockResolvedValue({
                 data: sampleGridJson,
-                expires_at: Date.now() - 1000 // Срок истек 1 секунду назад
+                expires_at: Date.now() - 1000
             });
 
             const result = await spatialCacheService.getSpatialCache(key, false);
@@ -121,7 +118,7 @@ describe('Service: spatialCacheService (Пространственное кэш�
         it('возвращает данные даже при просроченном TTL, если ignoreTTL = true (Офлайн-резерв)', async () => {
             mockDb.get.mockResolvedValue({
                 data: sampleGridJson,
-                expires_at: Date.now() - 50000 // Давно просрочен
+                expires_at: Date.now() - 50000
             });
 
             const result = await spatialCacheService.getSpatialCache(key, true);
@@ -145,16 +142,14 @@ describe('Service: spatialCacheService (Пространственное кэш�
             const offlineKey = 'grid_offline_mem_fallback';
             const offlineData = { type: 'macro', points: [{ lat: 55.75, lon: 37.61, european_aqi: [20] }] };
 
-            dbConfig.getDB.mockReturnValue(Promise.resolve(mockDb)); // как в проде
+            dbConfig.getDB.mockReturnValue(Promise.resolve(mockDb));
             mockDb.run.mockResolvedValue({ changes: 1 });
             await spatialCacheService.setSpatialCache(offlineKey, offlineData, 10);
 
-            mockDb.get.mockResolvedValue(undefined); // строки в БД нет
-            jest.advanceTimersByTime(11 * 1000); // TTL истёк
+            mockDb.get.mockResolvedValue(undefined);
+            jest.advanceTimersByTime(11 * 1000);
 
-            // Обычное чтение — промах по БД (БД источник истины)
             expect(await spatialCacheService.getSpatialCache(offlineKey, false)).toBeNull();
-            // Офлайн-резерв — отдаёт данные из памяти несмотря на истёкший TTL
             expect(await spatialCacheService.getSpatialCache(offlineKey, true)).toEqual(offlineData);
         });
     });
@@ -179,7 +174,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
                 [key, JSON.stringify(sampleGridData), expectedExpiresAt, expectedUpdatedAt]
             );
 
-            // Очистка записей старше 7 суток
             expect(mockDb.run).toHaveBeenNthCalledWith(2,
                 expect.stringContaining('DELETE FROM api_cache WHERE updated_at < ?'),
                 expect.arrayContaining([expected7DaysAgo])
@@ -187,7 +181,7 @@ describe('Service: spatialCacheService (Пространственное кэш�
         });
 
         it('учитывает переданный кастомный ttlSeconds', async () => {
-            const customTTL = 7200; // 2 часа
+            const customTTL = 7200;
             await spatialCacheService.setSpatialCache(key, sampleGridData, customTTL);
 
             const expectedExpiresAt = Date.now() + 7200 * 1000;
@@ -211,7 +205,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
                 [key, JSON.stringify(sampleGridData), expect.any(Number), expect.any(Number)]
             );
 
-            // Чтение также работает через Promise-соединение
             mockDb.get.mockResolvedValue({
                 data: JSON.stringify(sampleGridData),
                 expires_at: Date.now() + 86400 * 1000,
@@ -260,7 +253,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
 
     describe('5. In-memory fallback (Отказоустойчивость при недоступности SQLite)', () => {
         beforeEach(() => {
-            // Имитируем падение / недоступность базы данных
             dbConfig.getDB.mockReturnValue(null);
         });
 
@@ -279,7 +271,7 @@ describe('Service: spatialCacheService (Пространственное кэш�
             const data = { type: 'micro', points_count: 25 };
 
             await spatialCacheService.setSpatialCache(key, data, 10);
-            jest.advanceTimersByTime(11000); // 11 секунд вперед
+            jest.advanceTimersByTime(11000);
 
             const cached = await spatialCacheService.getSpatialCache(key, false);
             expect(cached).toBeNull();
@@ -330,7 +322,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
         };
 
         it('возвращает сетку, если она была сохранена сегодня (в этот день)', async () => {
-            // Текущее зафиксированное время в тестах: '2026-10-09T12:00:00Z' (15:00 по Москве)
             mockDb.get.mockResolvedValue({
                 data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-09' }),
                 expires_at: Date.now() + 86400 * 1000,
@@ -353,9 +344,9 @@ describe('Service: spatialCacheService (Пространственное кэш�
                 data: JSON.stringify({
                     ...sampleMacro,
                     cached_date: '2026-10-08',
-                    time: ['2026-10-02T00:00', '2026-10-11T23:00'] // покрытие до 2026-10-11 включительно
+                    time: ['2026-10-02T00:00', '2026-10-11T23:00']
                 }),
-                expires_at: Date.now() + 3600 * 1000, // TTL ещё валиден, но он больше не основание
+                expires_at: Date.now() + 3600 * 1000,
                 updated_at: yesterdayMs
             });
 
@@ -373,9 +364,9 @@ describe('Service: spatialCacheService (Пространственное кэш�
                 data: JSON.stringify({
                     ...sampleMacro,
                     cached_date: '2026-10-09',
-                    time: ['2026-10-02T00:00', '2026-10-12T23:00'] // сегодня (09-е) + 3 дня = 12-е
+                    time: ['2026-10-02T00:00', '2026-10-12T23:00']
                 }),
-                expires_at: Date.now() - 1000, // TTL истёк — покрытие важнее TTL
+                expires_at: Date.now() - 1000,
                 updated_at: Date.now()
             });
 
@@ -401,7 +392,7 @@ describe('Service: spatialCacheService (Пространственное кэш�
             const yesterdayMs = Date.now() - 24 * 3600 * 1000;
             mockDb.get.mockResolvedValue({
                 data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-08' }),
-                expires_at: Date.now() - 1000, // TTL уже истек
+                expires_at: Date.now() - 1000,
                 updated_at: yesterdayMs
             });
 
@@ -426,10 +417,9 @@ describe('Service: spatialCacheService (Пространственное кэш�
                 points_count: 550,
                 points: [{ lat: 55.75, lon: 37.61, european_aqi: [20] }]
             };
-            // TTL истек, но cached_date = сегодня, isRecordSavedToday вернёт true
             mockDb.get.mockResolvedValue({
                 data: JSON.stringify({ ...sampleMacro, cached_date: '2026-10-09' }),
-                expires_at: Date.now() - 1000, // TTL истек
+                expires_at: Date.now() - 1000,
                 updated_at: Date.now()
             });
 
@@ -443,7 +433,6 @@ describe('Service: spatialCacheService (Пространственное кэш�
         const key = 'grid_error_key';
 
         it('getSpatialCache деградирует во in-memory, если db.get выбрасывает ошибку', async () => {
-            // Сначала сохраняем в память (db = null)
             dbConfig.getDB.mockReturnValue(null);
             await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 5 }, 3600);
 
@@ -467,11 +456,9 @@ describe('Service: spatialCacheService (Пространственное кэш�
         });
 
         it('getSpatialCacheEntry внешний catch: db.get выбрасывает ошибку, деградация во in-memory', async () => {
-            // Сначала сохраняем в память
             dbConfig.getDB.mockReturnValue(null);
             await spatialCacheService.setSpatialCache(key, { type: 'micro', count: 10 }, 3600);
 
-            // Затем db.get выбрасывает ошибку
             dbConfig.getDB.mockImplementation(() => {
                 throw new Error('DB connection lost');
             });
@@ -491,13 +478,9 @@ describe('Service: spatialCacheService (Пространственное кэш�
         });
 
         it('getSpatialCache catch блок: истекшая запись в памяти удаляется и возвращает null', async () => {
-            // Режим in-memory (db = null)
             dbConfig.getDB.mockReturnValue(null);
-            // Сохраняем данные с TTL 1 секунда
             await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 5 }, 1);
-            // Продвигаем время на 2 секунды — запись истекает
             jest.advanceTimersByTime(2000);
-            // Теперь getDB выбрасывает ошибку — попадаем в catch блок
             dbConfig.getDB.mockImplementation(() => {
                 throw new Error('DB error');
             });
@@ -507,10 +490,8 @@ describe('Service: spatialCacheService (Пространственное кэш�
         });
 
         it('getSpatialCache catch блок: неистекшая запись в памяти возвращается при ошибке БД', async () => {
-            // Режим in-memory (db = null)
             dbConfig.getDB.mockReturnValue(null);
             await spatialCacheService.setSpatialCache(key, { type: 'macro', count: 5 }, 3600);
-            // getDB выбрасывает ошибку — попадаем в catch блок, запись не истекла
             dbConfig.getDB.mockImplementation(() => {
                 throw new Error('DB error');
             });
@@ -541,7 +522,7 @@ describe('Service: spatialCacheService (Пространственное кэш�
             };
             mockDb.get.mockResolvedValue({
                 data: JSON.stringify(recordYesterday),
-                expires_at: Date.now() - 1000, // TTL истек
+                expires_at: Date.now() - 1000,
                 updated_at: yesterday
             });
 

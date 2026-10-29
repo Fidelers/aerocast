@@ -1,4 +1,3 @@
-// это таблицу порогов для каждого загрязнителя
 const BREAKPOINTS = {
   pm2_5: [0, 10, 20, 25, 50, 75],
   pm10: [0, 20, 40, 50, 100, 150],
@@ -7,16 +6,14 @@ const BREAKPOINTS = {
   so2: [0, 100, 200, 350, 500, 750],
 };
 
-// базовая шкала индексов из 5 интервалов: хорошо, приемлемо, умеренно, плохо, очень плохо
+// Базовая шкала индексов (EAQI): хорошо, приемлемо, умеренно, плохо, очень плохо
 const INDEX_SCALE = [0, 20, 40, 60, 80, 100];
 
 
 function interpolate(c, cLow, cHigh, iLow, iHigh) {
-  // защита от ошибки деления на ноль
   if (cHigh === cLow) {
     return iLow;
   }
-  // защита границ чтоб значение не выходило за пределы шкалы
   if (c <= cLow) {
     return iLow;
   }
@@ -28,16 +25,13 @@ function interpolate(c, cLow, cHigh, iLow, iHigh) {
   return Math.round(index);
 }
 
-// расчёт под-индекса для конкретного загрязнителя
 function getSubIndex(c, breakpoints) {
   const num = Number(c);
 
-  // возврщаюа 0 при отрицательных, некорректных или пустых значениях
   if (c === null || c === undefined || isNaN(num) || num <= 0) {
     return 0;
   }
 
-  // поиск подходящего стандартного интервала
   for (let i = 0; i < breakpoints.length - 1; i++) {
     const cLow = breakpoints[i];
     const cHigh = breakpoints[i + 1];
@@ -49,7 +43,7 @@ function getSubIndex(c, breakpoints) {
     }
   }
 
-  // экстраполяция, если концентрация превысила последний порог и ограничеваем  результатом 150
+  // Экстраполяция при превышении максимального порога с ограничением в 150
   const last = breakpoints.length - 1;
   const cLow = breakpoints[last - 1];
   const cHigh = breakpoints[last];
@@ -62,7 +56,6 @@ function getSubIndex(c, breakpoints) {
   return Math.min(150, rounded);
 }
 
-// общий индекс калькулятора воздуха по 5 загрязнителям
 function calculateEAQI(pm25OrObj, pm10, no2, o3, so2) {
   let p25 = 0;
   let p10 = 0;
@@ -70,7 +63,6 @@ function calculateEAQI(pm25OrObj, pm10, no2, o3, so2) {
   let oz = 0;
   let s2 = 0;
 
-  // приемник данных, чтоб можно было вызывать функцию по разному
   if (typeof pm25OrObj === 'object' && pm25OrObj !== null) {
     p25 = pm25OrObj.pm2_5 ?? pm25OrObj.pm25 ?? 0;
     p10 = pm25OrObj.pm10 ?? 0;
@@ -85,7 +77,6 @@ function calculateEAQI(pm25OrObj, pm10, no2, o3, so2) {
     s2 = so2 ?? 0;
   }
 
-  // подсчет баллов по каждому загрязнителю
   const subIndices = [
     getSubIndex(p25, BREAKPOINTS.pm2_5),
     getSubIndex(p10, BREAKPOINTS.pm10),
@@ -94,12 +85,12 @@ function calculateEAQI(pm25OrObj, pm10, no2, o3, so2) {
     getSubIndex(s2, BREAKPOINTS.so2),
   ];
 
-  // максимально вредный показатель определяет общий индекс кач-ва воздуха, ограниченный 150
+  // Наихудший под-индекс определяет итоговый уровень качества воздуха (до 150)
   const maxSubIndex = Math.max(0, ...subIndices);
 
   return Math.min(150, maxSubIndex);
 }
-//экспортирую функции и константу для других модулей
+
 module.exports = {
   interpolate,
   getSubIndex,

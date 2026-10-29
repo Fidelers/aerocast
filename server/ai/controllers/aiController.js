@@ -1,5 +1,3 @@
-// server/ai/controllers/aiController.js
-
 const aiService = require('../services/aiService');
 const aiConfig = require('../config/aiConfig');
 

@@ -42,14 +42,12 @@ describe('Controller: airController.getAirQuality', () => {
             json: jest.fn().mockReturnThis()
         };
 
-        // кэш пуст, слияние возвращает данные как есть, архив сохраняется.
         cacheService.getCache.mockResolvedValue(null);
         cacheService.setCache.mockResolvedValue(undefined);
         historyService.mergeWithFresh.mockImplementation(async (data) => data);
         historyService.saveFromResponse.mockResolvedValue(undefined);
         historyService.getLatest.mockResolvedValue(null);
 
-        // Глушим журналирование ошибок, чтобы не засорять вывод.
         jest.spyOn(console, 'error').mockImplementation(() => {});
     });
 
@@ -149,7 +147,6 @@ describe('Controller: airController.getAirQuality', () => {
         });
 
         it('должен поддерживать синонимы source: primary и backup (из README)', async () => {
-            // source: 'primary' -> как 'open-meteo'
             req.query = { lat: '55.75', lon: '37.61', source: 'primary' };
             primaryAirService.fetchAirQuality.mockResolvedValue({ used_source: 'open-meteo' });
 
@@ -158,7 +155,6 @@ describe('Controller: airController.getAirQuality', () => {
 
             jest.clearAllMocks();
 
-            // source: 'backup' -> как 'open-weather-map'
             req.query = { lat: '55.75', lon: '37.61', source: 'backup' };
             backupAirService.fetchAirQuality.mockResolvedValue({ used_source: 'open-weather-map' });
 
@@ -327,7 +323,6 @@ describe('Controller: airController.getAirQuality', () => {
             primaryAirService.fetchAirQuality.mockRejectedValue(new Error('primary is down'));
             backupAirService.fetchAirQuality.mockRejectedValue(new Error('backup is down'));
 
-            // Первый запрос (без игнорирования TTL) — промах, второй (ignoreTTL=true) — устаревший кэш.
             cacheService.getCache.mockImplementation((key, ignoreTTL) =>
                 Promise.resolve(ignoreTTL ? staleData : null)
             );
@@ -338,7 +333,6 @@ describe('Controller: airController.getAirQuality', () => {
             expect(cacheService.getCache).toHaveBeenNthCalledWith(1, 'air_auto_55.75_37.61', false);
             expect(cacheService.getCache).toHaveBeenNthCalledWith(2, 'air_auto_55.75_37.61', true);
             expect(historyService.mergeWithFresh).toHaveBeenCalledWith(staleData, lat, lon);
-            // Источник из кэша должен быть перезаписан на offline_database
             expect(res.json).toHaveBeenCalledWith({ ...staleData, used_source: 'offline_database' });
         });
 
@@ -591,8 +585,6 @@ describe('Controller: airController.getAirQuality', () => {
 
         it('должен возвращать 500 при непредвиденной ошибке, если сбой происходит вне внутренних try/catch', async () => {
             axios.get.mockRejectedValue(new Error('both services down'));
-            // Первый вызов res.json (фолбэк по умолчанию) выбрасывает ошибку,
-            // что приводит во внешний catch блок
             res.json.mockImplementationOnce(() => {
                 throw new Error('json failure');
             });

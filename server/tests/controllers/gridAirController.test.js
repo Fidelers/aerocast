@@ -2,7 +2,6 @@ const gridAirController = require('../../controllers/gridAirController');
 const batchAirService = require('../../services/batchAirService');
 const spatialCacheService = require('../../services/spatialCacheService');
 
-// Мокаем сервисы
 jest.mock('../../services/batchAirService', () => ({
     generateMacroGridCoordinates: jest.fn(),
     generateMicroGridCoordinates: jest.fn(),
@@ -35,11 +34,9 @@ describe('Controller: gridAirController', () => {
             json: jest.fn().mockReturnThis()
         };
 
-        // Заглушаем console.error и console.warn в тестах
         jest.spyOn(console, 'error').mockImplementation(() => { });
         jest.spyOn(console, 'warn').mockImplementation(() => { });
 
-        // Базовые моки сервиса пространственного кэша
         spatialCacheService.quantizeCoordinates.mockImplementation((lat, lon) => {
             const qLat = (Math.round(lat / 0.2) * 0.2).toFixed(2);
             const qLon = (Math.round(lon / 0.2) * 0.2).toFixed(2);
@@ -57,8 +54,6 @@ describe('Controller: gridAirController', () => {
             return true;
         });
 
-
-        // Базовые моки batchAirService
         batchAirService.generateMacroGridCoordinates.mockReturnValue([
             { lat: 55.75, lon: 37.61 },
             { lat: 59.93, lon: 30.31 }
@@ -137,7 +132,7 @@ describe('Controller: gridAirController', () => {
         });
 
         it('автоматически выбирает micro при zoom >= 9 и требует координаты', async () => {
-            req.query = { zoom: '10' }; // Нет координат
+            req.query = { zoom: '10' };
 
             await gridAirController.getGridAirQuality(req, res);
 
@@ -211,7 +206,6 @@ describe('Controller: gridAirController', () => {
             expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalledWith(expect.any(Array));
             expect(batchAirService.normalizeBatchResponse).toHaveBeenCalled();
 
-            // Проверяем сохранение в кэш с TTL 86400 сек (24 часа / 1 день) и метками даты
             expect(spatialCacheService.setSpatialCache).toHaveBeenCalledWith(
                 'grid_macro_russia',
                 expect.objectContaining({
@@ -238,7 +232,7 @@ describe('Controller: gridAirController', () => {
                 type: 'macro',
                 points_count: 550,
                 used_source: 'open-meteo',
-                cached_date: '2026-10-08', // вчера по календарю, но TTL ещё не истек
+                cached_date: '2026-10-08',
                 cached_at: Date.now(),
                 points: [{ lat: 55.75, lon: 37.61, european_aqi: [10] }]
             };
@@ -247,7 +241,6 @@ describe('Controller: gridAirController', () => {
             req.query = { type: 'macro' };
             await gridAirController.getGridAirQuality(req, res);
 
-            // Кэш отдан напрямую, в Open-Meteо ходить не нужно
             expect(batchAirService.fetchBatchAirQuality).not.toHaveBeenCalled();
             expect(spatialCacheService.setSpatialCache).not.toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -286,13 +279,10 @@ describe('Controller: gridAirController', () => {
 
     describe('4. Критическое правило отказоустойчивости (Zero-Cost Failover & Offline)', () => {
         it('при сбое Open-Meteo НЕ вызывает OpenWeatherMap, а возвращает устаревший SQLite-кэш', async () => {
-            // Первый поиск в кэше — промах
             spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
 
-            // Ошибка сетевого запроса к Open-Meteo (таймаут 2000 мс)
             batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('timeout of 2000ms exceeded'));
 
-            // Устаревший кэш в SQLite (ignoreTTL = true)
             const staleGrid = {
                 type: 'micro',
                 bbox: [87.05, 53.65, 87.35, 53.95],
@@ -305,10 +295,8 @@ describe('Controller: gridAirController', () => {
             req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
             await gridAirController.getGridAirQuality(req, res);
 
-            // Должен запросить устаревший кэш с ignoreTTL = true
             expect(spatialCacheService.getSpatialCache).toHaveBeenNthCalledWith(2, 'grid_micro_53.80_87.20', true);
 
-            // Должен вернуть 200 с меткой offline_database
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 type: 'micro',
                 used_source: 'offline_database',
@@ -317,14 +305,11 @@ describe('Controller: gridAirController', () => {
         });
 
         it('макросетка: при недоступном Open-Meteo берёт прошлые/устаревшие точки из кэша и отдаёт 200 offline_database', async () => {
-            // Кэш за вчера/позавчера не проходит проверку «сегодня+3» -> обычный кэш-промах
             spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
-            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // candidate-ветка: промах
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
 
-            // Основной сервис лежит (таймаут 2000 мс)
             batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('timeout of 2000ms exceeded'));
 
-            // Устаревшая макросетка в кэше (ignoreTTL = true) — её надо отрисовать
             const staleMacro = {
                 type: 'macro',
                 points_count: 550,
@@ -338,7 +323,6 @@ describe('Controller: gridAirController', () => {
             req.query = { type: 'macro' };
             await gridAirController.getGridAirQuality(req, res);
 
-            // Офлайн-резерв запрошен именно с ignoreTTL = true
             expect(spatialCacheService.getSpatialCache).toHaveBeenNthCalledWith(2, 'grid_macro_russia', true);
             expect(batchAirService.fetchBatchAirQuality).toHaveBeenCalledTimes(1);
 
@@ -352,9 +336,8 @@ describe('Controller: gridAirController', () => {
 
         it('макросетка: пустой ответ Open-Meteo не кешируется — уходит в офлайн-резерв с точками', async () => {
             spatialCacheService.getTodayMacroGrid.mockResolvedValue(null);
-            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // candidate-ветка: промах
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
 
-            // API ответил, но без точек/времени — рисовать нечего, кешировать нельзя
             batchAirService.normalizeBatchResponse.mockReturnValue({ time: [], points: [] });
 
             const staleMacro = {
@@ -367,7 +350,6 @@ describe('Controller: gridAirController', () => {
             req.query = { type: 'macro' };
             await gridAirController.getGridAirQuality(req, res);
 
-            // Пустая сетка не записана в кэш
             expect(spatialCacheService.setSpatialCache).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(200);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -378,9 +360,9 @@ describe('Controller: gridAirController', () => {
         });
 
         it('при сбое Open-Meteo и отсутствии устаревшего кэша возвращает 500 offline_database_miss', async () => {
-            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // Свежий кэш пуст
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
             batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('Open-Meteo 503 Service Unavailable'));
-            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // Устаревший кэш тоже пуст
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
 
             req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
             await gridAirController.getGridAirQuality(req, res);
@@ -461,9 +443,9 @@ describe('Controller: gridAirController', () => {
         });
 
         it('логирует ошибку чтения устаревшего кэша и возвращает 500, если нет свежих данных', async () => {
-            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null); // свежий кэш пуст
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
             batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('Open-Meteo down'));
-            spatialCacheService.getSpatialCache.mockRejectedValueOnce(new Error('stale cache read error')); // устаревший кэш тоже ошибка
+            spatialCacheService.getSpatialCache.mockRejectedValueOnce(new Error('stale cache read error'));
 
             req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
             await gridAirController.getGridAirQuality(req, res);

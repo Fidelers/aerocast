@@ -1,5 +1,3 @@
-// server/tests/ai.test.js
-
 const request = require('supertest');
 const app = require('../server');
 const aiService = require('../ai/services/aiService');
@@ -513,7 +511,6 @@ describe('AI Module & Local LLM endpoints', () => {
         });
 
         it('распознает выключение дальтонизма при вежливых формулировках и местоимениях', async () => {
-            // Без тега от модели: 'выключи пожалуйста режим дальтонизма'
             const axiosSpy1 = jest.spyOn(axios, 'post').mockResolvedValueOnce({
                 data: {
                     choices: [{
@@ -528,7 +525,6 @@ describe('AI Module & Local LLM endpoints', () => {
             expect(res1.action).toEqual({ type: 'set_colorblind', enabled: false });
             axiosSpy1.mockRestore();
 
-            // С контекстом: 'можешь пожалуйста выключить его'
             const axiosSpy2 = jest.spyOn(axios, 'post').mockResolvedValueOnce({
                 data: {
                     choices: [{
@@ -705,7 +701,6 @@ describe('AI Module & Local LLM endpoints', () => {
         });
 
         it('распознает инфинитив "переместить в Екатеринбург" и извлекает город из реплики модели', async () => {
-            // Модель ответила фразой без тега действия, как на пользовательском скриншоте
             const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
                 data: {
                     choices: [{

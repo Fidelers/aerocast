@@ -1,12 +1,8 @@
-// services/historyService.js — хранение и работа с историей замеров
-
-// Архив живёт в SQLite (таблица air_quality_history), соединение через config/db.
-// Метки времени в базе хранятся в UTC-миллисекундах, а в ответах внешних источников время дано в Europe/Moscow
+// Архив хранится в SQLite (air_quality_history). В базе метки времени в UTC-миллисекундах, во внешних API — Europe/Moscow.
 
 const { getDB } = require('../config/db');
 const { formatIsoHourMillis } = require('./timeUtils');
 
-// Предел хранения архива: 7 суток
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const MOSCOW_OFFSET = '+03:00';
 
@@ -22,22 +18,20 @@ async function getDbOrNull() {
 
 function parseMoscowHourToMillis(hourString) {
     const value = String(hourString).trim();
-    // Если это уже полноценная — парсим как есть.
     if (/[zZ]$/.test(value) || /[+-]\d{2}:\d{2}$/.test(value)) {
         return Date.parse(value);
     }
-    // "ГГГГ-ММ-ДДTЧЧ:00" -> дописываем секунды и фиксированное смещение +03:00.
+    // "ГГГГ-ММ-ДДTЧЧ:00" -> дописываем секунды и смещение +03:00 (Europe/Moscow)
     const withSeconds = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
         ? `${value}:00`
         : value;
     return Date.parse(`${withSeconds}${MOSCOW_OFFSET}`);
 }
 
-// Из нормализованного ответа air-эндпоинта сохраняются только ПРОШЕДШИЕ часы.
-// После записи удаляются записи старше 7 суток.
+// Из нормализованного ответа air-эндпоинта сохраняются только ПРОШЕДШИЕ часы
 async function saveFromResponse(data) {
     const db = await getDbOrNull();
-    if (!db) return; // БД недоступна — архив не блокирует ответ клиенту
+    if (!db) return;
 
     const { latitude, longitude, used_source, hourly } = data || {};
     if (!hourly || !Array.isArray(hourly.time)) return;
@@ -53,7 +47,6 @@ async function saveFromResponse(data) {
         const pointsToInsert = [];
         for (let i = 0; i < hourly.time.length; i += 1) {
             const timestamp = parseMoscowHourToMillis(hourly.time[i]);
-            // Только прошедшие часы
             if (!Number.isFinite(timestamp) || timestamp >= now) continue;
 
             const point = {};
@@ -80,16 +73,13 @@ async function saveFromResponse(data) {
                 try {
                     await db.run('ROLLBACK');
                 } catch (rollbackErr) {
-                    // Игнорируем ошибку отката
                 }
                 throw txError;
             }
         }
 
-        // всё, что старше 7 суток, удаляем.
         await db.run('DELETE FROM air_quality_history WHERE timestamp < ?', [now - SEVEN_DAYS_MS]);
     } catch (error) {
-        // Ошибка архивирования не должна ронять приложение
     }
 }
 
@@ -111,13 +101,12 @@ async function getLatest(lat, lon) {
     }
 }
 
-// Слияние свежих данных с архивом (приоритет у свежих).
 async function mergeWithFresh(freshData, lat, lon) {
     if (!freshData || !freshData.hourly || !Array.isArray(freshData.hourly.time) || freshData.hourly.time.length === 0) {
         return freshData;
     }
 
-    // Координаты округляем до 2 знаков (~1.1 км) — разрешение хранения в архиве.
+    // Разрешение хранения координат в архиве: 2 знака (~1.1 км)
     const lat2 = Number(Number(lat).toFixed(2));
     const lon2 = Number(Number(lon).toFixed(2));
 
@@ -133,8 +122,7 @@ async function mergeWithFresh(freshData, lat, lon) {
         )
         : [];
 
-    // Карта "ГГГГ-ММ-ДДTЧЧ:00" -> значения. Сначала свежие данные (высший
-    // приоритет), затем архив — только если ключа ещё нет.
+    // Карта "ГГГГ-ММ-ДДTЧЧ:00" -> значения. Свежие данные имеют высший приоритет над архивом
     const byHour = new Map();
     const freshTime = freshData.hourly.time;
     const pollutants = Object.keys(freshData.hourly).filter((field) => field !== 'time');
@@ -151,7 +139,7 @@ async function mergeWithFresh(freshData, lat, lon) {
     let archiveAdded = false;
     for (const row of archiveRows) {
         const hourKey = formatIsoHourMillis(row.timestamp);
-        if (byHour.has(hourKey)) continue; // свежие данные важнее архива
+        if (byHour.has(hourKey)) continue;
         let parsed = {};
         try {
             parsed = JSON.parse(row.pollutant_data);
@@ -172,7 +160,6 @@ async function mergeWithFresh(freshData, lat, lon) {
         );
     }
 
-    // Флаг при котором в ответ были добавлены данные из архива.
     if (archiveAdded) merged.history_merged = true;
 
     return merged;

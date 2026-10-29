@@ -1,5 +1,3 @@
-// controllers/airController.js
-
 const cacheService = require('../services/cacheService');
 const historyService = require('../services/historyService');
 const primaryAirService = require('../services/primaryAirService');
@@ -11,7 +9,6 @@ async function getAirQuality(req, res) {
     try {
         const { lat: latQuery, lon: lonQuery, source: sourceQuery } = req.query;
 
-        // 1. Валидация обязательных параметров
         if (latQuery === undefined || lonQuery === undefined || latQuery === '' || lonQuery === '') {
             return res.status(400).json({ error: 'Missing lat or lon parameters' });
         }
@@ -23,12 +20,10 @@ async function getAirQuality(req, res) {
             return res.status(400).json({ error: 'Missing lat or lon parameters' });
         }
 
-        // Проверка допустимых диапазонов для широты и долготы
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
             return res.status(400).json({ error: 'Missing lat or lon parameters' });
         }
 
-        // 2. Определение и валидация источника
         let source = sourceQuery || 'auto';
 
         // Поддержка синонимов (из требований и тестов)
@@ -39,19 +34,17 @@ async function getAirQuality(req, res) {
             return res.status(400).json({ error: 'Invalid source parameter' });
         }
 
-        // 3. Формирование ключа кэша (округление координат до 2 знаков, ~1.1 км)
+        // Округление координат до 2 знаков (~1.1 км) для сетки кэша
         const latStr = lat.toFixed(2);
         const lonStr = lon.toFixed(2);
         const cacheKey = `air_${source}_${latStr}_${lonStr}`;
 
-        // 4. Проверка быстрого кэша
         const cachedData = await cacheService.getCache(cacheKey, false);
         if (cachedData) {
             const merged = await historyService.mergeWithFresh(cachedData, lat, lon);
-            return res.json(merged); // возвращаем сразу, без внешних запросов
+            return res.json(merged);
         }
 
-        // 5. Выбор стратегии загрузки при промахе кэша
         let freshData = null;
         try {
             if (source === 'open-meteo') {
@@ -59,7 +52,6 @@ async function getAirQuality(req, res) {
             } else if (source === 'open-weather-map') {
                 freshData = await backupAirService.fetchAirQuality(lat, lon);
             } else {
-                // auto: сначала основной источник, затем резервный
                 try {
                     freshData = await primaryAirService.fetchAirQuality(lat, lon);
                 } catch (primaryErr) {
@@ -69,8 +61,6 @@ async function getAirQuality(req, res) {
             }
         } catch (fetchError) {
             console.error('Все доступные внешние источники вернули ошибку:', fetchError.message);
-
-            // 6. Полный сбой источников -> Офлайн-резерв
 
             const DEFAULT_HOURLY_UNITS = {
                 time: 'iso8601',
@@ -86,7 +76,6 @@ async function getAirQuality(req, res) {
                 european_aqi: 'EAQI'
             };
 
-            // 6.1 Проверка устаревшего кэша (игнорирование TTL)
             const staleData = await cacheService.getCache(cacheKey, true);
             if (staleData) {
                 const merged = await historyService.mergeWithFresh(staleData, lat, lon);
@@ -94,14 +83,12 @@ async function getAirQuality(req, res) {
                 return res.json(merged);
             }
 
-            // 6.2 Последняя запись из архива БД
             const latestRecord = await historyService.getLatest(lat, lon);
             if (latestRecord) {
                 let pollutantData = {};
                 try {
                     pollutantData = JSON.parse(latestRecord.pollutant_data);
                 } catch (e) {
-                    // Игнорируем ошибку парсинга, если данные повреждены
                 }
 
                 const timeStr = timeUtils.formatIsoHourMillis(latestRecord.timestamp);
@@ -111,7 +98,6 @@ async function getAirQuality(req, res) {
                     hourly[key] = [value];
                 }
 
-                // Гарантируем наличие базовых полей в hourly
                 const standardFields = ['pm10', 'pm2_5', 'carbon_monoxide', 'nitrogen_dioxide', 'sulphur_dioxide', 'ozone', 'european_aqi'];
                 for (const field of standardFields) {
                     if (!hourly[field]) {
@@ -119,7 +105,6 @@ async function getAirQuality(req, res) {
                     }
                 }
 
-                // Сборка ответа в нормализованном формате
                 return res.json({
                     latitude: lat,
                     longitude: lon,
@@ -132,15 +117,11 @@ async function getAirQuality(req, res) {
                 });
             }
 
-            // 6.3 Данных нет вообще нигде
             return res.status(500).json({
                 error: 'Failed to fetch air quality data and no offline cache available'
             });
         }
 
-        // 7. Успешный ответ от внешних источников: сохранение и возврат
-
-        // Пишем свежие данные в кэш на 1 час (3600 секунд)
         await cacheService.setCache(cacheKey, freshData, 3600);
 
         // Асинхронное накопление архива (INSERT OR IGNORE) без блокировки потока
@@ -148,9 +129,7 @@ async function getAirQuality(req, res) {
             console.error('Ошибка сохранения данных в архив (historyService):', err.message);
         });
 
-        // Слияние свежего ответа с историей
         const mergedData = await historyService.mergeWithFresh(freshData, lat, lon);
-
         return res.json(mergedData);
 
     } catch (error) {
@@ -189,7 +168,6 @@ async function locateByIp(req, res) {
         const axios = require('axios');
         const clientIp = getClientIp(req);
 
-        // 1. Попытка через ipwho.is (по IP клиента, если он известен)
         try {
             const url = clientIp ? `https://ipwho.is/${encodeURIComponent(clientIp)}` : 'https://ipwho.is/';
             const resp = await axios.get(url, { timeout: 3500 });
@@ -201,10 +179,8 @@ async function locateByIp(req, res) {
                 });
             }
         } catch {
-            // fallback
         }
 
-        // 2. Попытка через ipapi.co
         try {
             const url = clientIp ? `https://ipapi.co/${encodeURIComponent(clientIp)}/json/` : 'https://ipapi.co/json/';
             const resp = await axios.get(url, { timeout: 3500 });
@@ -216,11 +192,10 @@ async function locateByIp(req, res) {
                 });
             }
         } catch {
-            // fallback
         }
 
-        // 3. Fallback по умолчанию (Новокузнецк).
-        // Помечаем ответ заголовком, чтобы фронтенд мог попробовать браузерный IP-сервис
+        // Fallback по умолчанию (Новокузнецк).
+        // Помечаем ответ заголовком X-Geo-Fallback, чтобы фронтенд мог попробовать браузерный IP-сервис
         // и не принимать этот «статический» город за реальный результат геолокации.
         if (typeof res.set === 'function') {
             res.set('X-Geo-Fallback', '1');

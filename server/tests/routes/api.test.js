@@ -12,7 +12,6 @@ jest.mock('../../controllers/searchController', () => ({
     search: jest.fn()
 }));
 
-// Пример нормализованного ответа внешнего источника (формат Open-Meteo).
 const airQualityData = {
     latitude: 55.75,
     longitude: 37.61,
@@ -34,13 +33,11 @@ const airQualityData = {
     }
 };
 
-// Пример ответа геокодера.
 const searchResults = [
     { lat: '55.75583', lon: '37.61778', display_name: 'Москва, Москва, Россия' },
     { lat: '59.93863', lon: '30.31413', display_name: 'Санкт-Петербург, Санкт-Петербург, Россия' }
 ];
 
-// при отсутствии/некорректности lat или lon — 400, иначе — нормализованные данные.
 function airQualityHandler(req, res) {
     const { lat, lon } = req.query;
     const invalid = lat === undefined || lon === undefined ||
@@ -53,7 +50,6 @@ function airQualityHandler(req, res) {
     return res.json(airQualityData);
 }
 
-// при отсутствии/пустом q — 400, иначе — список результатов.
 function searchHandler(req, res) {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     if (q === '') {
@@ -62,7 +58,6 @@ function searchHandler(req, res) {
     return res.json(searchResults);
 }
 
-// Повторяет сборку app из server.js, чтобы тестировать маршруты без прослушивания порта.
 function createApp() {
     const app = express();
     app.use(express.json());
@@ -291,7 +286,6 @@ describe('Routes: API', () => {
             const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
             let appWithGridFail;
             jest.isolateModules(() => {
-                // Мокаем gridAirController так, чтобы require бросал ошибку
                 jest.mock('../../controllers/gridAirController', () => {
                     throw new Error('Module not found');
                 });
@@ -306,7 +300,6 @@ describe('Routes: API', () => {
                 'gridAirController is not yet available:',
                 'Module not found'
             );
-            // Сервер должен продолжать работать, даже без grid-маршрутов
             const res = await request(appWithGridFail).get('/api/non-existent-grid');
             expect(res.status).toBe(404);
             warnSpy.mockRestore();

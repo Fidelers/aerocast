@@ -1,8 +1,6 @@
-// tests/services/cacheService.test.js — тесты кэширования
 const cacheService = require('../../services/cacheService');
 const dbConfig = require('../../config/db');
 
-// Мокаем модуль базы данных
 jest.mock('../../config/db', () => ({
     getDB: jest.fn()
 }));
@@ -11,13 +9,12 @@ describe('Service: cacheService', () => {
     let mockDb;
 
     beforeEach(() => {
-        // Подготавливаем мок БД с методами get и run
         mockDb = {
             get: jest.fn(),
             run: jest.fn()
         };
         dbConfig.getDB.mockReturnValue(mockDb);
-        jest.useFakeTimers().setSystemTime(new Date('2026-09-16T12:00:00Z')); // Фиксируем время
+        jest.useFakeTimers().setSystemTime(new Date('2026-09-16T12:00:00Z'));
     });
 
     afterEach(() => {
@@ -31,7 +28,6 @@ describe('Service: cacheService', () => {
         const fakeDataString = JSON.stringify(fakeData);
 
         it('должен возвращать распарсенные данные, если запись валидна (Cache Hit)', async () => {
-            // Имитируем, что запись в БД есть и срок expires_at в будущем
             mockDb.get.mockResolvedValue({
                 data: fakeDataString,
                 expires_at: Date.now() + 10000
@@ -54,7 +50,6 @@ describe('Service: cacheService', () => {
         });
 
         it('должен возвращать null, если запись просрочена и ignoreTTL = false', async () => {
-            // Срок истек
             mockDb.get.mockResolvedValue({
                 data: fakeDataString,
                 expires_at: Date.now() - 10000
@@ -79,7 +74,7 @@ describe('Service: cacheService', () => {
         it('должен записывать данные в БД и удалять старые записи (старше 7 суток)', async () => {
             const key = 'search_москва';
             const data = { lat: 55, lon: 37 };
-            const ttlSeconds = 86400; // 24 часа
+            const ttlSeconds = 86400;
 
             await cacheService.setCache(key, data, ttlSeconds);
 
@@ -87,13 +82,11 @@ describe('Service: cacheService', () => {
             const expectedUpdatedAt = Date.now();
             const expectedOldDateLimit = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-            // Проверка INSERT OR REPLACE
             expect(mockDb.run).toHaveBeenNthCalledWith(1,
                 'INSERT OR REPLACE INTO api_cache (key, data, expires_at, updated_at) VALUES (?, ?, ?, ?)',
                 [key, JSON.stringify(data), expectedExpiresAt, expectedUpdatedAt]
             );
 
-            // Проверка очистки старья
             expect(mockDb.run).toHaveBeenNthCalledWith(2,
                 'DELETE FROM api_cache WHERE updated_at < ?',
                 [expectedOldDateLimit]
@@ -103,8 +96,8 @@ describe('Service: cacheService', () => {
 
     describe('getCacheStats()', () => {
         it('должен возвращать статистику кэша', async () => {
-            mockDb.get.mockResolvedValueOnce({ count: 12 }); // Для entries
-            mockDb.get.mockResolvedValueOnce({ count: 3 });  // Для expired
+            mockDb.get.mockResolvedValueOnce({ count: 12 });
+            mockDb.get.mockResolvedValueOnce({ count: 3 });
 
             const stats = await cacheService.getCacheStats();
 
@@ -140,7 +133,6 @@ describe('Service: cacheService', () => {
 
     describe('In-memory fallback (деградация во in-memory Map при отказе БД)', () => {
         beforeEach(() => {
-            // Имитируем недоступность базы данных
             dbConfig.getDB.mockReturnValue(null);
         });
 
@@ -158,8 +150,8 @@ describe('Service: cacheService', () => {
             const key = 'in_mem_expired';
             const data = { temp: 18 };
 
-            await cacheService.setCache(key, data, 10); // 10 секунд
-            jest.advanceTimersByTime(11000); // Проматываем 11 секунд
+            await cacheService.setCache(key, data, 10);
+            jest.advanceTimersByTime(11000);
 
             const cached = await cacheService.getCache(key, false);
             expect(cached).toBeNull();

@@ -1,5 +1,3 @@
-// tests/services/primaryAirService.test.js — тесты основного источника данных
-
 const axios = require('axios');
 const primaryAirService = require('../../services/primaryAirService');
 

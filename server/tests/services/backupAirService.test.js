@@ -1,5 +1,3 @@
-// tests/services/backupAirService.test.js
-
 const axios = require('axios');
 const aqiCalculator = require('../../services/aqiCalculator');
 const backupAirService = require('../../services/backupAirService');
@@ -16,7 +14,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
     const originalEnv = process.env;
 
     beforeEach(() => {
-        // Изолируем переменные окружения перед каждым тестом
         process.env = { ...originalEnv, BACKUP_API_KEY: mockApiKey };
     });
 
@@ -33,7 +30,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
                 .rejects
                 .toThrow(/источник недоступен|api key/i);
 
-            // Запрос не должен отправляться без ключа
             expect(axios.get).not.toHaveBeenCalled();
         });
     });
@@ -42,7 +38,7 @@ describe('Service: backupAirService.fetchAirQuality', () => {
         const expectedUrl = `https://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${mockApiKey}`;
 
         it('должен корректно нормализовать ответ OpenWeatherMap под формат Open-Meteo', async () => {
-            // ARRANGE: OpenWeatherMap отдает Unix timestamp (секунды) в UTC
+            // OpenWeatherMap отдает Unix timestamp (секунды) в UTC:
             // 1704067200 -> 2024-01-01 00:00:00 UTC -> 2024-01-01 03:00:00 Europe/Moscow (+3)
             // 1704070800 -> 2024-01-01 01:00:00 UTC -> 2024-01-01 04:00:00 Europe/Moscow (+3)
             const mockOwmResponse = {
@@ -61,7 +57,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
                     },
                     {
                         dt: 1704070800,
-                        // components не содержит некоторых полей — они должны замениться на 0
                         components: {
                             pm10: 30.0,
                             pm2_5: 15.0
@@ -72,19 +67,15 @@ describe('Service: backupAirService.fetchAirQuality', () => {
 
             axios.get.mockResolvedValue({ data: mockOwmResponse });
 
-            // Задаем поведение мока для калькулятора AQI
             aqiCalculator.calculateEAQI
-                .mockReturnValueOnce(2) // для первой точки
-                .mockReturnValueOnce(3); // для второй точки
+                .mockReturnValueOnce(2)
+                .mockReturnValueOnce(3);
 
-            // ACT
             const result = await backupAirService.fetchAirQuality(lat, lon);
 
-            // ASSERT: 1. Проверка сетевого вызова
             expect(axios.get).toHaveBeenCalledTimes(1);
             expect(axios.get).toHaveBeenCalledWith(expectedUrl, { timeout: 1000 });
 
-            // ASSERT: 2. Проверка работы калькулятора
             expect(aqiCalculator.calculateEAQI).toHaveBeenCalledTimes(2);
             expect(aqiCalculator.calculateEAQI).toHaveBeenNthCalledWith(1, {
                 pm10: 22.0,
@@ -94,7 +85,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
                 so2: 5.1,
                 o3: 45.0
             });
-            // Проверяем, что отсутствующие загрязнители были переданы как 0
             expect(aqiCalculator.calculateEAQI).toHaveBeenNthCalledWith(2, {
                 pm10: 30.0,
                 pm2_5: 15.0,
@@ -104,7 +94,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
                 o3: 0
             });
 
-            // ASSERT: 3. Проверка финального формата
             expect(result).toEqual({
                 latitude: lat,
                 longitude: lon,
@@ -130,7 +119,6 @@ describe('Service: backupAirService.fetchAirQuality', () => {
                     nitrogen_dioxide: [18.2, 0],
                     sulphur_dioxide: [5.1, 0],
                     ozone: [45.0, 0],
-                    // Недоступные в источнике метрики заполняются массивом нулей той же длины (2)
                     aerosol_optical_depth: [0, 0],
                     dust: [0, 0],
                     uv_index: [0, 0],
@@ -182,7 +170,7 @@ describe('Service: backupAirService.fetchAirQuality', () => {
                 data: {
                     coord: { lat, lon },
                     list: [
-                        { dt: 1704067200 } // components опущен
+                        { dt: 1704067200 }
                     ]
                 }
             });

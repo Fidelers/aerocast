@@ -1,15 +1,11 @@
-// services/cacheService.js — кэширование ответов внешних запросов
-// Если база недоступна (битый файл, нет драйвера) — кэш на время
-// запроса деградирует во in-memory Map, сервер при этом продолжает работать.
+// Если база недоступна (битый файл, нет драйвера) — кэш деградирует во in-memory Map, сервер продолжает работать.
 
 const { getDB } = require('../config/db');
 
-// Предел хранения записей: 7 суток
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const memory = new Map();
 
-// Любой сбой даёт null — кэш в этом случае уходит во in-memory запас и сервер продолжает работать.
 async function getDbOrNull() {
     try {
         const db = await Promise.resolve(getDB());
@@ -19,7 +15,6 @@ async function getDbOrNull() {
     }
 }
 
-// Прочитать кэш. key — строка ключа; ignoreTTL — игнорировать срок действия
 async function getCache(key, ignoreTTL = false) {
     const db = await getDbOrNull();
     if (!db) {
@@ -38,7 +33,6 @@ async function getCache(key, ignoreTTL = false) {
     return JSON.parse(row.data);
 }
 
-// Записать данные в кэш. key — ключ; data — объект (сериализуется в JSON); ttlSeconds — срок действия в секундах.
 async function setCache(key, data, ttlSeconds) {
     const db = await getDbOrNull();
     const expiresAt = Date.now() + ttlSeconds * 1000;
@@ -52,11 +46,9 @@ async function setCache(key, data, ttlSeconds) {
         'INSERT OR REPLACE INTO api_cache (key, data, expires_at, updated_at) VALUES (?, ?, ?, ?)',
         [key, JSON.stringify(data), expiresAt, Date.now()]
     );
-    // Чистка записей старше 7 суток.
     await db.run('DELETE FROM api_cache WHERE updated_at < ?', [Date.now() - SEVEN_DAYS_MS]);
 }
 
-// общее число записей и число уже просроченных.
 async function getCacheStats() {
     const db = await getDbOrNull();
     if (!db) {
@@ -76,8 +68,6 @@ async function getCacheStats() {
     return { entries: entriesRow.count, expired: expiredRow.count };
 }
 
-// Принудительная очистка кэша: по конкретному ключу или всей таблицы (без ключа).
-// Возвращает число удалённых записей.
 async function clear(key) {
     const db = await getDbOrNull();
     if (!db) {

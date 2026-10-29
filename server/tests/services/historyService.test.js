@@ -1,5 +1,3 @@
-// tests/services/historyService.test.js — тесты истории замеров
-
 const historyService = require('../../services/historyService');
 const dbConfig = require('../../config/db');
 
@@ -17,7 +15,7 @@ describe('Service: historyService', () => {
             run: jest.fn()
         };
         dbConfig.getDB.mockReturnValue(mockDb);
-        jest.useFakeTimers().setSystemTime(new Date('2026-09-19T12:00:00Z')); // Фиксируем время
+        jest.useFakeTimers().setSystemTime(new Date('2026-09-19T12:00:00Z'));
     });
 
     afterEach(() => {
@@ -48,10 +46,8 @@ describe('Service: historyService', () => {
             // Отфильтровываем INSERT-вызовы, чтобы не смешивать их с DELETE-очисткой.
             const insertCalls = mockDb.run.mock.calls.filter(([sql]) => String(sql).includes('INSERT OR IGNORE'));
             expect(insertCalls).toHaveLength(1);
-            // Параметры вставки: (latitude, longitude, timestamp, pollutant_data, source)
             expect(insertCalls[0][1]).toEqual(expect.arrayContaining([55.75, 37.61]));
 
-            // Проверяем очистку старых данных (старше 7 суток)
             const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
             expect(mockDb.run).toHaveBeenCalledWith(
                 'DELETE FROM air_quality_history WHERE timestamp < ?',
@@ -270,39 +266,36 @@ describe('Service: historyService', () => {
         });
 
         it('должен корректно объединять свежие данные с архивом (приоритет у свежих)', async () => {
-            const lat = 55.756; // Должно округлиться до 55.76
-            const lon = 37.614; // Должно округлиться до 37.61
+            const lat = 55.756;
+            const lon = 37.614;
 
             const freshData = {
                 latitude: lat,
                 longitude: lon,
                 hourly: {
                     time: ['2026-09-19T12:00'],
-                    pm10: [50] // Свежие данные: pm10 = 50
+                    pm10: [50]
                 }
             };
 
-            // Мокаем ответ из архива: старая запись за 11:00 и конфликтная за 12:00
             mockDb.all.mockResolvedValue([
                 {
-                    timestamp: new Date('2026-09-19T08:00:00Z').getTime(), // 11:00 по Москве
+                    timestamp: new Date('2026-09-19T08:00:00Z').getTime(),
                     pollutant_data: JSON.stringify({ pm10: 30 })
                 },
                 {
-                    timestamp: new Date('2026-09-19T09:00:00Z').getTime(), // 12:00 по Москве (будет перекрыто)
+                    timestamp: new Date('2026-09-19T09:00:00Z').getTime(),
                     pollutant_data: JSON.stringify({ pm10: 999 })
                 }
             ]);
 
             const result = await historyService.mergeWithFresh(freshData, lat, lon);
 
-            // Проверяем, что запрос ушел с округленными координатами
             expect(mockDb.all).toHaveBeenCalledWith(
                 expect.stringContaining('WHERE latitude = ? AND longitude = ?'),
                 [55.76, 37.61, expect.any(Number)]
             );
 
-            // Проверяем результат слияния
             expect(result.hourly.time).toEqual(['2026-09-19T11:00', '2026-09-19T12:00']);
             // Значение за 11:00 берется из БД (30). Значение за 12:00 из свежих данных (50), а не 999.
             expect(result.hourly.pm10).toEqual([30, 50]);
@@ -354,7 +347,7 @@ describe('Service: historyService', () => {
             mockDb.all.mockResolvedValue([
                 {
                     timestamp: new Date('2026-09-19T08:00:00Z').getTime(),
-                    pollutant_data: JSON.stringify({ pm10: 25 }) // o3 отсутствует
+                    pollutant_data: JSON.stringify({ pm10: 25 })
                 }
             ]);
             const result = await historyService.mergeWithFresh(freshData, 55.75, 37.61);
@@ -371,7 +364,7 @@ describe('Service: historyService', () => {
             };
             mockDb.all.mockResolvedValue([
                 {
-                    timestamp: new Date('2026-09-19T08:00:00Z').getTime(), // 11:00 МСК
+                    timestamp: new Date('2026-09-19T08:00:00Z').getTime(),
                     pollutant_data: JSON.stringify({ pm10: 30 })
                 }
             ]);

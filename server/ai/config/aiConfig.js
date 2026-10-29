@@ -1,12 +1,9 @@
-// server/ai/config/aiConfig.js
-
 module.exports = {
-    // Теперь указываем на внутренний сервис Docker
     baseURL: process.env.LLM_BASE_URL || 'http://llama-server:8080/v1',
     get apiKey() {
         return process.env.LLM_API_KEY || 'not-needed';
     },
-    // Имя модели для llama-server обычно игнорируется, но зададим для совместимости
+    // Имя модели для llama-server обычно игнорируется, но задано для совместимости с OpenAI API
     model: process.env.LLM_MODEL || 'gemma-4-E2B-it-Q4_K_M',
     maxTokens: parseInt(process.env.LLM_MAX_TOKENS, 10) || 800,
     temperature: parseFloat(process.env.LLM_TEMPERATURE) || 0.8,

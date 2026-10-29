@@ -42,12 +42,10 @@ app.get('/ping', (req, res) => {
     res.json({ message: 'Бэкенд на связи!' });
 });
 
-// Обработчик 404 для неизвестных маршрутов
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Глобальный перехватчик ошибок
 app.use((err, req, res, next) => {
     if (err.message === 'Not allowed by CORS') {
         return res.status(403).json({ error: 'CORS forbidden' });

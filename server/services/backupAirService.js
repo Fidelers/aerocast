@@ -1,4 +1,3 @@
-// services/backupAirService.js — резервный источник данных о качестве воздуха
 const axios = require('axios');
 const aqiCalculator = require('./aqiCalculator');
 const timeUtils = require('./timeUtils');
@@ -7,7 +6,6 @@ const TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS) || 1000;
 const TIMEZONE = 'Europe/Moscow';
 const UTC_OFFSET_SECONDS = 10800;
 
-// Извлекает показатели из item.components, отсутствующие заменяет на 0
 function extractComponents(components) {
     const source = components || {};
     return {
@@ -32,7 +30,6 @@ async function fetchAirQuality(lat, lon) {
         const response = await axios.get(url, { timeout: TIMEOUT_MS });
         const list = Array.isArray(response.data.list) ? response.data.list : [];
 
-        // Массивы показателей одинаковой длины
         const hourly = {
             time: [],
             pm10: [],
@@ -59,7 +56,7 @@ async function fetchAirQuality(lat, lon) {
 
         const pointCount = hourly.time.length;
 
-        // Собираем ответ в формате основного источника (Open-Meteo)
+        // Формируем структуру ответа, совместимую с контрактом Open-Meteo
         return {
             latitude: response.data.coord?.lat ?? lat,
             longitude: response.data.coord?.lon ?? lon,
@@ -79,7 +76,7 @@ async function fetchAirQuality(lat, lon) {
             },
             hourly: {
                 ...hourly,
-                // Показатели, недоступные в источнике, заполняем нулями той же длины
+                // Метрики, отсутствующие в OpenWeatherMap, заполняются нулями для совместимости по длине массивов
                 aerosol_optical_depth: new Array(pointCount).fill(0),
                 dust: new Array(pointCount).fill(0),
                 uv_index: new Array(pointCount).fill(0)

@@ -71,7 +71,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
         it('шаг сетки строго равен 0.10° по широте и долготе (~10–11 км CAMS)', () => {
             const { points } = batchAirService.generateMicroGridCoordinates(centerLat, centerLon);
 
-            // Находим уникальные широты и долготы
             const uniqueLats = [...new Set(points.map(p => Number(p.lat.toFixed(4))))].sort((a, b) => a - b);
             const uniqueLons = [...new Set(points.map(p => Number(p.lon.toFixed(4))))].sort((a, b) => a - b);
 
@@ -169,7 +168,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
         });
 
         it('выполняет чанкированные запросы при большом количестве координат (>250)', async () => {
-            // Создаём 300 координат — больше CHUNK_SIZE (250), чтобы вызвать чанкирование
             const manyCoords = Array.from({ length: 300 }, (_, i) => ({
                 lat: 55 + i * 0.001,
                 lon: 37 + i * 0.001
@@ -178,7 +176,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             const chunk1Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } }];
             const chunk2Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t2'], european_aqi: [20] } }];
 
-            // Первый вызов для первого чанка (250 координат), второй для второго (50 координат)
             axios.get.mockResolvedValueOnce({ data: chunk1Data });
             axios.get.mockResolvedValueOnce({ data: chunk2Data });
 
@@ -192,7 +189,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             const rateLimitError = new Error('Rate limited');
             rateLimitError.response = { status: 429 };
 
-            // Создаём 300 координат — больше CHUNK_SIZE (250) — чтобы попасть в чанкированный путь
             const manyCoords = Array.from({ length: 300 }, (_, i) => ({
                 lat: 55 + i * 0.001,
                 lon: 37 + i * 0.001
@@ -201,7 +197,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             const chunk1Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } }];
             const chunk2Data = [{ latitude: 55, longitude: 37, hourly: { time: ['t2'], european_aqi: [20] } }];
 
-            // Первый чанк: 429 ошибка, второй чанк: успех
             axios.get.mockRejectedValueOnce(rateLimitError);
             axios.get.mockResolvedValueOnce({ data: chunk1Data });
             axios.get.mockResolvedValueOnce({ data: chunk2Data });
@@ -210,7 +205,7 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             const result = await batchAirService.fetchBatchAirQuality(manyCoords);
             const elapsed = Date.now() - start;
 
-            expect(axios.get).toHaveBeenCalledTimes(3); // 1st chunk fail + 1st chunk retry + 2nd chunk
+            expect(axios.get).toHaveBeenCalledTimes(3);
             expect(elapsed).toBeGreaterThanOrEqual(1500);
             expect(result).toEqual([...chunk1Data, ...chunk2Data]);
         });
@@ -241,7 +236,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
                 lon: 37 + i * 0.001
             }));
 
-            // Первый чанк возвращает объект (не массив), второй — массив
             axios.get.mockResolvedValueOnce({ data: { latitude: 55, longitude: 37, hourly: { time: ['t1'], european_aqi: [10] } } });
             axios.get.mockResolvedValueOnce({ data: [{ latitude: 56, longitude: 38, hourly: { time: ['t2'], european_aqi: [20] } }] });
 

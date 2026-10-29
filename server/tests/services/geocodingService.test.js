@@ -1,5 +1,3 @@
-// tests/services/geocodingService.test.js — тесты геокодирования
-
 const axios = require('axios');
 const geocodingService = require('../../services/geocodingService');
 
@@ -32,7 +30,7 @@ describe('Service: geocodingService.search', () => {
                     results: [
                         {
                             name: 'Москва',
-                            admin1: 'Москва', // admin1 обычно выступает регионом
+                            admin1: 'Москва',
                             country: 'Россия',
                             latitude: 55.75583,
                             longitude: 37.61778

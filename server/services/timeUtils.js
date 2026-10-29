@@ -1,10 +1,5 @@
-// services/timeUtils.js — утилиты работы со временем
-// Все метки времени в проекте приводятся к строке "ГГГГ-ММ-ДДTЧЧ:00"
-// в часовом поясе Europe/Moscow (см. backupAirService и historyService).
-
+// Все метки времени в проекте приводятся к строке "ГГГГ-ММ-ДДTЧЧ:00" в часовом поясе Europe/Moscow
 const TIMEZONE = 'Europe/Moscow';
-
-// Приводит Unix-время (секунды, UTC) к строке "ГГГГ-ММ-ДДTЧЧ:00" в Europe/Moscow.
 
 function formatIsoHour(unixSeconds) {
     const date = new Date(unixSeconds * 1000);
@@ -22,12 +17,10 @@ function formatIsoHour(unixSeconds) {
     return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
-// То же самое, но на вход — Unix-время в миллисекундах
 function formatIsoHourMillis(milliseconds) {
     return formatIsoHour(milliseconds / 1000);
 }
 
-// Возвращает дату в формате "ГГГГ-ММ-ДД" в часовом поясе Europe/Moscow
 function getTodayDateString(timestamp = Date.now()) {
     const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
     const parts = new Intl.DateTimeFormat('sv-SE', {
@@ -41,7 +34,6 @@ function getTodayDateString(timestamp = Date.now()) {
     return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-// Проверяет, относится ли переданная дата/время к сегодняшнему дню в часовом поясе Europe/Moscow
 function isToday(timestampOrDate, referenceDate = Date.now()) {
     if (!timestampOrDate && timestampOrDate !== 0) return false;
     let ms = timestampOrDate;
