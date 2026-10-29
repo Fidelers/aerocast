@@ -26,7 +26,11 @@ function Sidebar({
   onClose,
   mascotMode = 'mascot',
   activeBaseLayer = 'osm',
-  onBaseLayerChange
+  onBaseLayerChange,
+  isColorBlind,
+  onColorBlindChange,
+  colorBlindType,
+  onColorBlindTypeChange
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -919,6 +923,10 @@ function Sidebar({
             mascotUnderChat={mascotMode === 'mascot'}
             activeBaseLayer={activeBaseLayer}
             onBaseLayerChange={onBaseLayerChange}
+            isColorBlind={isColorBlind}
+            onColorBlindChange={onColorBlindChange}
+            colorBlindType={colorBlindType}
+            onColorBlindTypeChange={onColorBlindTypeChange}
           />
         </div>
       ) : mascotMode === 'button' ? (

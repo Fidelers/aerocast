@@ -341,6 +341,10 @@ function App({ referenceDate } = {}) {
                 mascotMode={mascotMode}
                 activeBaseLayer={activeBaseLayer}
                 onBaseLayerChange={handleBaseLayerChange}
+                isColorBlind={isColorBlind}
+                onColorBlindChange={setIsColorBlind}
+                colorBlindType={colorBlindType}
+                onColorBlindTypeChange={setColorBlindType}
             />
             <div
                 className={`sidebar-backdrop ${isMobileSidebarOpen ? 'sidebar-backdrop--visible' : ''}`}

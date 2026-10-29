@@ -52,6 +52,59 @@ function detectMapLayerIntent(text) {
     return null;
 }
 
+/**
+ * Распознает команду переключения режима доступности для дальтоников:
+ * { enabled: false } — выключение
+ * { enabled: true, colorBlindType: 'okabe' | 'deuteranopia' | 'protanopia' | 'tritanopia' } — включение
+ * { unsupported: true, requested?: string } — запрос нереализованного вида
+ */
+function detectColorBlindIntent(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.toLowerCase().trim();
+
+    // Вопросы о дальтонизме не должны триггерить действие
+    const IS_QUESTION_REGEX = /^(?:какие|какой|что\s+такое|расскажи|как\s+включить|как\s+настроить|где\s+настроить|почему|зачем)\b/i;
+    if (IS_QUESTION_REGEX.test(clean)) return null;
+
+    // 1. Выключение режима дальтонизма
+    const TO_OFF_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:мне\s+)?(?:режим\s+)?(?:дальтонизм[а-я]*|дальтоник[а-я]*|для\s+дальтоников|доступност[иь]|цветовую\s+слепоту|дейтеранопи[юеи]|протанопи[юеи]|тританопи[юеи]|окабе)|(?:верни(?:ть)?\s+(?:стандартн[а-я]+|обычн[а-я]+)\s+цвета)|^(?:выключи\s+дальтонизм|отключи\s+дальтонизм)$/i;
+    if (TO_OFF_REGEX.test(clean)) return { enabled: false };
+
+    // Известные медицинские термины, не реализованные в приложении
+    const KNOWN_UNSUPPORTED = /(?:ахроматопс[а-я]*|монохромаз[а-я]*|дихромаз[а-я]*|тетрахромат[а-я]*|трихромат[а-я]*|блютоп[а-я]*|редтоп[а-я]*)/i;
+    if (KNOWN_UNSUPPORTED.test(clean)) {
+        return { unsupported: true };
+    }
+
+    // Проверяем паттерны вида: "режим дальтонизма <название>", "палитра <название>", "дальтонизм <название>"
+    const SPECIFIED_TYPE_REGEX = /(?:режим(?:а)?\s+дальтонизма\s+|дальтонизм(?:а)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
+    const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
+    if (specMatch) {
+        const word = specMatch[1].toLowerCase();
+        if (/^(?:окабе|okabe)$/i.test(word)) return { enabled: true, colorBlindType: 'okabe' };
+        if (/^(?:дейтераноп[а-я]*|deuteranop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'deuteranopia' };
+        if (/^(?:протаноп[а-я]*|protanop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'protanopia' };
+        if (/^(?:тританоп[а-я]*|tritanop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'tritanopia' };
+        if (!/^(?:по|для|в|на|онлайн|свой|новый|мне|только|все)$/i.test(word)) {
+            return { unsupported: true, requested: word };
+        }
+    }
+
+    // 2. Явное указание одного из 4 поддерживаемых видов
+    if (/(?:дейтераноп[а-я]*|deuteranop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'deuteranopia' };
+    if (/(?:протаноп[а-я]*|protanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'protanopia' };
+    if (/(?:тританоп[а-я]*|tritanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'tritanopia' };
+    if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
+
+    // 3. Запрос на включение дальтонизма без указания типа -> Окабе по умолчанию
+    const GENERAL_ON_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|сделай|активируй|открой)\s+(?:мне\s+)?(?:режим\s+)?(?:дальтонизм[а-я]*|дальтоник[а-я]*|для\s+дальтоников|доступност[иь]|цветовую\s+слепоту)|^(?:дальтонизм|режим\s+дальтонизма)$/i;
+    if (GENERAL_ON_REGEX.test(clean)) {
+        return { enabled: true, colorBlindType: 'okabe' };
+    }
+
+    return null;
+}
+
 async function retry(fn, retries = 3, delay = 1000) {
     try {
         return await fn();
@@ -160,8 +213,28 @@ async function sendChatMessage({ history = [], userMessage }) {
                 if (actVal === 'satellite' || actVal === 'osm') {
                     action = { type: 'set_base_layer', layer: actVal };
                 }
+            } else if (actType === 'set_colorblind' || actType === 'colorblind') {
+                if (actVal === 'off' || actVal === 'false' || actVal === 'disable' || actVal === 'disabled') {
+                    action = { type: 'set_colorblind', enabled: false };
+                } else if (['okabe', 'deuteranopia', 'protanopia', 'tritanopia'].includes(actVal)) {
+                    action = { type: 'set_colorblind', enabled: true, colorBlindType: actVal };
+                }
             }
             reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)?[\])]/gi, '').trim();
+        }
+
+        // Если пользователь запросил нереализованный вид дальтонизма — строго сообщаем об этом
+        const cbIntent = detectColorBlindIntent(cleanUserMessage);
+        if (cbIntent?.unsupported) {
+            action = null;
+            reply = 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨';
+            emotion = 'alert';
+        } else if (!action && cbIntent) {
+            if (cbIntent.enabled === false) {
+                action = { type: 'set_colorblind', enabled: false };
+            } else if (cbIntent.enabled === true) {
+                action = { type: 'set_colorblind', enabled: true, colorBlindType: cbIntent.colorBlindType || 'okabe' };
+            }
         }
 
         // Если модель не сгенерировала тег действия, но пользователь явно просил переключить слой:
@@ -285,6 +358,37 @@ async function sendChatMessage({ history = [], userMessage }) {
             };
         }
 
+        // Fallback для смены дальтонизма при оффлайне/сбое LLM
+        const fallbackCB = detectColorBlindIntent(cleanUserMessage);
+        if (fallbackCB?.unsupported) {
+            return {
+                reply: 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨',
+                model: aiConfig.model,
+                emotion: 'alert',
+                action: null
+            };
+        }
+        if (fallbackCB?.enabled === false) {
+            return {
+                reply: 'Как скажешь! Возвращаю стандартную цветовую гамму, ня! ✨',
+                model: aiConfig.model,
+                emotion: 'happy',
+                action: { type: 'set_colorblind', enabled: false }
+            };
+        }
+        if (fallbackCB?.enabled === true) {
+            const cbType = fallbackCB.colorBlindType || 'okabe';
+            const typeLabels = { okabe: 'Окабе (по умолчанию)', deuteranopia: 'Дейтеранопию', protanopia: 'Протанопию', tritanopia: 'Тританопию' };
+            return {
+                reply: cbType === 'okabe'
+                    ? 'Секундочку! Включаю режим доступности для людей с нарушением цветовосприятия с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨'
+                    : `Без проблем! Переключаю палитру дальтонизма на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
+                model: aiConfig.model,
+                emotion: 'happy',
+                action: { type: 'set_colorblind', enabled: true, colorBlindType: cbType }
+            };
+        }
+
         const status = err.response?.status;
         const errMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
 
@@ -306,5 +410,6 @@ async function transcribeAudio({ audioBase64, mimeType = 'audio/webm' }) {
 module.exports = {
     sendChatMessage,
     transcribeAudio,
-    detectMapLayerIntent
+    detectMapLayerIntent,
+    detectColorBlindIntent
 };

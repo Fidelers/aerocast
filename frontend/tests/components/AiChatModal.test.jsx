@@ -357,4 +357,131 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText(/Переключаю карту на спутниковые снимки ESRI/i)).toBeDefined();
     });
   });
+
+  it('вызывает onColorBlindChange(true) и onColorBlindTypeChange("okabe") при включении дальтонизма по умолчанию', async () => {
+    const handleColorBlindChange = vi.fn();
+    const handleColorBlindTypeChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Включаю палитру Окабе, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        isColorBlind={false}
+        onColorBlindChange={handleColorBlindChange}
+        colorBlindType="okabe"
+        onColorBlindTypeChange={handleColorBlindTypeChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи дальтонизм');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Включаю палитру Окабе, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleColorBlindChange).toHaveBeenCalledWith(true);
+    expect(handleColorBlindTypeChange).toHaveBeenCalledWith('okabe');
+  });
+
+  it('вызывает onColorBlindTypeChange("deuteranopia") при переключении на дейтеранопию', async () => {
+    const handleColorBlindChange = vi.fn();
+    const handleColorBlindTypeChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Переключаю на Дейтеранопию, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        isColorBlind={true}
+        onColorBlindChange={handleColorBlindChange}
+        colorBlindType="okabe"
+        onColorBlindTypeChange={handleColorBlindTypeChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи дейтеранопию');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Переключаю на Дейтеранопию, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleColorBlindChange).toHaveBeenCalledWith(true);
+    expect(handleColorBlindTypeChange).toHaveBeenCalledWith('deuteranopia');
+  });
+
+  it('вызывает onColorBlindChange(false) при выключении дальтонизма', async () => {
+    const handleColorBlindChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Возвращаю стандартные цвета, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_colorblind', enabled: false }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        isColorBlind={true}
+        onColorBlindChange={handleColorBlindChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Выключи дальтонизм');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Возвращаю стандартные цвета, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleColorBlindChange).toHaveBeenCalledWith(false);
+  });
+
+  it('клиентский fallback для нереализованного дальтонизма сообщает об ошибке', async () => {
+    const handleColorBlindChange = vi.fn();
+    const handleColorBlindTypeChange = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onColorBlindChange={handleColorBlindChange}
+        onColorBlindTypeChange={handleColorBlindTypeChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи ахроматопсию');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Такого режима дальтонизма у нас нет/i)).toBeDefined();
+    });
+
+    expect(handleColorBlindChange).not.toHaveBeenCalled();
+    expect(handleColorBlindTypeChange).not.toHaveBeenCalled();
+  });
 });

@@ -405,6 +405,130 @@ describe('AI Module & Local LLM endpoints', () => {
 
             axiosSpy.mockRestore();
         });
+
+        it('распознает тег [action:set_colorblind:okabe] и возвращает action, удаляя тег', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_colorblind:okabe] Включаю палитру Окабе, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Включи дальтонизм' });
+            expect(result.emotion).toBe('happy');
+            expect(result.reply).toBe('Включаю палитру Окабе, ня! ✨');
+            expect(result.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' });
+
+            axiosSpy.mockRestore();
+        });
+
+        it('при запросе "включи дальтонизм" без указания типа по умолчанию активирует Окабе', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Включаю режим для дальтоников!'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Включи режим дальтонизма' });
+            expect(result.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' });
+
+            axiosSpy.mockRestore();
+        });
+
+        it('при указании конкретного типа (дейтеранопия, протанопия, тританопия) включает соответствующий тип', async () => {
+            const deutSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_colorblind:deuteranopia] Переключаю на Дейтеранопию, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const deutResult = await aiService.sendChatMessage({ userMessage: 'Переключи на дейтеранопию' });
+            expect(deutResult.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' });
+            deutSpy.mockRestore();
+
+            const protSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Ставлю протанопию!'
+                        }
+                    }]
+                }
+            });
+
+            const protResult = await aiService.sendChatMessage({ userMessage: 'Включи протанопию' });
+            expect(protResult.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'protanopia' });
+            protSpy.mockRestore();
+        });
+
+        it('при запросе нереализованного вида дальтонизма говорит что такого нет и не возвращает action', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_colorblind:achromatopsia] Включаю ахроматопсию!'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Включи ахроматопсию' });
+            expect(result.action).toBeNull();
+            expect(result.reply).toContain('Такого режима дальтонизма у нас нет');
+            expect(result.reply).toContain('Окабе');
+            expect(result.reply).toContain('Дейтеранопия');
+            expect(result.reply).toContain('Протанопия');
+            expect(result.reply).toContain('Тританопия');
+            expect(result.emotion).toBe('alert');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('корректно выключает режим дальтонизма по запросу пользователя', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_colorblind:off] Выключаю дальтонизм, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({ userMessage: 'Выключи дальтонизм' });
+            expect(result.action).toEqual({ type: 'set_colorblind', enabled: false });
+
+            axiosSpy.mockRestore();
+        });
+
+        it('срабатывает защитный fallback при сбое/оффлайне LLM для смены дальтонизма', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValue(new Error('Connection refused'));
+
+            const okabeResult = await aiService.sendChatMessage({ userMessage: 'Включи дальтонизм' });
+            expect(okabeResult.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' });
+            expect(okabeResult.reply).toContain('Окабе');
+
+            const unsuppResult = await aiService.sendChatMessage({ userMessage: 'Включи монохромазию' });
+            expect(unsuppResult.action).toBeNull();
+            expect(unsuppResult.reply).toContain('Такого режима дальтонизма у нас нет');
+
+            const offResult = await aiService.sendChatMessage({ userMessage: 'Выключи дальтонизм' });
+            expect(offResult.action).toEqual({ type: 'set_colorblind', enabled: false });
+            expect(offResult.reply).toContain('Возвращаю стандартную цветовую гамму');
+
+            axiosSpy.mockRestore();
+        });
     });
 });
 
