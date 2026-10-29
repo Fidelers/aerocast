@@ -200,51 +200,12 @@
   letter-spacing: 0.5px;
 }
 
-.pollutants-grid-toggle {
-  display: flex;
-  background-color: var(--surface-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.grid-toggle-btn {
-  background: transparent;
-  border: none;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding: 2px 7px;
-  border-radius: 4px;
-  cursor: pointer;
-  line-height: 1.2;
-  transition: all 0.15s ease;
-  font-family: var(--inter);
-}
-
-.grid-toggle-btn:hover {
-  color: var(--text-h);
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.grid-toggle-btn--active {
-  background-color: var(--primary);
-  color: #ffffff !important;
-  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
-}
-
 /* Сетка карточек-прямоугольников */
 .pollutants-grid {
   display: grid;
   gap: 6px;
   width: 100%;
   box-sizing: border-box;
-}
-
-/* Сетка 3 × 2 (3 карточки в ряд) */
-.pollutants-grid--3cols {
-  grid-template-columns: repeat(3, 1fr);
 }
 
 /* Сетка 2 × 3 (2 карточки в ряд) */
@@ -651,11 +612,6 @@
 
   .pollutants-section__title {
     font-size: 11px;
-  }
-
-  .grid-toggle-btn {
-    font-size: 11px;
-    padding: 3px 9px;
   }
 
   .pollutants-grid {

@@ -23,27 +23,29 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             expect(c20).toEqual({ r: 76, g: 175, b: 80, a: DEFAULT_ALPHA });
         });
 
-        it('возвращает точные цвета на контрольных границах 40, 60, 80, 100, 150', () => {
-            expect(interpolateAqiColor(40)).toEqual({ r: 139, g: 195, b: 74, a: DEFAULT_ALPHA }); // #8BC34A
-            expect(interpolateAqiColor(60)).toEqual({ r: 255, g: 235, b: 59, a: DEFAULT_ALPHA }); // #FFEB3B
-            expect(interpolateAqiColor(80)).toEqual({ r: 255, g: 152, b: 0, a: DEFAULT_ALPHA });  // #FF9800
-            expect(interpolateAqiColor(100)).toEqual({ r: 244, g: 67, b: 54, a: DEFAULT_ALPHA }); // #F44336
-            expect(interpolateAqiColor(150)).toEqual({ r: 213, g: 0, b: 0, a: DEFAULT_ALPHA });   // #D50000
+        it('возвращает точные цвета на контрольных границах 30, 38, 42, 50, 55, 77, 95, 150', () => {
+            expect(interpolateAqiColor(30)).toEqual({ r: 76, g: 175, b: 80, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(38)).toEqual({ r: 212, g: 225, b: 87, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(42)).toEqual({ r: 255, g: 235, b: 59, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(50)).toEqual({ r: 255, g: 235, b: 59, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(55)).toEqual({ r: 255, g: 152, b: 0, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(77)).toEqual({ r: 244, g: 67, b: 54, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(95)).toEqual({ r: 213, g: 0, b: 0, a: DEFAULT_ALPHA });
+            expect(interpolateAqiColor(150)).toEqual({ r: 213, g: 0, b: 0, a: DEFAULT_ALPHA });
         });
 
         it('плавно интерполирует промежуточные значения между порогами', () => {
-            // AQI = 30 (ровно середина между 20 [76, 175, 80] и 40 [139, 195, 74])
-            // r = round(76 + 31.5) = 108, g = round(175 + 10) = 185, b = round(80 - 3) = 77
-            const c30 = interpolateAqiColor(30);
-            expect(c30.r).toBe(108);
-            expect(c30.g).toBe(185);
-            expect(c30.b).toBe(77);
+            // AQI = 34 (середина между 30 [76, 175, 80] и 38 [212, 225, 87])
+            const c34 = interpolateAqiColor(34);
+            expect(c34.r).toBe(144);
+            expect(c34.g).toBe(200);
+            expect(c34.b).toBe(84);
 
-            // AQI = 50 (середина между 40 и 60)
-            const c50 = interpolateAqiColor(50);
-            expect(c50.r).toBe(197);
-            expect(c50.g).toBe(215);
-            expect(c50.b).toBe(67);
+            // AQI = 40 (середина между 38 [212, 225, 87] и 42 [255, 235, 59])
+            const c40 = interpolateAqiColor(40);
+            expect(c40.r).toBe(234);
+            expect(c40.g).toBe(230);
+            expect(c40.b).toBe(73);
         });
 
         it('ограничивает значения за пределами шкалы (clamp)', () => {
@@ -69,20 +71,22 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         it('возвращает цвета палитры Okabe-Ito на контрольных границах', () => {
             const opts = { colorBlind: true };
             expect(interpolateAqiColor(0, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });    // #0072B2
-            expect(interpolateAqiColor(20, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });   // #0072B2
-            expect(interpolateAqiColor(40, DEFAULT_ALPHA, opts)).toEqual({ r: 86, g: 180, b: 233, a: DEFAULT_ALPHA });  // #56B4E9
-            expect(interpolateAqiColor(60, DEFAULT_ALPHA, opts)).toEqual({ r: 240, g: 228, b: 66, a: DEFAULT_ALPHA });  // #F0E442
-            expect(interpolateAqiColor(80, DEFAULT_ALPHA, opts)).toEqual({ r: 230, g: 159, b: 0, a: DEFAULT_ALPHA });   // #E69F00
-            expect(interpolateAqiColor(100, DEFAULT_ALPHA, opts)).toEqual({ r: 213, g: 94, b: 0, a: DEFAULT_ALPHA });   // #D55E00
+            expect(interpolateAqiColor(30, DEFAULT_ALPHA, opts)).toEqual({ r: 0, g: 114, b: 178, a: DEFAULT_ALPHA });   // #0072B2
+            expect(interpolateAqiColor(38, DEFAULT_ALPHA, opts)).toEqual({ r: 86, g: 180, b: 233, a: DEFAULT_ALPHA });  // #56B4E9
+            expect(interpolateAqiColor(42, DEFAULT_ALPHA, opts)).toEqual({ r: 240, g: 228, b: 66, a: DEFAULT_ALPHA });  // #F0E442
+            expect(interpolateAqiColor(50, DEFAULT_ALPHA, opts)).toEqual({ r: 240, g: 228, b: 66, a: DEFAULT_ALPHA });  // #F0E442
+            expect(interpolateAqiColor(55, DEFAULT_ALPHA, opts)).toEqual({ r: 213, g: 94, b: 0, a: DEFAULT_ALPHA });    // #D55E00
+            expect(interpolateAqiColor(77, DEFAULT_ALPHA, opts)).toEqual({ r: 204, g: 121, b: 167, a: DEFAULT_ALPHA }); // #CC79A7
+            expect(interpolateAqiColor(95, DEFAULT_ALPHA, opts)).toEqual({ r: 123, g: 50, b: 148, a: DEFAULT_ALPHA }); // #7B3294
             expect(interpolateAqiColor(150, DEFAULT_ALPHA, opts)).toEqual({ r: 123, g: 50, b: 148, a: DEFAULT_ALPHA }); // #7B3294
         });
 
         it('интерполирует промежуточные значения в доступной палитре', () => {
-            // AQI = 30 (середина между 20 [0,114,178] и 40 [86,180,233])
-            const c30 = interpolateAqiColor(30, DEFAULT_ALPHA, { colorBlind: true });
-            expect(c30.r).toBe(43);
-            expect(c30.g).toBe(147);
-            expect(c30.b).toBe(206);
+            // AQI = 40 (середина между 38 [86,180,233] и 42 [240,228,66])
+            const c40 = interpolateAqiColor(40, DEFAULT_ALPHA, { colorBlind: true });
+            expect(c40.r).toBe(163);
+            expect(c40.g).toBe(204);
+            expect(c40.b).toBe(150);
         });
 
         it('ограничивает значения за пределами шкалы (clamp) в доступной палитре', () => {
@@ -107,11 +111,11 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             expect(imgData.data[0]).toBe(0);
             expect(imgData.data[1]).toBe(114);
             expect(imgData.data[2]).toBe(178);
-            // Пиксель 1: AQI 90 -> интерполяция между #E69F00 (80) и #D55E00 (100)
+            // Пиксель 1: AQI 90 -> интерполяция между #CC79A7 (77) и #7B3294 (95)
             const idx = 4;
-            expect(imgData.data[idx]).toBe(222); // round(230 + 0.5 * (213-230)) = 222
-            expect(imgData.data[idx + 1]).toBe(127); // round(159 + 0.5 * (94-159)) = 127
-            expect(imgData.data[idx + 2]).toBe(0);
+            expect(imgData.data[idx]).toBe(146);
+            expect(imgData.data[idx + 1]).toBe(70);
+            expect(imgData.data[idx + 2]).toBe(153);
         });
 
         it('renderFieldToBuffer в режиме onlyPollution тоже поддерживает палитру дальтоника', () => {
@@ -124,10 +128,10 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
 
             // Чистый воздух (20) — полностью прозрачен
             expect(imgData.data[3]).toBe(0);
-            // Загрязнение (90) — доступный оранжевый #E69F00..#D55E00
-            expect(imgData.data[4]).toBe(222);
-            expect(imgData.data[5]).toBe(127);
-            expect(imgData.data[6]).toBe(0);
+            // Загрязнение (90) — интерполяция между #CC79A7 (77) и #7B3294 (95)
+            expect(imgData.data[4]).toBe(146);
+            expect(imgData.data[5]).toBe(70);
+            expect(imgData.data[6]).toBe(153);
         });
     });
 
@@ -148,11 +152,11 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             expect(imgData.data[2]).toBe(80);
             expect(imgData.data[3]).toBe(166);
 
-            // Пиксель 99: #F44336, alpha 166
+            // Пиксель 99: AQI 100 (>= 95 -> #D50000), alpha 166
             const idx99 = 99 * 4;
-            expect(imgData.data[idx99]).toBe(244);
-            expect(imgData.data[idx99 + 1]).toBe(67);
-            expect(imgData.data[idx99 + 2]).toBe(54);
+            expect(imgData.data[idx99]).toBe(213);
+            expect(imgData.data[idx99 + 1]).toBe(0);
+            expect(imgData.data[idx99 + 2]).toBe(0);
             expect(imgData.data[idx99 + 3]).toBe(166);
         });
     });

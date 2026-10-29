@@ -10,23 +10,6 @@ const DEFAULT_MIN_VAL = 0;
 const DEFAULT_MAX_VAL = 150;
 
 /**
- * Рассчитывает адаптивный весовой множитель значимости точки в зависимости от EAQI.
- * Точки чистого воздуха (<= 40) имеют базовый вес 1.0.
- * При росте EAQI вес плавно увеличивается, достигая ~2.5 при 110+ (опасный уровень).
- *
- * @param {number} val - значение EAQI
- * @returns {number} множитель веса (от 1.0 до 2.5)
- */
-export function getAqiWeightBoost(val) {
-    if (val == null || typeof val !== 'number' || Number.isNaN(val) || val <= 40) {
-        return 1.0;
-    }
-    // Линейно-плавный рост от 1.0 при 40 до 2.5 при 110+
-    const t = Math.min(1.0, (val - 40) / 70);
-    return 1.0 + (1.5 * t);
-}
-
-/**
  * Прямое преобразование широты в проекцию Web Mercator (EPSG:3857).
  * @param {number} lat - широта в градусах
  * @returns {number} Y-координата Меркатора
@@ -121,8 +104,7 @@ function sanitizePoints(points, timeIndex) {
         const val = extractPointValue(pt, timeIndex);
         if (val === null) continue;
 
-        const boost = getAqiWeightBoost(val);
-        result.push({ lat, lon, val, boost });
+        result.push({ lat, lon, val });
     }
     return result;
 }
@@ -151,8 +133,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
-        useMercator = true,
-        boostPolluted = false
+        useMercator = true
     } = options;
 
     const validPoints = sanitizePoints(points, timeIndex);
@@ -195,8 +176,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
             continue;
         }
 
-        const baseWeight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
-        const weight = boostPolluted ? baseWeight * (pt.boost || 1.0) : baseWeight;
+        const weight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
         sumWeightVal += weight * pt.val;
         sumWeight += weight;
     }
@@ -235,8 +215,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         minVal = DEFAULT_MIN_VAL,
         maxVal = DEFAULT_MAX_VAL,
         timeIndex = null,
-        useMercator = true,
-        boostPolluted = false
+        useMercator = true
     } = options;
 
     const totalPixels = width * height;
@@ -344,8 +323,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
                     continue;
                 }
 
-                const baseWeight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
-                const weight = boostPolluted ? baseWeight * (pt.boost || 1.0) : baseWeight;
+                const weight = isP2 ? 1 / distSq : 1 / Math.pow(distSq, p / 2);
                 sumWeightVal += weight * pt.val;
                 sumWeight += weight;
             }

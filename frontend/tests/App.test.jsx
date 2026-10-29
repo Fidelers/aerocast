@@ -254,7 +254,7 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('sidebar-time').textContent).toBe('1');
             });
 
-            expect(findDefaultTimeIndex).toHaveBeenCalledWith(mockAirData.hourly.time);
+            expect(findDefaultTimeIndex).toHaveBeenCalledWith(mockAirData.hourly.time, expect.any(Date));
         });
 
         it('5. должен корректно обрабатывать ошибку (500), сохранять текст ошибки и снимать флаг загрузки', async () => {

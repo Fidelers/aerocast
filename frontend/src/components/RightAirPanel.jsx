@@ -31,7 +31,6 @@ export default function RightAirPanel({
   onClose,
   isColorBlind = false,
   colorBlindType = 'okabe',
-  initialGridMode = '2x3',
   initialPinnedKey = null,
   onOpenDynamicsModal,
 }) {
@@ -50,23 +49,6 @@ export default function RightAirPanel({
   const handleTileMouseEnter = (key) => {
     if (!pinnedKey) {
       setSelectedKey(key);
-    }
-  };
-  const [gridMode, setGridMode] = useState(() => {
-    // if (typeof window !== 'undefined') {
-    //   const saved = localStorage.getItem('aerocast_pollutants_grid');
-    //   if (saved === '3x2' || saved === '2x3') return saved;
-    // }
-    return initialGridMode;
-  });
-
-  const handleGridModeChange = (mode) => {
-    setGridMode(mode);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('aerocast_pollutants_grid', mode);
-      } catch {
-      }
     }
   };
 
@@ -465,34 +447,10 @@ export default function RightAirPanel({
       <div className="pollutants-section">
         <div className="pollutants-section__header">
           <span className="pollutants-section__title">Основные загрязнители (6)</span>
-          {/*<div className="pollutants-grid-toggle" role="group" aria-label="Выбор сетки загрязнителей">*/}
-          {/*  <button*/}
-          {/*    type="button"*/}
-          {/*    className={'grid-toggle-btn' + (gridMode === '3x2' ? ' grid-toggle-btn--active' : '')}*/}
-          {/*    onClick={() => handleGridModeChange('3x2')}*/}
-          {/*    title="Сетка 3 × 2 (3 карточки в ряд)"*/}
-          {/*    data-testid="grid-toggle-3x2"*/}
-          {/*    aria-pressed={gridMode === '3x2'}*/}
-          {/*  >*/}
-          {/*    3 × 2*/}
-          {/*  </button>*/}
-          {/*  <button*/}
-          {/*    type="button"*/}
-          {/*    className={'grid-toggle-btn' + (gridMode === '2x3' ? ' grid-toggle-btn--active' : '')}*/}
-          {/*    onClick={() => handleGridModeChange('2x3')}*/}
-          {/*    title="Сетка 2 × 3 (2 карточки в ряд)"*/}
-          {/*    data-testid="grid-toggle-2x3"*/}
-          {/*    aria-pressed={gridMode === '2x3'}*/}
-          {/*  >*/}
-          {/*    2 × 3*/}
-          {/*  </button>*/}
-          {/*</div>*/}
         </div>
 
         <div
-          className={`pollutants-grid pollutants-list ${
-            gridMode === '3x2' ? 'pollutants-grid--3cols' : 'pollutants-grid--2cols'
-          }`}
+          className="pollutants-grid pollutants-list pollutants-grid--2cols"
           data-testid="pollutants-grid"
         >
           {POLLUTANTS_LIST.map((item) => {
