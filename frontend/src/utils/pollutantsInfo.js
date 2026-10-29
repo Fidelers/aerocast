@@ -1,4 +1,3 @@
-// метаданные для 6 основных загрязнителей воздуха
 export const POLLUTANTS_METADATA = {
   pm2_5: {
     name: 'Мелкодисперсные частицы (PM2.5)',
@@ -67,14 +66,12 @@ const KEY_ALIASES = {
   carbon_monoxide: 'carbon_monoxide'
 };
 
-// нормализация синонимов ключей загрязнителей
 export function normalizePollutantKey(key) {
   if (!key || typeof key !== 'string') return null;
   const lower = key.trim().toLowerCase();
   return KEY_ALIASES[lower] || null;
 }
 
-// получение метаданных по ключу или синониму
 export function getPollutantMetadata(key) {
   const normalized = normalizePollutantKey(key);
   if (!normalized) return null;
@@ -123,7 +120,6 @@ export const POLLUTANT_COLORBLIND_PALETTES = Object.freeze({
 export function getPollutantAssessment(key, value, options = {}) {
   const num = Number(value);
 
-  // цвета бейджей: стандартная палитра или палитра для выбранного вида дальтонизма
   const cbType = options.colorBlindType || 'okabe';
   const COLORS = options.colorBlind
     ? (POLLUTANT_COLORBLIND_PALETTES[cbType] || POLLUTANT_COLORBLIND_PALETTES.okabe)
@@ -174,7 +170,6 @@ export function getPollutantAssessment(key, value, options = {}) {
   return { label: 'Опасно', level: 'haz', color: COLORS.haz };
 }
 
-// текстовая рекомендация по уровню общего AQI
 export function getAqiRecommendation(aqi) {
   const num = Number(aqi);
   if (aqi === null || aqi === undefined || isNaN(num) || num < 0) return 'нет данных';

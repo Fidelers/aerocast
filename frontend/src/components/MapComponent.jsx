@@ -1,95 +1,12 @@
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-// import '../styles/Popup.css'; // POPUP DISABLED — используется RightAirPanel
 
 import { osmStyle, SATELLITE_MAX_ZOOM, OSM_MAX_ZOOM } from '../styles/mapStyle';
-import { getAqiInfo /*, getAqiRecommendation */ } from '../types'; // getAqiRecommendation — POPUP DISABLED
+import { getAqiInfo } from '../types';
 import { createFieldCanvas, renderFieldToCanvas } from '../utils/canvasFieldRenderer';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import russiaBoundaries from '../utils/russiaBoundary2026.js';
-
-/* POPUP DISABLED — используется RightAirPanel
-const POLLUTANTS = [
-    { key: 'pm2_5', label: 'PM2.5' },
-    { key: 'pm10', label: 'PM10' },
-    { key: 'ozone', label: 'O3' },
-    { key: 'nitrogen_dioxide', label: 'NO2' },
-    { key: 'sulphur_dioxide', label: 'SO2' },
-    { key: 'carbon_monoxide', label: 'CO' },
-];
-
-//Создание попапчика
-function buildPopup(airData, selectedTimeIndex, lat, lon) {
-    const hourly = airData?.hourly;
-
-    const rows = POLLUTANTS.map(({ key, label }) => {
-        const arr = hourly?.[key];
-        const value = arr?.[selectedTimeIndex];
-        const display = value != null && !Number.isNaN(value) ? `${value} μg/m³` : '—';
-        return `<div class="map-popup__row"><span class="map-popup__label">${label}</span><span class="map-popup__value">${display}</span></div>`;
-    }).join('');
-
-    //Заполняем информацию про AQI для вывода
-    const aqiList = hourly?.european_aqi || airData?.european_aqi;
-    const aqiValue = aqiList?.[selectedTimeIndex];
-    let aqiNumber = '—';
-    let aqiLabel = '';
-    let aqiColor = '#9ca3af';
-    let recommendation = '';
-    if (aqiValue != null && !Number.isNaN(aqiValue)) {
-        const info = getAqiInfo(aqiValue);
-        aqiNumber = String(aqiValue);
-        aqiLabel = info.label;
-        aqiColor = info.hex;
-
-        const recommendationText = getAqiRecommendation(aqiValue);
-        recommendation = `
-            <div class="map-popup__recommendation">
-                ${recommendationText}
-            </div>
-        `;
-    }
-
-    const source = airData?.used_source || 'open-meteo';
-
-    const displayLat = lat != null ? Number(lat).toFixed(4) : (airData?.latitude != null ? Number(airData.latitude).toFixed(4) : '—');
-    const displayLon = lon != null ? Number(lon).toFixed(4) : (airData?.longitude != null ? Number(airData.longitude).toFixed(4) : '—');
-
-    const timeRaw = hourly?.time?.[selectedTimeIndex];
-    let timeHtml = '';
-    if (timeRaw) {
-        const parsedTime = parseIsoTimeString(timeRaw);
-        if (parsedTime) {
-            timeHtml = `<p class="map-popup__time">Время: ${parsedTime.dateStr} ${parsedTime.timeLabel}</p>`;
-        }
-    }
-
-    return `
-        <div class="map-popup">
-            <h3 class="map-popup__title">Качество воздуха</h3>
-            <p class="map-popup__coords">Широта: ${displayLat}, Долгота: ${displayLon}</p>
-            ${timeHtml}
-            <p class="map-popup__source">Источник: ${source}</p>
-            <div class="map-popup__aqi-block" style="background-color: ${aqiColor};">
-                <div class="map-popup__aqi-title">
-                    <span class="map-popup__aqi-label">AQI<br>(Европа)</span>
-                </div>
-                <div class="map-popup__aqi-info">
-                    <span class="map-popup__aqi-number">${aqiNumber}</span>
-                    <span class="map-popup__aqi-text">${aqiLabel}</span>
-                </div>
-            </div>
-            <div class="map-popup__pollutants">
-                ${rows}
-            </div>
-
-            ${recommendation}
-        </div>
-    `;
-
-}
-*/
 
 const MACRO_SOURCE_ID = 'air-grid-macro-source';
 const MACRO_LAYER_ID = 'air-grid-macro-layer';
@@ -208,7 +125,6 @@ export default function MapComponent({
     const isMapClick = useRef(false);
     const clickedCoordsRef = useRef(null);
     const markerRef = useRef(null);
-    // const popupRef = useRef(null); // POPUP DISABLED — используется RightAirPanel
     const markerElementRef = useRef(null);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onMapClickRef = useRef(onMapClick);
@@ -268,7 +184,6 @@ export default function MapComponent({
         });
     }, [viewMode]);
 
-    // Инициализация карты MapLibre
     useEffect(() => {
         map.current = new maplibregl.Map({
             container: mapContainer.current,
@@ -323,7 +238,6 @@ export default function MapComponent({
         const updateLodOpacity = () => {
             if (!map.current || typeof map.current.getZoom !== 'function') return;
 
-            // В цифровом режиме растровые слои качества воздуха скрываются
             if (viewModeRef.current === 'numeric') {
                 if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
                     map.current.setLayoutProperty(MACRO_LAYER_ID, 'visibility', 'none');
@@ -340,7 +254,6 @@ export default function MapComponent({
                 return;
             }
 
-            // В цветовом и комбо режимах включаем видимость
             if (map.current.getLayer && map.current.getLayer(MACRO_LAYER_ID) && typeof map.current.setLayoutProperty === 'function') {
                 map.current.setLayoutProperty(MACRO_LAYER_ID, 'visibility', 'visible');
             }
@@ -363,7 +276,6 @@ export default function MapComponent({
                 macroOpacity = 0.70;
                 microOpacity = 0.0;
             } else if (currentZoom >= 9.0) {
-                // Макросетка всегда видна при близком приближении
                 macroOpacity = 0.70;
                 microOpacity = microGridRef.current ? 0.70 : 0.0;
             } else {
@@ -383,7 +295,6 @@ export default function MapComponent({
         updateLodOpacityRef.current = updateLodOpacity;
 
         const handleMoveStart = () => {
-            // Очищаем активный дебаунс-таймер перемещения
             if (moveDebounceTimerRef.current) {
                 clearTimeout(moveDebounceTimerRef.current);
                 moveDebounceTimerRef.current = null;
@@ -403,10 +314,8 @@ export default function MapComponent({
                 clearTimeout(moveDebounceTimerRef.current);
             }
 
-            // Возвращаем штатные значения LOD opacity после перемещения
             updateLodOpacity();
 
-            // Дебаунс 500 мс перед расчетом смещения и возможным сетевым запросом
             moveDebounceTimerRef.current = setTimeout(() => {
                 if (!map.current || typeof map.current.getCenter !== 'function') return;
 
@@ -520,7 +429,6 @@ export default function MapComponent({
         const updateLayers = () => {
             if (isCancelled || !map.current || typeof map.current.setLayoutProperty !== 'function') return;
 
-            // Если стиль MapLibre еще не загрузился, ожидаем события загрузки стиля
             if (typeof map.current.isStyleLoaded === 'function' && !map.current.isStyleLoaded()) {
                 const onLoaded = () => {
                     if (!isCancelled && map.current) {
@@ -554,14 +462,9 @@ export default function MapComponent({
             isCancelled = true;
         };
     }, [activeBaseLayer]);
-    // Отрисовка маркера качества воздуха (EAQI) + привязка попапа
+
     useEffect(() => {
         if (!airData || selectedTimeIndex === null || selectedTimeIndex === undefined) {
-            // POPUP DISABLED
-            // if (popupRef.current) {
-            //     popupRef.current.remove();
-            //     popupRef.current = null;
-            // }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
@@ -574,11 +477,6 @@ export default function MapComponent({
         const aqi = aqiList?.[selectedTimeIndex];
 
         if (aqi === null || aqi === undefined) {
-            // POPUP DISABLED
-            // if (popupRef.current) {
-            //     popupRef.current.remove();
-            //     popupRef.current = null;
-            // }
             if (markerRef.current) {
                 markerRef.current.remove();
                 markerRef.current = null;
@@ -589,7 +487,6 @@ export default function MapComponent({
 
         const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind, colorBlindType });
 
-        // Создаем или обновляем DOM-элемент маркера
         let el = markerElementRef.current;
         if (!el) {
             el = document.createElement('div');
@@ -614,14 +511,12 @@ export default function MapComponent({
             el.style.backgroundColor = '#ffffff';
             el.style.color = '#1f2937';
         } else {
-            // combo
             el.textContent = String(aqi);
             el.className = `map-marker map-marker--combo ${aqiInfo.cssClass} ${pulseClass}`.trim();
             el.style.backgroundColor = aqiInfo.hex;
             el.style.color = '#000000';
         }
 
-        // Общие стили маркера
         el.style.width = '36px';
         el.style.height = '36px';
         el.style.borderRadius = '50%';
@@ -639,18 +534,8 @@ export default function MapComponent({
 
         if (!markerRef.current) {
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
-                // POPUP DISABLED — используется RightAirPanel
-                // const popup = new maplibregl.Popup({
-                //     closeButton: true,
-                //     closeOnClick: false,
-                //     className: 'air-quality-popup',
-                // }).setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
-                //
-                // popupRef.current = popup;
-
                 const marker = new maplibregl.Marker({ element: el })
                     .setLngLat([markerLon, markerLat])
-                    // .setPopup(popup) // POPUP DISABLED
                     .addTo(map.current);
                 markerRef.current = marker;
             }
@@ -658,14 +543,9 @@ export default function MapComponent({
             if (!Number.isNaN(markerLon) && !Number.isNaN(markerLat)) {
                 markerRef.current.setLngLat([markerLon, markerLat]);
             }
-            // POPUP DISABLED — обновление попапа без его пересоздания
-            // if (popupRef.current) {
-            //     popupRef.current.setHTML(buildPopup(airData, selectedTimeIndex, lat, lon));
-            // }
         }
     }, [airData, selectedTimeIndex, viewMode, lat, lon, isColorBlind, colorBlindType]);
 
-    // Эффект отрисовки и обновления макро-слоя (macroGrid) + пульсирующего слоя загрязнения (41-100+)
     useEffect(() => {
         if (!map.current || !macroGrid || !macroGrid.points) {
             return;
@@ -701,16 +581,13 @@ export default function MapComponent({
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
 
-        // 2. Инициализация и рендер отдельного пульсирующего слоя загрязнения (41-100+)
         if (!macroPollutionCanvasRef.current) {
             macroPollutionCanvasRef.current = createFieldCanvas(MACRO_GRID_CANVAS_SIZE, MACRO_GRID_CANVAS_SIZE);
         }
         const pollutionCanvas = macroPollutionCanvasRef.current;
 
-// --- начало изменений: вычисляем уровень загрязнения и модулируем пульсацию ---
         const getMaxPollution = (grid) => {
             if (!grid) return 0;
-            // 2D-массив
             if (Array.isArray(grid) && Array.isArray(grid[0])) {
                 let max = 0;
                 for (const row of grid) {
@@ -720,7 +597,6 @@ export default function MapComponent({
                 }
                 return max;
             }
-            // плоский массив
             if (Array.isArray(grid)) {
                 let max = 0;
                 for (const v of grid) {
@@ -728,7 +604,6 @@ export default function MapComponent({
                 }
                 return max;
             }
-            // объект с data
             if (grid.data && Array.isArray(grid.data)) {
                 let max = 0;
                 for (const v of grid.data) {
@@ -741,16 +616,16 @@ export default function MapComponent({
 
         const maxPollution = getMaxPollution(result.grid);
 
-// Модуляция пульсации:
-// <= 40 — пульсации нет (timeIndex = 0)
-// 41–60 — плавно замедляем (коэффициент 0..1)
-// 61–100 — плавно ускоряем до нормальной
-// > 100 — как есть (коэффициент 1)
+        // Модуляция пульсации:
+        // <= 40 — пульсации нет (timeIndex = 0)
+        // 41–60 — плавно замедляем (коэффициент 0..1)
+        // 61–100 — плавно ускоряем до нормальной
+        // > 100 — как есть (коэффициент 1)
         let pulseTimeIndex = timeIndex;
         let pulseFadeDuration = 200;
 
         if (maxPollution <= 40) {
-            pulseTimeIndex = 0;          // статичная картинка, без пульсации
+            pulseTimeIndex = 0;
             pulseFadeDuration = 0;
         } else if (maxPollution <= 60) {
             const factor = (maxPollution - 40) / 20; // 0..1
@@ -761,7 +636,6 @@ export default function MapComponent({
             pulseTimeIndex = timeIndex * (0.3 + 0.7 * factor);
             pulseFadeDuration = 1000 - factor * 800; // 1000..200 мс
         }
-// else > 100: pulseTimeIndex = timeIndex, pulseFadeDuration = 200 (без изменений)
 
         const pollutionResult = renderFieldToCanvas(pollutionCanvas, result.grid, gridBbox, {
             timeIndex: pulseTimeIndex,
@@ -771,7 +645,6 @@ export default function MapComponent({
             colorBlind: isColorBlind,
             colorBlindType
         });
-// --- конец изменений ---
 
         const pollutionDataUrl = (pollutionResult?.hasPollution !== false) ? pollutionResult?.toDataUrl() : null;
 
@@ -833,7 +706,6 @@ export default function MapComponent({
                 }, beforeLayerId);
             }
 
-            // Управление пульсирующим слоем загрязнения макро-сетки (41-100+)
             if (pollutionDataUrl) {
                 const existingPollutionSource = mapInstance.getSource(MACRO_POLLUTION_SOURCE_ID);
                 if (existingPollutionSource) {
@@ -861,7 +733,7 @@ export default function MapComponent({
                             },
                             paint: {
                                 'raster-opacity': 0.70,
-                                'raster-fade-duration': pulseFadeDuration   // изменено
+                                'raster-fade-duration': pulseFadeDuration
                             }
                         }, beforeLayerId);
                     }
@@ -880,7 +752,7 @@ export default function MapComponent({
                         },
                         paint: {
                             'raster-opacity': 0.70,
-                            'raster-fade-duration': pulseFadeDuration   // изменено
+                            'raster-fade-duration': pulseFadeDuration
                         }
                     }, beforeLayerId);
                 }
@@ -895,7 +767,6 @@ export default function MapComponent({
         });
     }, [macroGrid, selectedTimeIndex, selectedIsoTime, isColorBlind, colorBlindType]);
 
-    // Эффект отрисовки и обновления микро-слоя (microGrid)
     useEffect(() => {
         if (!map.current || !microGrid || !microGrid.points) {
             return;
@@ -931,7 +802,6 @@ export default function MapComponent({
         const coords = bboxToImageCoordinates(gridBbox);
         if (!coords) return;
 
-        // 1. Инициализация рабочего Canvas буфера для микро-сетки
         if (!microCanvasRef.current) {
             microCanvasRef.current = createFieldCanvas(250, 250);
         }
@@ -948,7 +818,6 @@ export default function MapComponent({
         const dataUrl = result.toDataUrl();
         if (!dataUrl) return;
 
-        // 2. Инициализация и рендер отдельного пульсирующего слоя загрязнения микро-сетки (41-100+)
         if (!microPollutionCanvasRef.current) {
             microPollutionCanvasRef.current = createFieldCanvas(250, 250);
         }
@@ -1025,7 +894,6 @@ export default function MapComponent({
                 }, 'map-marker');
             }
 
-            // Управление пульсирующим слоем загрязнения микро-сетки (41-100+)
             if (microPollutionDataUrl) {
                 const existingMicroPollutionSource = mapInstance.getSource(MICRO_POLLUTION_SOURCE_ID);
                 if (existingMicroPollutionSource) {
@@ -1085,7 +953,6 @@ export default function MapComponent({
                 try {
                     mapInstance.moveLayer(MACRO_LAYER_ID, MICRO_LAYER_ID);
                 } catch {
-                    // защитная обработка
                 }
             }
         };

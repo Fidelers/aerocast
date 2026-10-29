@@ -48,7 +48,6 @@ function App({ referenceDate } = {}) {
             setCurrentTime(new Date());
         };
 
-        // Немедленное обновление при возврате на вкладку / фокусе окна
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 updateClock();
@@ -58,10 +57,9 @@ function App({ referenceDate } = {}) {
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', updateClock);
 
-        // 1. Периодический интервал каждые 30 секунд
         const intervalId = setInterval(updateClock, 30000);
 
-        // 2. Дополнительный точный таймер на границу следующей минуты (xx:xx:00)
+        // Точный таймер на границу следующей минуты (xx:xx:00)
         const nowMs = Date.now();
         const delayToNextMinute = Math.max(500, 60000 - (nowMs % 60000));
         const timeoutId = setTimeout(updateClock, delayToNextMinute);
@@ -76,7 +74,6 @@ function App({ referenceDate } = {}) {
 
     const activeReferenceDate = referenceDate || currentTime;
 
-    // Состояние уведомления о клике за пределы зоны покрытия цветовой сетки
     const [coverageWarning, setCoverageWarning] = useState(null);
     const [isCoverageWarningVisible, setIsCoverageWarningVisible] = useState(false);
     const warningTimerRef = useRef(null);
@@ -111,7 +108,6 @@ function App({ referenceDate } = {}) {
         };
     }, []);
 
-    // Управление темой сайта (тёмная / светлая)
     const [theme, setTheme] = useState(() => {
         if (typeof window === 'undefined') return 'light';
         const saved = localStorage.getItem('aerocast_theme');
@@ -121,13 +117,11 @@ function App({ referenceDate } = {}) {
             : 'light';
     });
 
-    // Режим для людей с цветовой слепотой (дальтоников)
     const [isColorBlind, setIsColorBlind] = useState(() => {
         if (typeof window === 'undefined') return false;
         return localStorage.getItem('aerocast_colorblind') === 'true';
     });
 
-    // Выбранный вид дальтонизма: okabe | deuteranopia | protanopia | tritanopia
     const [colorBlindType, setColorBlindType] = useState(() => {
         if (typeof window === 'undefined') return 'okabe';
         return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
@@ -149,7 +143,6 @@ function App({ referenceDate } = {}) {
         }
     }, [isColorBlind, colorBlindType]);
 
-    // Режим AI-ассистента: 'mascot' (маскот Ая) или 'button' (кнопка)
     const [mascotMode, setMascotMode] = useState(() => {
         if (typeof window === 'undefined') return 'mascot';
         return localStorage.getItem('aerocast_mascot_mode') || 'mascot';
@@ -161,16 +154,14 @@ function App({ referenceDate } = {}) {
         }
     }, [mascotMode]);
 
-    // подключаем сетку качества воздуха (высокоточная макросетка на 500 точек)
+    // Высокоточная макросетка качества воздуха (500 точек)
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
 
-    // точная ISO-метка времени для синхронизации
     const selectedIsoTime =
         selectedTimeIndex !== null && selectedTimeIndex !== undefined && airData?.hourly?.time?.[selectedTimeIndex]
             ? airData.hourly.time[selectedTimeIndex]
             : undefined;
 
-    // Сохранение выбранного слоя в localStorage под ключом aerocast_map_layer
     const [activeBaseLayer, setActiveBaseLayer] = useState(() => {
         return localStorage.getItem('aerocast_map_layer') || 'osm';
     });
@@ -191,7 +182,6 @@ function App({ referenceDate } = {}) {
         airDataRef.current = airData;
     }, [airData]);
 
-    // Загрузка данных качества воздуха при монтировании и смене координат
     useEffect(() => {
         if (coords.lat == null || coords.lon == null) return;
 
@@ -211,7 +201,7 @@ function App({ referenceDate } = {}) {
                 setAirData(data);
                 setIsLoading(false);
 
-                // Сохранение выбранного пользователем времени или инициализация дефолтным (текущий час)
+                // Восстановление выбранного пользователем времени или инициализация текущим часом
                 if (data?.hourly?.time?.length) {
                     let targetIndex = null;
                     const prevIndex = selectedTimeIndexRef.current;
@@ -219,12 +209,10 @@ function App({ referenceDate } = {}) {
 
                     if (prevIndex !== null && prevIndex !== undefined && prevAirData?.hourly?.time?.[prevIndex]) {
                         const prevTimestamp = prevAirData.hourly.time[prevIndex];
-                        // 1. Поиск точного совпадения метки времени (например, 2026-10-01T09:00)
                         const matchedIndex = data.hourly.time.indexOf(prevTimestamp);
                         if (matchedIndex !== -1) {
                             targetIndex = matchedIndex;
                         } else {
-                            // 2. Если точной строки нет, сопоставляем по дате и часу
                             const prevParsed = parseIsoTimeString(prevTimestamp);
                             if (prevParsed) {
                                 const matchByDateHour = data.hourly.time.findIndex((t) => {
@@ -235,7 +223,6 @@ function App({ referenceDate } = {}) {
                                     targetIndex = matchByDateHour;
                                 }
                             }
-                            // 3. Если индекс в пределах длины массива
                             if (targetIndex === null && prevIndex < data.hourly.time.length) {
                                 targetIndex = prevIndex;
                             }
@@ -261,7 +248,7 @@ function App({ referenceDate } = {}) {
         };
     }, [coords.lat, coords.lon]);
 
-    // Обработчик выбора конкретного часа (переключение времени не вызывает сетевых запросов)
+    // Переключение времени работает со срезом в памяти и не вызывает сетевых запросов
     const handleSelectTime = (newIndex) => {
         setSelectedTimeIndex(newIndex);
     };
@@ -318,7 +305,6 @@ function App({ referenceDate } = {}) {
         }
     };
 
-    // Определение: выбран ли прогноз (будущий день или будущий час сегодняшнего дня)
     const isForecast = useMemo(() => {
         if (!selectedIsoTime) return false;
         return isForecastTime(selectedIsoTime, activeReferenceDate);

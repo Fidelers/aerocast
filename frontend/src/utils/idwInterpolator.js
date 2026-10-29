@@ -1,19 +1,11 @@
-// frontend/src/utils/idwInterpolator.js — математическая модель интерполяции IDW
-/**
- * Модуль пространственной интерполяции по методу обратных взвешенных расстояний (IDW)
- * с поддержкой линейной проекции и проекции Меркатора для макро-сеток.
- */
+// Пространственная интерполяция IDW с поддержкой Web Mercator для макро-сеток
 
 const EPSILON_SQ = 1e-12; // (1e-6)^2 — порог совпадения с точкой
 const DEFAULT_P = 2;
 const DEFAULT_MIN_VAL = 0;
 const DEFAULT_MAX_VAL = 150;
 
-/**
- * Прямое преобразование широты в проекцию Web Mercator (EPSG:3857).
- * @param {number} lat - широта в градусах
- * @returns {number} Y-координата Меркатора
- */
+// Прямое преобразование широты в проекцию Web Mercator (EPSG:3857)
 export function latToMercator(lat) {
     const latRad = (lat * Math.PI) / 180;
     // Ограничение широт пределами Web Mercator (~85.051129°)
@@ -21,25 +13,12 @@ export function latToMercator(lat) {
     return Math.log(Math.tan(Math.PI / 4 + clampedLatRad / 2));
 }
 
-/**
- * Обратное преобразование Y-координаты Меркатора в географическую широту.
- * @param {number} mercY - Y-координата Меркатора
- * @returns {number} широта в градусах
- */
+// Обратное преобразование Y-координаты Меркатора в географическую широту
 export function mercatorToLat(mercY) {
     return (2 * Math.atan(Math.exp(mercY)) - Math.PI / 2) * (180 / Math.PI);
 }
 
-/**
- * Преобразование координат экранного пикселя (px, py) в географические (lat, lon).
- * @param {number} px - координата пикселя по X (0..width)
- * @param {number} py - координата пикселя по Y (0..height, 0 — верхний край)
- * @param {number} width - ширина холста
- * @param {number} height - высота холста
- * @param {[number, number, number, number]} bbox - [minLon, minLat, maxLon, maxLat]
- * @param {boolean} [useMercator=false] - использовать ли формулу Меркатора для широты
- * @returns {{ lat: number, lon: number }}
- */
+// Преобразование координат экранного пикселя (px, py) в географические (lat, lon)
 export function projectPixelToGeo(px, py, width, height, bbox, useMercator = false) {
     const [minLon, minLat, maxLon, maxLat] = bbox;
 
@@ -61,10 +40,7 @@ export function projectPixelToGeo(px, py, width, height, bbox, useMercator = fal
     return { lat, lon };
 }
 
-/**
- * Извлекает числовое значение показателя из объекта точки.
- * @private
- */
+// Извлечение числового значения показателя из объекта точки
 function extractPointValue(pt, timeIndex) {
     if (!pt || typeof pt !== 'object') return null;
 
@@ -85,10 +61,7 @@ function extractPointValue(pt, timeIndex) {
     return null;
 }
 
-/**
- * Нормализует и фильтрует массив опорных точек.
- * @private
- */
+// Нормализация и фильтрация массива опорных точек
 function sanitizePoints(points, timeIndex) {
     if (!Array.isArray(points) || points.length === 0) return [];
 
@@ -109,21 +82,7 @@ function sanitizePoints(points, timeIndex) {
     return result;
 }
 
-/**
- * Расчёт значения показателя в заданной географической точке (lat, lon)
- * по формуле IDW с защитой от деления на ноль, ограничением радиуса и clamp.
- *
- * @param {number} lat - широта целевой точки
- * @param {number} lon - долгота целевой точки
- * @param {Array<Object>} points - массив опорных точек
- * @param {Object} [options={}] - параметры интерполяции
- * @param {number} [options.p=2] - степень расстояния
- * @param {number} [options.maxRadius=Infinity] - радиус влияния (cutoff radius) в градусах
- * @param {number} [options.minVal=0] - нижняя граница clamp
- * @param {number} [options.maxVal=150] - верхняя граница clamp
- * @param {number|null} [options.timeIndex=null] - индекс часа для timeline
- * @returns {number|null} интерполированное значение либо null при отсутствии данных
- */
+// Расчёт значения показателя в точке (lat, lon) по формуле IDW
 export function interpolatePoint(lat, lon, points, options = {}) {
     const {
         p = DEFAULT_P,
@@ -195,17 +154,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
     return Math.max(minVal, Math.min(maxVal, calculated));
 }
 
-/**
- * Пакетная интерполяция всей сетки холста (размером width x height).
- * Возвращает типизированный массив Float32Array для последующего рендеринга на Canvas.
- *
- * @param {Array<Object>} points - опорные точки сетки
- * @param {number} width - ширина холста в пикселях
- * @param {number} height - высота холста в пикселях
- * @param {[number, number, number, number]} bbox - [minLon, minLat, maxLon, maxLat]
- * @param {Object} [options={}] - параметры интерполяции (p, maxRadius, minVal, maxVal, timeIndex, useMercator)
- * @returns {Float32Array} массив интерполированных значений размера width * height
- */
+// Пакетная интерполяция всей сетки холста (Float32Array) по методу IDW
 export function interpolateGrid(points, width, height, bbox, options = {}) {
     const {
         p = DEFAULT_P,
@@ -343,7 +292,6 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
                 }
             }
 
-            // Clamp
             if (finalValue < minVal) finalValue = minVal;
             else if (finalValue > maxVal) finalValue = maxVal;
 

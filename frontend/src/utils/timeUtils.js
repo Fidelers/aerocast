@@ -1,5 +1,3 @@
-// src/utils/timeUtils.js — утилиты группировки и обработки временных меток airData
-
 const WEEKDAYS_RU = Object.freeze(['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']);
 const MONTHS_RU = Object.freeze(['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']);
 const MONTHS_RU_FULL = Object.freeze([
@@ -234,12 +232,7 @@ export function isForecastTime(timeStr, referenceDate = new Date()) {
     return false;
 }
 
-/**
- * Рассчитывает агрегированную аналитику качества воздуха на 3 ближайших дня:
- * - Средний, минимальный и максимальный EAQI по каждому дню
- * - Средний PM2.5 и PM10 по каждому дню
- * - Общие агрегаты за весь 3-дневный период
- */
+// Агрегированная аналитика качества воздуха на 3 ближайших дня (EAQI, PM2.5, PM10)
 export function computeForecast3Days(hourly, referenceDate = new Date()) {
     if (!hourly || !Array.isArray(hourly.time) || hourly.time.length === 0) {
         return null;
@@ -349,13 +342,7 @@ export function computeForecast3Days(hourly, referenceDate = new Date()) {
     };
 }
 
-/**
- * Рассчитывает историческую / архивную аналитику за прошедшие дни:
- * - pastDays: статистика по каждому прошедшему дню (avg, min, max, maxTime, avgPm25)
- * - pastMaxAqi: абсолютный пик загрязнения за прошедшие дни и точное время/дата
- * - pastMinAqi: самый чистый час за прошедшие дни и точное время/дата
- * - pastAvgAqi, pastAvgPm25, pastAvgPm10: общие средние по архиву
- */
+// Историческая аналитика за прошедшие дни (статистика, экстремумы и средние)
 export function computeAirHistory(hourly, referenceDate = new Date()) {
     if (!hourly || !Array.isArray(hourly.time) || hourly.time.length === 0) {
         return null;
@@ -534,12 +521,7 @@ export function computeAirHistory(hourly, referenceDate = new Date()) {
     };
 }
 
-/**
- * Определяет статус и человекочитаемую метку выбранного времени на шкале:
- * past — архивный замер в прошлом
- * current — текущее реальное время (актуальный замер)
- * forecast — прогноз на будущее
- */
+// Статус и человекочитаемая метка выбранного времени на шкале (past / current / forecast)
 export function formatSelectedTimeInfo(timeStr, referenceDate = new Date()) {
     if (!timeStr) return null;
     const parsed = parseIsoTimeString(timeStr);
@@ -604,15 +586,7 @@ export function formatSelectedTimeInfo(timeStr, referenceDate = new Date()) {
     };
 }
 
-/**
- * Рассчитывает общую сводку за ВСЕ доступные дни (прошедшие дни + сегодня + прогноз):
- * - totalDaysCount: общее количество дней (обычно 11-12)
- * - overallAvgAqi: средний EAQI за весь период
- * - overallMaxAqi: максимальный пик за все дни (с указанием даты, часа и периода: архив/прогноз)
- * - overallMinAqi: минимальный индекс за все дни
- * - overallAvgPm25, overallAvgPm10
- * - days: полный хронологический список дней со статусом (kind: past | today | forecast)
- */
+// Общая сводка за все доступные дни: прошедшие дни, сегодня и прогноз
 export function computeAllDaysSummary(hourly, referenceDate = new Date()) {
     if (!hourly || !Array.isArray(hourly.time) || hourly.time.length === 0) {
         return null;

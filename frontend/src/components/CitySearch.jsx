@@ -9,7 +9,6 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
   const containerRef = useRef(null);
   const isSelectingRef = useRef(false);
 
-  // Закрытие выпадающего списка при клике вне компонента (mousedown)
   useEffect(() => {
     const handleMouseDown = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -23,7 +22,6 @@ export default function CitySearch({ onLocationSelect, onCitySelect }) {
     };
   }, []);
 
-  // Debounce запроса к /api/search на 500 мс
   useEffect(() => {
     if (isSelectingRef.current) {
       isSelectingRef.current = false;

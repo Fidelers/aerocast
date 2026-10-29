@@ -13,9 +13,7 @@ const INITIAL_GREETING = {
   timestamp: Date.now()
 };
 
-/**
- * Безопасное форматирование текста: **жирный**, *курсив* и переносы строк
- */
+// Безопасное форматирование текста (**жирный**, *курсив*, переносы строк)
 function formatMessageContent(text) {
   if (!text) return null;
   const lines = String(text).split('\n');
@@ -83,12 +81,7 @@ function detectClientMapLayerIntent(text) {
   return null;
 }
 
-/**
- * Распознает команду переключения режима доступности для дальтоников на клиенте:
- * { enabled: false } — выключение
- * { enabled: true, colorBlindType: 'okabe' | 'deuteranopia' | 'protanopia' | 'tritanopia' } — включение
- * { unsupported: true, requested?: string } — запрос нереализованного вида
- */
+// Распознавание команд переключения режима дальтонизма и палитр на клиенте
 function detectClientColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
@@ -111,7 +104,6 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
   const isContextCb = Boolean(isColorBlind) || /(?:дальтонизм|палитр|гамм|цветов|окабе|дейтераноп|протаноп|тританоп)/i.test(historyText);
   const hasPronounOff = hasOffWord && /(?:его|е[её]|это|этот|режим|палитру|доступность)/i.test(clean);
 
-  // 1. Выключение режима дальтонизма
   if ((hasOffWord && (hasCbWord || /(?:окабе|дейтераноп|протаноп|тританоп)/i.test(clean))) ||
       hasReturnNormalColors ||
       (hasPronounOff && isContextCb) ||
@@ -139,7 +131,6 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
     }
   }
 
-  // 2. Явное указание одного из 4 поддерживаемых видов
   if (/(?:дейтераноп[а-я]*|deuteranop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'deuteranopia' };
   if (/(?:протаноп[а-я]*|protanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'protanopia' };
   if (/(?:тританоп[а-я]*|tritanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'tritanopia' };
@@ -153,11 +144,7 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
   return null;
 }
 
-/**
- * Распознает команду переключения темы оформления на клиенте:
- * 'dark' — тёмная тема
- * 'light' — светлая тема
- */
+// Распознает команду переключения темы оформления на клиенте ('dark' / 'light')
 function detectClientThemeIntent(text) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
@@ -362,7 +349,6 @@ export default function AiChatModal({
 
   const mascotTimerRef = useRef(null);
 
-  // Перезапуск таймера автосмены реплик на 12 секунд
   const resetMascotTimer = useCallback(() => {
     if (mascotTimerRef.current) {
       clearTimeout(mascotTimerRef.current);
@@ -379,7 +365,6 @@ export default function AiChatModal({
     }, 12000);
   }, [embedded, mascotUnderChat, isOpen, currentEmotion]);
 
-  // Случайная реплика при клике на маскота с гарантированным сбросом и обновлением таймера
   const handleMascotClick = useCallback(() => {
     setDockedPhrase((prev) => {
       const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
@@ -388,7 +373,6 @@ export default function AiChatModal({
     resetMascotTimer();
   }, [resetMascotTimer]);
 
-  // Периодическая смена реплик каждые 12 секунд (сбрасывается при клике/смене реплики)
   useEffect(() => {
     resetMascotTimer();
     return () => {
@@ -415,7 +399,6 @@ export default function AiChatModal({
     }
   }, []);
 
-  // Скролл при появлении сообщений или индикатора набора ответа
   useEffect(() => {
     if (isOpen) {
       scrollToBottom();
@@ -432,7 +415,6 @@ export default function AiChatModal({
     }
   }, [isOpen, embedded]);
 
-  // Состояние и ссылки для голосового ввода (Web Speech API + MediaRecorder fallback)
   const [isListening, setIsListening] = useState(false);
   const isListeningRef = useRef(false);
   const silenceTimerRef = useRef(null);
@@ -499,7 +481,6 @@ export default function AiChatModal({
     inputMessageRef.current = inputMessage;
   }, [inputMessage]);
 
-  // Структурированная аналитика по текущей выбранной точке на карте
   const pointAnalytics = useMemo(() => {
     if (!airData?.hourly) return null;
     const defaultIdx = findDefaultTimeIndex(airData.hourly.time, new Date(), 1);
@@ -740,14 +721,12 @@ export default function AiChatModal({
 
           if (job.generation !== dialogGenerationRef.current) continue;
 
-          // Интерактивное переключение карты по команде от AI
           if (data?.action?.type === 'set_base_layer' && data.action.layer) {
             if (typeof onBaseLayerChangeRef.current === 'function') {
               onBaseLayerChangeRef.current(data.action.layer);
             }
           }
 
-          // Интерактивное переключение режима дальтонизма
           if (data?.action?.type === 'set_colorblind') {
             if (data.action.enabled) {
               if (typeof onColorBlindChangeRef.current === 'function') {
@@ -763,7 +742,6 @@ export default function AiChatModal({
             }
           }
 
-          // Интерактивное переключение темы оформления
           if (data?.action?.type === 'set_theme' && (data.action.theme === 'dark' || data.action.theme === 'light')) {
             if (typeof onThemeChangeRef.current === 'function') {
               onThemeChangeRef.current(data.action.theme);
@@ -772,7 +750,6 @@ export default function AiChatModal({
 
           let pendingFollowUp = null;
 
-          // Интерактивное перемещение к городу по команде от AI
           if (data?.action?.type === 'set_location' && data.action.lat != null && data.action.lon != null) {
             const targetLat = Number(data.action.lat);
             const targetLon = Number(data.action.lon);
@@ -983,17 +960,13 @@ export default function AiChatModal({
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
+        } catch {}
         recognitionRef.current = null;
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         try {
           mediaRecorderRef.current.stop();
-        } catch {
-          // ignore
-        }
+        } catch {}
         mediaRecorderRef.current = null;
       }
       setIsListening(false);
@@ -1035,9 +1008,7 @@ export default function AiChatModal({
     if (abortControllerRef.current) {
       try {
         abortControllerRef.current.abort();
-      } catch {
-        // ignore
-      }
+      } catch {}
       abortControllerRef.current = null;
     }
 
@@ -1047,7 +1018,6 @@ export default function AiChatModal({
     inputMessageRef.current = '';
   }, []);
 
-  // Конвертация аудио blob в base64
   const blobToBase64 = useCallback((blob) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1128,7 +1098,6 @@ export default function AiChatModal({
     }
   }, [appendMessage, blobToBase64, handleSendMessage]);
 
-  // Отмена голосового ввода без отправки сообщения
   const handleCancelVoice = useCallback(() => {
     isCancelledRef.current = true;
     transcriptRef.current = '';
@@ -1142,27 +1111,21 @@ export default function AiChatModal({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
-      } catch {
-        // ignore
-      }
+      } catch {}
       recognitionRef.current = null;
     }
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop();
-      } catch {
-        // ignore
-      }
+      } catch {}
       mediaRecorderRef.current = null;
     }
 
     if (mediaStreamRef.current) {
       try {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      } catch {
-        // ignore
-      }
+      } catch {}
       mediaStreamRef.current = null;
     }
 
@@ -1172,7 +1135,6 @@ export default function AiChatModal({
     inputMessageRef.current = '';
   }, []);
 
-  // Включение / остановка голосового ввода по клику на микрофон
   const handleToggleVoice = useCallback(async () => {
     if (isTranscribing) return;
 
@@ -1181,26 +1143,20 @@ export default function AiChatModal({
       silenceTimerRef.current = null;
     }
 
-    // Пользователь нажал микрофон во время записи -> останавливаем и отправляем надиктованное
     if (isListeningRef.current) {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         try {
           mediaRecorderRef.current.stop();
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
       return;
     }
 
-    // 1. Проверяем доступность API запроса медиаустройств
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const unsupportedMsg = {
         id: `sys-${Date.now()}`,
@@ -1214,7 +1170,6 @@ export default function AiChatModal({
       return;
     }
 
-    // 2. ЯВНО запрашиваем у браузера разрешение на использование микрофона
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1238,7 +1193,6 @@ export default function AiChatModal({
       return;
     }
 
-    // Разрешение получено!
     isCancelledRef.current = false;
     transcriptRef.current = '';
     audioChunksRef.current = [];
@@ -1248,14 +1202,11 @@ export default function AiChatModal({
         ? window.SpeechRecognition || window.webkitSpeechRecognition
         : null;
 
-    // ВАРИАНТ А: Браузер поддерживает Web Speech API (Google Chrome, Microsoft Edge, Яндекс.Браузер, Safari)
     if (SpeechRecognition) {
       // Освобождаем временный поток getUserMedia: SpeechRecognition использует аудиоканал автономно
       try {
         stream.getTracks().forEach((track) => track.stop());
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       try {
         const recognition = new SpeechRecognition();
@@ -1277,9 +1228,7 @@ export default function AiChatModal({
               if (isListeningRef.current && recognitionRef.current) {
                 try {
                   recognitionRef.current.stop();
-                } catch {
-                  // ignore
-                }
+                } catch {}
               }
             }, 3000);
           }
@@ -1406,9 +1355,7 @@ export default function AiChatModal({
           isListeningRef.current = false;
           try {
             stream.getTracks().forEach((track) => track.stop());
-          } catch {
-            // ignore
-          }
+          } catch {}
           mediaStreamRef.current = null;
 
           if (isCancelledRef.current) {
@@ -1431,21 +1378,16 @@ export default function AiChatModal({
         console.error('Failed to start MediaRecorder:', err);
         try {
           stream.getTracks().forEach((track) => track.stop());
-        } catch {
-          // ignore
-        }
+        } catch {}
         setIsListening(false);
         isListeningRef.current = false;
       }
       return;
     }
 
-    // Если ни SpeechRecognition, ни MediaRecorder не поддерживаются в браузере:
     try {
       stream.getTracks().forEach((track) => track.stop());
-    } catch {
-      // ignore
-    }
+    } catch {}
     const fallbackMsg = {
       id: `sys-${Date.now()}`,
       role: 'assistant',
@@ -1457,7 +1399,6 @@ export default function AiChatModal({
     appendMessage(fallbackMsg);
   }, [appendMessage, isTranscribing, isListening, handleSendMessage, sendVoiceBlobToBackend]);
 
-  // Остановка записи при закрытии окна
   useEffect(() => {
     if (!isOpen && isListening) {
       handleCancelVoice();
@@ -1480,7 +1421,6 @@ export default function AiChatModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, isListening, handleCancelVoice]);
 
-  // Очистка таймеров тишины при размонтировании
   useEffect(() => {
     return () => {
       if (silenceTimerRef.current) {
@@ -1497,7 +1437,6 @@ export default function AiChatModal({
       className={`ai-chat-window ${embedded ? 'ai-chat-window--embedded' : ''}`}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Шапка чата */}
       <header className="ai-chat-header">
         <div className="ai-chat-header__info">
           {!embedded && (
@@ -1588,7 +1527,6 @@ export default function AiChatModal({
           </div>
         </header>
 
-        {/* Список сообщений */}
         <div className="ai-chat-messages" ref={messagesContainerRef}>
           {messages.map((msg) => {
             const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {
@@ -1625,7 +1563,6 @@ export default function AiChatModal({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Форма ввода с голосовым управлением */}
         <footer className="ai-chat-footer">
           <form className="ai-chat-input-form" onSubmit={handleSendMessage}>
             <input

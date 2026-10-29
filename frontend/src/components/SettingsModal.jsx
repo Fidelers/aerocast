@@ -1,8 +1,6 @@
-// frontend/src/components/SettingsModal.jsx — компактное окно настроек оформления и доступности
 import { useEffect, useState } from 'react';
 import '../styles/SettingsModal.css';
 
-// Стандартные цвета шкалы EAQI
 export const STANDARD_PALETTE = [
   { range: '0–20', color: '#4CAF50', label: 'Отлично', textColor: '#ffffff' },
   { range: '21–40', color: '#8BC34A', label: 'Хорошо', textColor: '#000000' },
@@ -12,7 +10,6 @@ export const STANDARD_PALETTE = [
   { range: '100+', color: '#D50000', label: 'Опасно', textColor: '#ffffff' }
 ];
 
-// Доступные виды дальтонизма (цветовой слепоты)
 export const COLORBLIND_TYPES = [
   { id: 'okabe', label: 'Окабе' },
   { id: 'deuteranopia', label: 'Дейтеранопия' },
@@ -20,7 +17,6 @@ export const COLORBLIND_TYPES = [
   { id: 'tritanopia', label: 'Тританопия' }
 ];
 
-// Палитры для каждого вида дальтонизма
 export const COLORBLIND_PALETTES = {
   okabe: [
     { range: '0–20', color: '#0072B2', label: 'Отлично', textColor: '#ffffff' },
@@ -112,7 +108,6 @@ export default function SettingsModal({
     }
   };
 
-  // Закрытие окна по клавише Escape
   useEffect(() => {
     if (!isOpen) return;
 
@@ -214,7 +209,6 @@ export default function SettingsModal({
         </div>
 
         <div className="settings-modal__body">
-          {/* Свитчер смены темы (тёмная / светлая) */}
           <div className="settings-item">
             <div className="settings-item__info">
               <div className="settings-item__label-row">
@@ -262,7 +256,6 @@ export default function SettingsModal({
             </button>
           </div>
 
-          {/* Переключатель вида AI-ассистента: Маскот или Кнопка */}
           <div className="settings-item settings-item--column" data-testid="settings-mascot-mode-container">
             <div className="settings-item__info">
               <div className="settings-item__label-row">
@@ -309,7 +302,6 @@ export default function SettingsModal({
             </div>
           </div>
 
-          {/* Свитчер режима для цветовой слепоты (дальтонизм) */}
           <div className="settings-item">
             <div className="settings-item__info">
               <div className="settings-item__label-row">
@@ -342,7 +334,6 @@ export default function SettingsModal({
             </button>
           </div>
 
-          {/* Выбор вида дальтонизма — отображается ТОЛЬКО если включен режим цветовой слепоты */}
           {currentColorBlind && (
             <div className="settings-colorblind-types" data-testid="settings-colorblind-types">
               <div className="settings-colorblind-types__header">
@@ -372,7 +363,6 @@ export default function SettingsModal({
             </div>
           )}
 
-          {/* Интерактивный предпросмотр активной палитры */}
           <div className="settings-preview">
             <div className="settings-preview__title">
               <span>Палитра шкалы воздуха</span>

@@ -151,7 +151,6 @@ export function renderFieldToBuffer(grid, imgData, width, height, options = {}) 
             continue;
         }
 
-        // Абсолютно гладкое, монолитное и естественное поле без искусственных контуров, яиц и ступеней
         const baseColor = interpolateAqiColor(val, alpha, colorOpts);
         data[idx] = baseColor.r;
         data[idx + 1] = baseColor.g;

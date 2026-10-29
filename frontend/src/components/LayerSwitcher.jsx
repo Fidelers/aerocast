@@ -5,11 +5,8 @@ import '../styles/LayerSwitcher.css';
 
 export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
   const [isOpen, setIsOpen] = useState(false);
-
-  // ссылка на контейнер компонента для проверки клика мимо
   const containerRef = useRef(null);
 
-  // закрытие меню по клику мимо и по Esc
   useEffect(() => {
     if (!isOpen) return;
 
@@ -34,9 +31,7 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
     };
   }, [isOpen]);
 
-  // обработка выбора слоя
   const handleSelectLayer = (layerKey) => {
-    // если кликнуть на другой слой, то уведомляем родительский компонент
     if (layerKey !== activeLayer && onLayerChange) {
       onLayerChange(layerKey);
     }
@@ -44,12 +39,10 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
   };
 
   const isSatellite = activeLayer === 'satellite';
-  // текст на кнопке в зависимости от текущего слоя
   const currentLabel = isSatellite ? 'Спутник' : 'Карта';
 
   return (
     <div className="layer-switcher" ref={containerRef}>
-      {/* Кнопка переключения меню с минималистичным значком */}
       <button
         type="button"
         className="layer-switcher__toggle"
@@ -67,7 +60,6 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
         <span className="layer-switcher__label">{currentLabel}</span>
       </button>
 
-      {/* Выпадающее меню с вариантами слоев */}
       <div
         className={`layer-switcher__menu ${
           isOpen ? 'layer-switcher__menu--visible' : ''

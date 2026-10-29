@@ -4,7 +4,6 @@ export const OSM_MAX_ZOOM = 19;
 export const osmStyle = {
   version: 8,
   sources: {
-    // базовый слой схемы OpenStreetMap
     osm: {
       type: 'raster',
       tiles: [
@@ -28,14 +27,12 @@ export const osmStyle = {
     },
   },
   layers: [
-    // слой схемы (включен по умолчанию)
     {
       id: 'osm-layer',
       type: 'raster',
       source: 'osm',
       minzoom: 0,
     },
-    // спутниковый слой (выключен по умолчанию: visibility: 'none')
     {
       id: 'satellite-layer',
       type: 'raster',

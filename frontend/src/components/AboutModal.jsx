@@ -1,10 +1,8 @@
-// frontend/src/components/AboutModal.jsx — модальное окно информации о проекте и методологии EAQI
 import { useEffect } from 'react';
 import Logo from '../assets/icons/logo.svg';
 import '../styles/AboutModal.css';
 
 export default function AboutModal({ isOpen, onClose }) {
-  // Закрытие модального окна по клавише Escape
   useEffect(() => {
     if (!isOpen) return;
 
@@ -57,7 +55,6 @@ export default function AboutModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Описание проекта */}
         <section className="modal-section">
           <h3 className="modal-section__title">Назначение сервиса</h3>
           <p className="modal-section__text">
@@ -68,7 +65,6 @@ export default function AboutModal({ isOpen, onClose }) {
           </p>
         </section>
 
-        {/* Методология EAQI и 6 загрязнителей */}
         <section className="modal-section">
           <h3 className="modal-section__title">
             Европейский индекс качества воздуха (EAQI)
@@ -117,7 +113,6 @@ export default function AboutModal({ isOpen, onClose }) {
           </div>
         </section>
 
-        {/* Шкала EAQI */}
         <section className="modal-section">
           <h3 className="modal-section__title">Шкала оценки и рекомендации</h3>
           <ul className="aqi-modal-list">
@@ -166,7 +161,6 @@ export default function AboutModal({ isOpen, onClose }) {
           </ul>
         </section>
 
-        {/* Источники данных */}
         <section className="modal-section">
           <h3 className="modal-section__title">Источники данных</h3>
           <p className="modal-section__text">

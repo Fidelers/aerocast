@@ -4,7 +4,6 @@ import { getAqiInfo, getAqiRecommendation } from '../types';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/RightAirPanel.css';
 
-// 6 основных загрязнителей
 const POLLUTANTS_LIST = [
   { key: 'pm2_5', label: 'PM₂.₅', apiKey: 'pm2_5' },
   { key: 'pm10', label: 'PM₁₀', apiKey: 'pm10' },
@@ -14,7 +13,6 @@ const POLLUTANTS_LIST = [
   { key: 'carbon_monoxide', label: 'CO', apiKey: 'carbon_monoxide' },
 ];
 
-// Шкала уровней AQI
 const SCALE_RANGES = [
   { range: '0–20', min: 0, max: 20, level: 'excellent' },
   { range: '21–40', min: 21, max: 40, level: 'good' },
@@ -63,7 +61,6 @@ export default function RightAirPanel({
   const didDragRef = useRef(false);
   const dragPointerTypeRef = useRef('');
 
-  // Сброс стилей анимации при открытии панели
   useEffect(() => {
     if (isOpen) {
       isClosingRef.current = false;
@@ -95,7 +92,6 @@ export default function RightAirPanel({
     };
   }, [isOpen]);
 
-  // Закрытие по кнопке Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -286,13 +282,12 @@ export default function RightAirPanel({
     if (isTouchActiveRef.current) return;
     if (e.button !== undefined && e.button !== 0) return;
 
-    // С мыши / тачпада на ноутбуке перетаскивание работает ТОЛЬКО за специальный хэндл
     if (e.pointerType === 'mouse' && !e.target?.closest?.('.panel-drag-handle')) {
       return;
     }
 
     if (e.target && typeof e.target.setPointerCapture === 'function') {
-      try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      try { e.target.setPointerCapture(e.pointerId); } catch {}
     }
     startDrag(e.clientX, e.clientY, e.target, e.pointerType);
   };
@@ -306,7 +301,7 @@ export default function RightAirPanel({
   const onPointerUp = (e) => {
     if (isTouchActiveRef.current) return;
     if (e.target && typeof e.target.releasePointerCapture === 'function') {
-      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      try { e.target.releasePointerCapture(e.pointerId); } catch {}
     }
     endDrag();
   };
@@ -314,7 +309,7 @@ export default function RightAirPanel({
   const onPointerCancel = (e) => {
     if (isTouchActiveRef.current) return;
     if (e.target && typeof e.target.releasePointerCapture === 'function') {
-      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      try { e.target.releasePointerCapture(e.pointerId); } catch {}
     }
     endDrag();
   };
@@ -329,7 +324,6 @@ export default function RightAirPanel({
 
   if (!isOpen || !airData) return null;
 
-  // Координаты, время, источник и общий AQI
   const latNum = Number(airData.latitude);
   const lonNum = Number(airData.longitude);
   const lat = !isNaN(latNum) ? latNum.toFixed(4) : '—';
@@ -363,13 +357,11 @@ export default function RightAirPanel({
       onPointerCancel={onPointerCancel}
       onClickCapture={onClickCapture}
     >
-      {/* Декоративный хэндл для мобильного Bottom Sheet */}
       <div
         className="panel-drag-handle"
         aria-hidden="true"
         data-testid="panel-drag-handle"
       />
-      {/* Шапка с крестиком закрытия */}
       <div className="panel-header">
         <h3 className="panel-header__title">Качество воздуха</h3>
         <button
@@ -383,7 +375,6 @@ export default function RightAirPanel({
         </button>
       </div>
 
-{/* Мета-информация: координаты, время, источник */}
       <div className="panel-meta">
         <div className="panel-meta__item"><strong>Координаты:</strong> {lat}, {lon}</div>
         <div className="panel-meta__item"><strong>Время:</strong>{' '}
@@ -395,7 +386,6 @@ export default function RightAirPanel({
         <div className="panel-meta__item"><strong>Источник:</strong> {source}</div>
       </div>
 
-      {/* Показатель AQI: цветовой индикатор, оценка и рекомендация */}
       <div className="aqi-summary">
         <div
           className="aqi-indicator aqi-indicator--interactive"
@@ -424,7 +414,6 @@ export default function RightAirPanel({
         )}
       </div>
       
-      {/* Шкала уровней AQI */}
       <div className="scale-section">
         <h4 className="scale-section__title">Шкала уровней AQI</h4>
         <div className="scale-bar">
@@ -443,7 +432,6 @@ export default function RightAirPanel({
         </div>
       </div>
 
-      {/* РЕДИЗАЙН: Блок 6 загрязнителей в виде сетки маленьких прямоугольников */}
       <div className="pollutants-section">
         <div className="pollutants-section__header">
           <span className="pollutants-section__title">Основные загрязнители (6)</span>
@@ -511,7 +499,6 @@ export default function RightAirPanel({
         </div>
       </div>
 
-      {/* Карточка "Общ инф" выбранного вещества */}
       <div className="general-info-card fade-in" key={selectedKey}>
         <div className="general-info-card__header-row">
           <h4 className="general-info-card__heading">Общая информация</h4>

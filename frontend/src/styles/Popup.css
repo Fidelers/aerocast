@@ -141,7 +141,6 @@
     border-left: 3px solid #f3c82e;
 }
 
-/* === Мобильная оптимизация для попапов карты (до 768px) === */
 @media (max-width: 768px) {
   .maplibregl-popup {
     max-width: min(290px, 86vw) !important;

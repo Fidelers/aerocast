@@ -3,7 +3,6 @@ import DynamicsChart from './DynamicsChart';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/PollutionDynamicsModal.css';
 
-//измеряемые загрязнители
 const POLLUTANTS_CONFIG = [
   { key: 'pm2_5', label: 'PM2.5', color: '#3b82f6' },
   { key: 'pm10', label: 'PM10', color: '#10b981' },
@@ -13,8 +12,6 @@ const POLLUTANTS_CONFIG = [
   { key: 'carbon_monoxide', label: 'CO', color: '#6366f1' },
 ];
 
-
-// форматирование даты в нужный формат
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   try {
@@ -28,7 +25,6 @@ const formatDate = (dateStr) => {
     return dateStr;
   }
 };
-
 
 const buildHourRecord = (isoTime, idx, hourlyData, isCurrent) => {
   const parsed = parseIsoTimeString(isoTime);
@@ -47,7 +43,6 @@ const buildHourRecord = (isoTime, idx, hourlyData, isCurrent) => {
   };
 };
 
-
 export default function PollutionDynamicsModal({
   isOpen = false,
   onClose,
@@ -57,8 +52,6 @@ export default function PollutionDynamicsModal({
   isColorBlind = false,
   colorBlindType = 'okabe',
 }) {
-
-  // закрыть чтоб на ескейп
   useEffect(() => {
     if (!isOpen) return;
 
@@ -72,8 +65,7 @@ export default function PollutionDynamicsModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-
-  //блокировка прокрутки фона страницы при открытом окне
+  // Блокировка прокрутки фона страницы при открытом окне
   useEffect(() => {
     if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
@@ -83,23 +75,20 @@ export default function PollutionDynamicsModal({
     };
   }, [isOpen]);
 
-  // защита чтоб если окно закрыто оно не рендерилось 
   if (!isOpen || !airData || !airData.hourly || !Array.isArray(airData.hourly.time) || airData.hourly.time.length === 0) {
     return null;
   }
 
-  // безопасный индекс времени
   const totalHours = airData.hourly.time.length;
   const safeIdx = (selectedTimeIndex !== null && selectedTimeIndex !== undefined && selectedTimeIndex >= 0 && selectedTimeIndex < totalHours)
     ? selectedTimeIndex
     : 0;
 
-  // определяем выбранный день
   const currentIso = airData.hourly.time[safeIdx] || '';
   const parsedCurrent = parseIsoTimeString(currentIso);
   const selectedDateStr = parsedCurrent?.dateStr || currentIso.split('T')[0] || '';
 
-  // фильтруем ровно 24 часа за выбранные сутки
+  // Фильтруем ровно 24 часа за выбранные сутки
   const dayData = [];
   let activeHourInDay = 0;
 
@@ -122,7 +111,6 @@ export default function PollutionDynamicsModal({
           buildHourRecord(t, idx, airData.hourly, idx === safeIdx)
         );
 
-  // координаты для шапки
   const latVal = coords?.lat ?? airData?.latitude;
   const lonVal = coords?.lon ?? airData?.longitude;
   const latStr = latVal != null ? Number(latVal).toFixed(4) : '';
@@ -186,8 +174,6 @@ export default function PollutionDynamicsModal({
               const min = vals.length > 0 ? Math.min(...vals) : 0;
               const max = vals.length > 0 ? Math.max(...vals) : 0;
 
-
-              // текущая концентрация для акцентирования
               const currentVal = finalDayData[activeHourInDay]?.[p.key];
               const displayCurrent =
                 currentVal !== null && currentVal !== undefined && !Number.isNaN(Number(currentVal))

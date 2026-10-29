@@ -29,7 +29,6 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* === переменные для Sidebar === */
   --surface-secondary: #f1f5f9;     
   --surface-card: #ffffff;          
   --surface-card-forecast: #eff6ff; 
@@ -67,7 +66,6 @@
   --shadow:
     rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 
-  /* === переменные для Sidebar === */
   --surface-secondary: #1f2028;
   --surface-card: #1e1f27;
   --surface-card-forecast: #1a1d2e;
@@ -130,7 +128,6 @@
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 
-    /* === переменные для Sidebar === */
     --surface-secondary: #1f2028;
     --surface-card: #1e1f27;
     --surface-card-forecast: #1a1d2e;
@@ -150,8 +147,6 @@
   }
 }
 
-/* === Режимы доступности для людей с цветовой слепотой (дальтонизм) === */
-/* По умолчанию / Окабе */
 html[data-colorblind="true"],
 :root[data-colorblind="true"] {
   --aqi-color-excellent: #0072b2;
@@ -168,7 +163,6 @@ html[data-colorblind="true"],
   --aqi-text-hazardous: #ffffff;
 }
 
-/* Вид: Окабе (Okabe-Ito) */
 html[data-colorblind="true"][data-colorblind-type="okabe"],
 :root[data-colorblind="true"][data-colorblind-type="okabe"] {
   --aqi-color-excellent: #0072b2;
@@ -392,7 +386,6 @@ code {
   background: var(--code-bg);
 }
 
-/* === Стили карты для 2K экранов === */
 @media (min-width: 1920px) {
   .maplibregl-ctrl-top-right {
     top: 16px;

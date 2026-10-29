@@ -1,9 +1,8 @@
 import React from 'react';
 import { getAqiInfo, COLORBLIND_PALETTES } from '../types';
-//часы для подписей
 const TIME_LABELS = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '23:00'];
 const TIME_INDICES = [0, 3, 6, 9, 12, 15, 18, 21, 23];
-//порог европейской шкалы EAQI
+
 const EAQI_THRESHOLDS = [
   { val: 20, level: 'excellent' },
   { val: 40, level: 'good' },
@@ -12,7 +11,6 @@ const EAQI_THRESHOLDS = [
   { val: 100, level: 'very-poor' },
 ];
 
-// кривая безье 
 function buildBezierPath(points) {
   if (!points || points.length === 0) return '';
   if (points.length === 1) {
@@ -45,8 +43,8 @@ export default function DynamicsChart({
 }) {
   const chartHeight = height || (mode === 'aqi' ? 220 : 90);
   const width = mode === 'aqi' ? 720 : 320;
-//извечение числовых значений показателя из массива данных за день 
-    const rawValues = data.map((item) => {
+
+  const rawValues = data.map((item) => {
     if (typeof item === 'number') return item;
     if (!item || typeof item !== 'object') return null;
     const v = item[valueKey] !== undefined ? item[valueKey] : (valueKey === 'aqi' ? item.european_aqi : item.value);
@@ -57,20 +55,20 @@ export default function DynamicsChart({
   const validValues = rawValues.filter((v) => v !== null);
   let minVal = validValues.length > 0 ? Math.min(...validValues) : 0;
   let maxVal = validValues.length > 0 ? Math.max(...validValues) : 100;
-//верхняя граница для главного графика Aqi не менее 100
-    if (mode === 'aqi') {
+
+  // Верхняя граница шкалы EAQI не менее 100 для сохранения пропорций
+  if (mode === 'aqi') {
     minVal = Math.min(0, minVal);
     maxVal = Math.max(100, maxVal);
   } else if (minVal === maxVal) {
     maxVal = minVal + 10;
   }
 
-  // симметричный вертикальный отступ 10% сверху и снизу
+  // Симметричный вертикальный отступ 10% сверху и снизу
   const padY = chartHeight * 0.1;
   const usableHeight = chartHeight - padY * 2;
   const valRange = maxVal - minVal || 1;
 
-  // шаг по оси x для 24 точек
   const count = Math.max(data.length, 2);
   const stepX = width / (count - 1);
 
@@ -80,7 +78,6 @@ export default function DynamicsChart({
     return chartHeight - padY - ratio * usableHeight;
   };
 
-  // координаты точек графика
   const points = rawValues.map((val, idx) => ({
     x: idx * stepX,
     y: getY(val),
@@ -88,7 +85,6 @@ export default function DynamicsChart({
     idx,
   }));
 
-  // основной цвет линии также и для дальтоников на всякий
   const paletteKey = colorBlindType && COLORBLIND_PALETTES[colorBlindType] ? colorBlindType : 'okabe';
   const palette = COLORBLIND_PALETTES[paletteKey] || COLORBLIND_PALETTES.okabe;
 
@@ -97,7 +93,6 @@ export default function DynamicsChart({
     strokeColor = mode === 'aqi' ? palette.good : palette.excellent;
   }
 
-  // геометрия кривой безье и замкнутого полигона для градиента
   const linePath = buildBezierPath(points);
   const areaPath =
     points.length > 1

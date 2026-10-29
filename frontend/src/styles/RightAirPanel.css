@@ -177,9 +177,6 @@
   border-radius: 3px;
 }
 
-/* ==========================================================================
-   БЛОК ВЕЩЕСТВ: МАЛЕНЬКИЕ ПРЯМОУГОЛЬНИКИ С КОНТУРОМ НОРМЫ (РЕДИЗАЙН)
-   ========================================================================== */
 .pollutants-section {
   padding: 8px 12px;
   border-bottom: 1px solid var(--sidebar-divider);
@@ -200,7 +197,6 @@
   letter-spacing: 0.5px;
 }
 
-/* Сетка карточек-прямоугольников */
 .pollutants-grid {
   display: grid;
   gap: 6px;
@@ -208,12 +204,10 @@
   box-sizing: border-box;
 }
 
-/* Сетка 2 × 3 (2 карточки в ряд) */
 .pollutants-grid--2cols {
   grid-template-columns: repeat(2, 1fr);
 }
 
-/* Маленький прямоугольник (карточка загрязнителя) */
 .pollutant-tile {
   background-color: var(--surface-secondary);
   border-radius: 8px;
@@ -291,9 +285,6 @@
   color: #000;
 }
 
-/* -------------------------------------------------------------
-   ЦВЕТ НОРМЫ: КОНТУР + ЛЕГКИЙ АКЦЕНТ ФОНА
-   ------------------------------------------------------------- */
 .pollutant-tile[data-level="excellent"] {
   border-color: var(--c-excellent, #4CAF50);
   background: linear-gradient(180deg, rgba(76, 175, 80, 0.08) 0%, var(--surface-secondary) 100%);
@@ -370,7 +361,6 @@
   color: #000;
 }
 
-/* Особенности для сетки 2 × 3 */
 .pollutants-grid--2cols .pollutant-tile {
   flex-direction: row;
   justify-content: space-between;
@@ -405,7 +395,6 @@
 
 /* Блок "Общая информация": высота оптимизирована для сохранения габаритов панели */
 
-/* Фиксация плитки загрязнителя по клику */
 .pollutant-tile--pinned,
 .pollutant-row--pinned {
   box-shadow: 0 0 0 2px var(--primary), 0 4px 14px rgba(37, 99, 235, 0.35) !important;
@@ -538,7 +527,6 @@
   transform: translateY(-2px);
 }
 
-/* === Оптимизация для 2K экранов (QHD / 2560x1440 и выше) === */
 @media (min-width: 1920px) {
   .right-air-panel {
     width: 360px;
@@ -677,7 +665,6 @@
     border-radius: 10px;
   }
 
-  /* Оптимизация под экраны 1920x1200 */
   @media (min-height: 1000px) {
     .right-air-panel {
       max-height: calc(100vh - 28px);
@@ -711,9 +698,6 @@
   to { opacity: 1; }
 }
 
-/* ==========================================================================
-   Адаптация правой панели под 1920x1080 (масштаб 125% / 1536x864) и экраны до 900px
-   ========================================================================== */
 @media screen and (min-width: 769px) and (max-width: 1680px),
        screen and (min-width: 769px) and (max-height: 900px) {
   .right-air-panel {
@@ -776,9 +760,6 @@
   }
 }
 
-/* ==========================================================================
-   Адаптация правой панели под 1920x1200 (масштаб 125% / 1536x960, высота от 841px до 990px)
-   ========================================================================== */
 @media screen and (min-width: 769px) and (max-width: 1680px) and (min-height: 841px),
        screen and (min-width: 769px) and (min-height: 851px) and (max-height: 990px) {
   .right-air-panel {
@@ -841,7 +822,6 @@
   }
 }
 
-/* === Мобильная верстка: панель в формате Bottom Sheet (шторка снизу) === */
 @media (max-width: 768px) {
   .right-air-panel {
     width: 100%;

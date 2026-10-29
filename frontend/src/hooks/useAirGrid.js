@@ -84,7 +84,6 @@ export function useAirGrid(options = {}) {
     const loadMicroGrid = useCallback(async (lat, lon) => {
         let cacheKey;
         
-        // Генерация ключа кэша с обработкой ошибок ввода
         try {
             cacheKey = getMicroGridCacheKey(lat, lon);
         } catch (e) {
@@ -94,7 +93,6 @@ export function useAirGrid(options = {}) {
 
         const cache = lruGridCacheRef.current;
 
-        // Проверка наличия данных в кэше 
         if (cache.has(cacheKey)) {
             const cachedData = cache.get(cacheKey);
             

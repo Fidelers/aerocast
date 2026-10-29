@@ -124,14 +124,12 @@
   grid-template-columns: 1fr;
 }
 
-/* Планшеты: 2 колонки (<=860px) */
 @media (min-width: 541px) and (max-width: 860px) {
   .dynamics-modal-pollutants-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* Десктоп: 3 колонки (>860px) */
 @media (min-width: 861px) {
   .dynamics-modal-pollutants-grid {
     grid-template-columns: repeat(3, 1fr);

@@ -52,7 +52,6 @@ function Sidebar({
   const geoWatchdogRef = useRef(null);
   const geoAttemptIdRef = useRef(0);
 
-  // Очистка всех таймеров ошибки геолокации
   const clearGeoTimers = () => {
     if (geoErrorTimerRef.current) {
       clearTimeout(geoErrorTimerRef.current);
@@ -72,7 +71,6 @@ function Sidebar({
     }
   };
 
-  // Очистка таймеров ошибки при размонтировании
   useEffect(() => {
     return () => {
       clearGeoTimers();
@@ -80,7 +78,6 @@ function Sidebar({
     };
   }, []);
 
-  // Установка ошибки с таймером
   const setGeoErrorWithTimeout = (message) => {
     clearGeoTimers();
     setGeoError(message);
@@ -96,18 +93,14 @@ function Sidebar({
     }, 4700);
   };
 
-
-  // Извлечение массива меток времени из airData
   const timeArray = useMemo(() => {
     return Array.isArray(airData?.hourly?.time) ? airData.hourly.time : [];
   }, [airData]);
 
-  // Группировка массива time по суткам (отделение дат от часов)
   const days = useMemo(() => {
     return groupTimesByDay(timeArray, referenceDate);
   }, [timeArray, referenceDate]);
 
-  // Выбранный пользователем день (для переключения списка часов)
   const [selectedDayStr, setSelectedDayStr] = useState(null);
 
   // Внутреннее состояние выбранного часа на случай неконтролируемого использования
@@ -157,9 +150,7 @@ function Sidebar({
         } else if (typeof targetCard.scrollIntoView === 'function') {
           try {
             targetCard.scrollIntoView({ inline: 'center', block: 'nearest' });
-          } catch {
-            // ignore
-          }
+          } catch {}
         }
         hasInitialScrolledRef.current = true;
       }
@@ -170,15 +161,12 @@ function Sidebar({
     return () => cancelAnimationFrame(frameId);
   }, [days, currentDay]);
 
-  // Клик по плитке дня: обновляет доступные часы в блоке .times
   const handleDayClick = (dateStr, e) => {
     setSelectedDayStr(dateStr);
     if (e?.currentTarget && typeof e.currentTarget.scrollIntoView === 'function') {
       try {
         e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
 
     const clickedDay = days.find((d) => d.dateStr === dateStr);
@@ -199,8 +187,6 @@ function Sidebar({
     }
   };
 
-
-  // Индекс времени, наиболее близкого к текущему моменту
   const closestCurrentTimeIndex = useMemo(() => {
     if (!timeArray || timeArray.length === 0) return null;
     return findDefaultTimeIndex(timeArray, referenceDate || new Date());
@@ -208,7 +194,6 @@ function Sidebar({
 
   const isCurrentTimeSelected = activeTimeIndex !== null && activeTimeIndex === closestCurrentTimeIndex;
 
-  // Обработчик выбора ближайшего времени к текущему моменту
   const handleSelectCurrentTime = useCallback(() => {
     if (!timeArray || timeArray.length === 0) return;
 
@@ -242,14 +227,12 @@ function Sidebar({
     }
   }, [timeArray, referenceDate, handleSelectTime]);
 
-  // Клик по плитке часа: вычисляет глобальный selectedTimeIndex и передает его наверх
   const handleHourClick = (globalIndex) => {
     setInternalTimeIndex(globalIndex);
     if (typeof handleSelectTime === 'function') {
       handleSelectTime(globalIndex);
     }
   };
-
 
   // Определение приблизительного местоположения по IP (при отсутствии GPS / на небезопасном HTTP)
   const fetchIpLocation = async () => {
@@ -268,9 +251,7 @@ function Sidebar({
           };
         }
       }
-    } catch {
-      // Игнорируем и пробуем резервный внешний сервис
-    }
+    } catch {}
 
     // 2. Резервный опрос внешнего сервиса ipwho.is
     try {
@@ -285,16 +266,12 @@ function Sidebar({
           };
         }
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     return null;
   };
 
-  // Клик по кнопке местоположения
   const handleLocationClick = async () => {
-    // Сброс существующей ошибки и таймеров
     clearGeoTimers();
     clearGeoWatchdog();
     setGeoError(null);
@@ -414,7 +391,6 @@ function Sidebar({
   const didDragRef = useRef(false);
   const dragPointerTypeRef = useRef('');
 
-  // Сброс inline стилей при открытии сайдбара
   useEffect(() => {
     if (isOpen) {
       isClosingRef.current = false;
@@ -638,13 +614,12 @@ function Sidebar({
     if (isTouchActiveRef.current) return;
     if (e.button !== undefined && e.button !== 0) return;
 
-    // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО за специальный хэндл на краю
     if (e.pointerType === 'mouse' && !e.target?.closest?.('.sidebar__drag-handle')) {
       return;
     }
 
     if (e.target && typeof e.target.setPointerCapture === 'function') {
-      try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      try { e.target.setPointerCapture(e.pointerId); } catch {}
     }
     startDrag(e.clientX, e.clientY, e.target, e.pointerType);
   };
@@ -658,7 +633,7 @@ function Sidebar({
   const onPointerUp = (e) => {
     if (isTouchActiveRef.current) return;
     if (e.target && typeof e.target.releasePointerCapture === 'function') {
-      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      try { e.target.releasePointerCapture(e.pointerId); } catch {}
     }
     endDrag();
   };
@@ -666,7 +641,7 @@ function Sidebar({
   const onPointerCancel = (e) => {
     if (isTouchActiveRef.current) return;
     if (e.target && typeof e.target.releasePointerCapture === 'function') {
-      try { e.target.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      try { e.target.releasePointerCapture(e.pointerId); } catch {}
     }
     endDrag();
   };
@@ -693,7 +668,6 @@ function Sidebar({
       onPointerCancel={onPointerCancel}
       onClickCapture={onClickCapture}
     >
-      {/* Декоративный хэндл для удобного перетаскивания мобильного сайдбара за правый край */}
       <div
         className="sidebar__drag-handle"
         data-testid="sidebar-drag-handle"
