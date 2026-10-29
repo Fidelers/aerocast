@@ -10,3 +10,4 @@
 frontend.log
 node_modules/
 .frontend.pid
+evalReport.md

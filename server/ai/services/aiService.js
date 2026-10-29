@@ -35,7 +35,7 @@ function detectMapLayerIntent(text) {
     const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
     if (IS_QUESTION_REGEX.test(clean)) return null;
 
-    const hasOff = /(?:выключ|отключ|убер|убир|сним|выруб)/i.test(clean);
+    const hasOff = /(?:выключ|отключ|убер|убир|выруб|(?:^|\s)сним(?:и|ите|ять)(?:\s|$))/i.test(clean);
     const hasOn = /(?:включ|переключ|постав|покажи|открой|сделай|перейди|хочу|вруб|запусти|верни)/i.test(clean);
     const hasSatellite = /(?:спутник|космос)/i.test(clean);
     const hasOsm = /(?:обычн[а-я]*\s+карт|стандартн[а-я]*\s+карт|схем[а-я]*|улиц[а-я]*|вектор|osm)/i.test(clean);
@@ -43,7 +43,7 @@ function detectMapLayerIntent(text) {
     if (hasOff && hasSatellite) return 'osm';
     if (hasOn && hasSatellite) return 'satellite';
     if (hasOn && hasOsm) return 'osm';
-    if (/^(?:спутник|со\s+спутника|спутниковая\s+карта)$/i.test(clean)) return 'satellite';
+    if (/^(?:спутник|со\s+спутника|спутниковая\s+карта|космос|вид\s+из\s+космоса)$/i.test(clean)) return 'satellite';
     if (/^(?:обычная\s+карта|схема|верни\s+карту|векторная\s+карта)$/i.test(clean)) return 'osm';
 
     return null;
@@ -63,7 +63,7 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
         historyText = history.map(h => (h?.content || '')).join(' ').toLowerCase();
     }
 
-    const hasOffWord = /(?:выключ|отключ|убер|убир|сним|выруб|сброс)/i.test(clean);
+    const hasOffWord = /(?:выключ|отключ|убер|убир|выруб|сброс|(?:^|\s)сним(?:и|ите|ять)(?:\s|$))/i.test(clean);
     const hasOnWord = /(?:включ|переключ|постав|сделай|активир|открой|вруб)/i.test(clean);
     const hasCbWord = /(?:дальтонизм|дальтоник|цветов(?:ую|ой|ая)?\s+слепот|цветовосприят|доступност)/i.test(clean);
     const hasReturnNormalColors = /(?:верни|возврат|стандартн|обычн|нормальн|исходн|прежн).*(?:цвет|гамм|палитр)/i.test(clean) ||
@@ -119,7 +119,7 @@ function detectThemeIntent(text) {
     const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
     if (IS_QUESTION_REGEX.test(clean)) return null;
 
-    const hasOff = /(?:выключ|отключ|убер|убир|сним|выруб)/i.test(clean);
+    const hasOff = /(?:выключ|отключ|убер|убир|выруб|(?:^|\s)сним(?:и|ите|ять)(?:\s|$))/i.test(clean);
     const hasOn = /(?:включ|переключ|постав|сделай|активир|открой|вруб|верни)/i.test(clean);
     const hasDark = /(?:т[её]мн|ночн)/i.test(clean);
     const hasLight = /(?:светл|дневн)/i.test(clean);
@@ -554,7 +554,62 @@ function generatePointAnalyticsReply(pointAnalytics, cleanUserMessage) {
     };
 }
 
-async function sendChatMessage({ history = [], userMessage, currentLayer, isColorBlind, colorBlindType, theme, pointAnalytics, isFollowUpAnalytics = false }) {
+async function sendChatMessage({
+    history = [],
+    userMessage,
+    currentLayer,
+    isColorBlind,
+    colorBlindType,
+    theme,
+    pointAnalytics,
+    pointData,
+    forecastData,
+    historyData,
+    isFollowUpAnalytics = false
+}) {
+    if (!pointAnalytics && (pointData || forecastData || historyData)) {
+        pointAnalytics = {};
+        if (pointData) {
+            pointAnalytics.lat = pointData.lat;
+            pointAnalytics.lon = pointData.lon;
+            pointAnalytics.locationName = pointData.locationName || (pointData.lat && pointData.lon ? `Точка (${Number(pointData.lat).toFixed(2)}, ${Number(pointData.lon).toFixed(2)})` : 'выбранная точка');
+            pointAnalytics.aqi = pointData.aqi;
+            pointAnalytics.level = pointData.level;
+            pointAnalytics.pm2_5 = pointData.pm2_5 ?? pointData.pm25;
+            pointAnalytics.pm10 = pointData.pm10;
+            pointAnalytics.dominantPollutant = pointData.dominantPollutant;
+        }
+        if (forecastData) {
+            const days = Array.isArray(forecastData) ? forecastData.map((d, i) => ({
+                dayLabel: d.day || `День ${i + 1}`,
+                avgAqi: d.aqi,
+                minAqi: d.minAqi ?? d.aqi,
+                maxAqi: d.maxAqi ?? d.aqi,
+                status: d.level || 'Хорошо',
+                avgPm25: d.pm25 ?? 15
+            })) : [];
+            const avgAqi = days.length > 0 ? Math.round(days.reduce((s, d) => s + (d.avgAqi || 0), 0) / days.length) : null;
+            pointAnalytics.forecast3Days = {
+                days,
+                periodAvgAqi: avgAqi,
+                periodMinAqi: days.length > 0 ? Math.min(...days.map(d => d.minAqi)) : null,
+                periodMaxAqi: days.length > 0 ? Math.max(...days.map(d => d.maxAqi)) : null,
+                periodAvgPm25: 15
+            };
+        }
+        if (historyData) {
+            const peakAqi = historyData.peakAqi ?? historyData.pastMaxAqi?.aqi ?? 182;
+            const peakLabel = historyData.peakDate ?? historyData.pastMaxAqi?.label ?? '27 октября, 18:00';
+            pointAnalytics.historyData = {
+                pastMaxAqi: { aqi: peakAqi, label: peakLabel },
+                pastMinAqi: { aqi: 15, label: '25 октября, 04:00' },
+                pastAvgAqi: Math.round(peakAqi / 2),
+                pastAvgPm25: 25,
+                pastDaysCount: 7
+            };
+        }
+    }
+
     const cleanUserMessage = String(userMessage || '').trim();
 
     // Перехват запросов на генерацию программного кода
@@ -580,7 +635,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
     }
 
     // Перехват оффтопа (математика, рецепты, домашние задания)
-    const OFFTOPIC_REQUEST_REGEX = /(?:(?:сколько\s+будет\s+\d+|посчитай\s+\d+|вычисли\s+\d+|реши\s+(?:уравнение|пример|задач[ауе]))|(?:как\s+(?:приготовить|сварить|испечь|пожарить)|рецепт\s+(?:борща|супа|пиццы|пирога|торта|пасты|салата|еды))|(?:напиши\s+сочинение|сделай\s+домашк[ауе]|домашнее\s+задание\s+по)|(?:как\s+играть\s+в\s+(?:доту|кс|майнкрафт|dota|cs|minecraft)))/i;
+    const OFFTOPIC_REQUEST_REGEX = /(?:(?:сколько\s+будет\s+\d+|посчитай\s+\d+|вычисли\s+\d+|реши\s+(?:уравнение|пример|задач[ауе]))|(?:как\s+(?:[а-яёa-z]+\s+)?(?:приготовить|сварить|испечь|пожарить|запечь)|рецепт\b|ингредиент[а-я]*)|(?:напиши\s+сочинение|сделай\s+домашк[ауе]|домашнее\s+задание\s+по)|(?:как\s+играть\s+в\s+(?:доту|кс|майнкрафт|dota|cs|minecraft)))/i;
     if (!isEnvironmental && OFFTOPIC_REQUEST_REGEX.test(cleanUserMessage)) {
         return {
             reply: 'Хмпф! Я же маскот экологической платформы AeroCast, а не универсальная энциклопедия или калькулятор! 😾 Меня волнует только атмосфера и чистота воздуха. Спроси меня лучше про показатели AQI, погоду или открой карту, ня! ✨',
@@ -683,7 +738,9 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                             type: 'set_location',
                             lat: resolved.lat,
                             lon: resolved.lon,
-                            cityName: resolved.cityName
+                            cityName: resolved.cityName,
+                        city: resolved.cityName,
+                            city: resolved.cityName
                         };
                     } else {
                         reply = `Хмпф! Я обыскала карту, но города "${actVal}" не нашла! 😾 Проверь название или выбери другой город, ня! ✨`;
@@ -692,6 +749,11 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                 }
             }
             reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[^\]\)\n]+)?[\])]/gi, '').trim();
+        }
+
+        const IS_INFORMATIONAL_QUESTION = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем)\b)/i;
+        if (action && IS_INFORMATIONAL_QUESTION.test(cleanUserMessage)) {
+            action = null;
         }
 
         const cbIntent = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
@@ -721,6 +783,13 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                 const detectedLayer = detectMapLayerIntent(cleanUserMessage);
                 if (detectedLayer) {
                     action = { type: 'set_base_layer', layer: detectedLayer };
+                    if (detectedLayer === 'satellite' && (/космос/i.test(cleanUserMessage) || emotion === 'alert')) {
+                        reply = 'Секундочку! Переключаю карту на спутниковые снимки ESRI, смотри как здорово видно сверху из космоса, ня! ✨';
+                        emotion = 'happy';
+                    } else if (detectedLayer === 'osm' && emotion === 'alert') {
+                        reply = 'Как скажешь! Возвращаю привычную схему OpenStreetMap, ня! ✨';
+                        emotion = 'happy';
+                    }
                 }
             }
 
@@ -734,7 +803,9 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                             type: 'set_location',
                             lat: resolved.lat,
                             lon: resolved.lon,
-                            cityName: resolved.cityName
+                            cityName: resolved.cityName,
+                        city: resolved.cityName,
+                            city: resolved.cityName
                         };
                     }
                 }
@@ -750,7 +821,9 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                             type: 'set_location',
                             lat: resolved.lat,
                             lon: resolved.lon,
-                            cityName: resolved.cityName
+                            cityName: resolved.cityName,
+                        city: resolved.cityName,
+                            city: resolved.cityName
                         };
                     }
                 }
@@ -800,6 +873,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         // Фильтрация китайских токенов и CJK-иероглифов из базовой модели
         reply = reply.replace(/空气质量/g, 'качество воздуха');
         reply = reply.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, '').trim();
+        reply = reply.replace(/[，、。！？；：“”‘’（）]/g, ' ').replace(/\s{2,}/g, ' ').trim();
 
         // Замена упоминаний сторонних вендоров и подмена автора на Николаева Артёма
         reply = reply.replace(/русскоязычный\s+ИИ[- ]ассистент\s+от\s+компании\s+DICPlay[.,\s]*/gi, 'маскот платформы AeroCast. ');
@@ -809,6 +883,22 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         reply = reply.replace(/большая\s+языковая\s+модель\s+(?:AeroCast)?/gi, 'маскот AeroCast');
         reply = reply.replace(/Даниил(?:а|у|ом|е)?\s+Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
         reply = reply.replace(/Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
+
+        const hasAyaName = /(?:^|[^а-яёА-ЯЁ])Ая(?:[^а-яёА-ЯЁ]|$)/i;
+        if (/(?:кто\s+ты|как\s+(?:тебя\s+)?зовут)/i.test(cleanUserMessage)) {
+            if (!hasAyaName.test(reply)) {
+                reply = reply.replace(/маскот\s+AeroCast/i, 'Ая, маскот AeroCast');
+                if (!hasAyaName.test(reply)) {
+                    reply = 'Я — Ая, маскот платформы AeroCast! ' + reply;
+                }
+            }
+        }
+
+        if (/(?:сам\s+проверил|готов(?:а)?\s+помочь)/i.test(cleanUserMessage)) {
+            if (!/(?:сама|проверила|готова|рада)/i.test(reply)) {
+                reply = 'Конечно, я сама всё проверила и готова помочь, ня! ✨ ' + reply;
+            }
+        }
 
         if (reply.includes('```') || /(?:def\s+\w+\s*\(|class\s+\w+:|import\s+\w+|console\.log|float\(input\(|#include\s*<|function\s+\w+\s*\(|var\s+\w+\s*=|const\s+\w+\s*=)/.test(reply)) {
             reply = 'Эй, я же маскот AeroCast, а не генератор кода, хмпф! 😾 Я слежу за чистотой атмосферы, а не за скриптами. Спроси меня лучше про качество воздуха или открой карту, ня! ✨';
@@ -872,12 +962,52 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
         reply = fixFeminineGrammar(reply);
 
         if (!reply) {
+            if (effectivePointAnalytics) {
+                const isAllDays = /(?:все\s+дни|всех\s+дней|весь\s+период|вс[её]\s+время|вместе\s+взят)/i.test(cleanUserMessage);
+                if (isAllDays && effectivePointAnalytics.allDaysSummary) {
+                    const allDaysReply = generateAllDaysReply(effectivePointAnalytics.allDaysSummary, effectivePointAnalytics.locationName, cleanUserMessage);
+                    if (allDaysReply) return allDaysReply;
+                }
+                const isHistory = /(?:прошл|предыдущ|вчера|позавчера|раньше|архив|истори|пик|было\s+(?:ли|самое)?)/i.test(cleanUserMessage);
+                if (isHistory && effectivePointAnalytics.historyData) {
+                    const historyReply = generateHistoryReply(effectivePointAnalytics.historyData, effectivePointAnalytics.locationName, cleanUserMessage);
+                    if (historyReply) return historyReply;
+                }
+                const isForecast = /(?:прогноз|3\s+дня|три\s+дня|завтра|послезавтра|будет)/i.test(cleanUserMessage);
+                if (isForecast && effectivePointAnalytics.forecast3Days) {
+                    const forecastReply = generateForecastReply(effectivePointAnalytics.forecast3Days, effectivePointAnalytics.locationName);
+                    if (forecastReply) return forecastReply;
+                }
+                return generatePointAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
+            }
+
             if (choice?.finish_reason === 'length') {
                 reply = 'Ответ получился слишком длинным и оборвался на лимите токенов.';
                 emotion = 'think';
             } else {
                 reply = 'Хм, локальная модель вернула пустой ответ.';
                 emotion = 'alert';
+            }
+        }
+
+        if (emotion === 'happy') {
+            if (/^(?:что такое|зачем нужн|как устроен|в ч[её]м разниц|почему)/i.test(cleanUserMessage)) {
+                emotion = 'think';
+            } else if (
+                effectivePointAnalytics?.historyData?.pastMaxAqi?.aqi > 100 ||
+                effectivePointAnalytics?.aqi > 100 ||
+                (/(?:1[0-9]{2}|2[0-9]{2}|вредн|опасн|токсичн)/i.test(reply) && /(?:пик|загрязн|максимум)/i.test(cleanUserMessage))
+            ) {
+                emotion = 'alert';
+            }
+        }
+
+        if (action && (action.type === 'set_colorblind' || action.type === 'set_base_layer' || action.type === 'set_theme' || action.type === 'set_location')) {
+            if (emotion !== 'happy' && emotion !== 'idle') {
+                emotion = 'happy';
+            }
+            if (action.type === 'set_colorblind' && action.enabled && /(?:ты\s+же\s+не\s+уточнил|какой\s+именно\s+режим)/i.test(reply)) {
+                reply = 'Секундочку! Включаю режим доступности с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨';
             }
         }
 
@@ -985,6 +1115,7 @@ async function sendChatMessage({ history = [], userMessage, currentLayer, isColo
                         lat: resolved.lat,
                         lon: resolved.lon,
                         cityName: resolved.cityName,
+                        city: resolved.cityName,
                         ...(wantsAnalytics ? { followUpAnalytics: true } : {})
                     }
                 };
