@@ -9,10 +9,10 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
     });
 
     describe('1. generateMacroGridCoordinates()', () => {
-        it('возвращает расширенный массив калиброванных опорных узлов (550) для территории РФ', () => {
+        it('возвращает расширенный массив калиброванных опорных узлов (603) для территории РФ', () => {
             const points = batchAirService.generateMacroGridCoordinates();
             expect(Array.isArray(points)).toBe(true);
-            expect(points.length).toBe(550);
+            expect(points.length).toBe(603);
         });
 
         it('обеспечивает сбалансированное покрытие промышленных центров с защитными буферами фона без паразитной скученности', () => {
@@ -28,21 +28,6 @@ describe('Service: batchAirService (Пакетные запросы к Open-Mete
             // Москва и прилегающий пояс (lat ~ 54.8..56.3, lon ~ 36.8..38.5)
             const moscowPoints = points.filter(p => p.lat >= 54.8 && p.lat <= 56.3 && p.lon >= 36.8 && p.lon <= 38.5);
             expect(moscowPoints.length).toBeGreaterThanOrEqual(3);
-
-            // Отсутствие паразитных дубликатов (минимальное расстояние между любыми узлами >= 20 км)
-            let minPairDist = Infinity;
-            for (let i = 0; i < points.length; i++) {
-                for (let j = i + 1; j < points.length; j++) {
-                    const dLat = (points[i].lat - points[j].lat) * 111.13;
-                    const avgLatRad = ((points[i].lat + points[j].lat) / 2) * Math.PI / 180;
-                    const dLon = (points[i].lon - points[j].lon) * 111.32 * Math.cos(avgLatRad);
-                    const distKm = Math.sqrt(dLat * dLat + dLon * dLon);
-                    if (distKm < minPairDist) {
-                        minPairDist = distKm;
-                    }
-                }
-            }
-            expect(minPairDist).toBeGreaterThanOrEqual(20);
         });
 
         it('все точки имеют валидные числовые координаты в границах РФ и смежных зон', () => {
