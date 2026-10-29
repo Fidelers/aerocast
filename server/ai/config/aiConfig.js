@@ -13,5 +13,5 @@ module.exports = {
     presencePenalty: parseFloat(process.env.LLM_PRESENCE_PENALTY) || 0.15,
     timeoutMs: parseInt(process.env.LLM_TIMEOUT_MS, 10) || 75000,
     maxHistoryMessages: parseInt(process.env.LLM_MAX_HISTORY, 10) || 4,
-    maxCharLimit: parseInt(process.env.LLM_MAX_CHAR_LIMIT, 10) || 750
+    maxCharLimit: parseInt(process.env.LLM_MAX_CHAR_LIMIT, 10) || 1000
 };

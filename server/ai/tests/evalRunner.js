@@ -1,19 +1,3 @@
-#!/usr/bin/env node
-// server/ai/tests/evalRunner.js
-/**
- * AeroCast Local LLM E2E Evaluation Runner
- * 
- * Запускает оценку качества и поведения живой локальной модели (gemma-4-E2B-it-Q4_K_M)
- * на реальном датасете evalDataset.json.
- * 
- * Использование:
- *   node server/ai/tests/evalRunner.js
- *   node server/ai/tests/evalRunner.js --category=map_layers
- *   node server/ai/tests/evalRunner.js --limit=5
- *   node server/ai/tests/evalRunner.js --url=http://127.0.0.1:8080/v1
- *   node server/ai/tests/evalRunner.js --verbose
- */
-
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -43,9 +27,7 @@ for (const arg of args) {
     if (arg.startsWith('--url=')) cliOptions.url = arg.split('=')[1].trim();
 }
 
-/**
- * Определение рабочего URL для связи с llama-server на хосте
- */
+
 async function resolveWorkingUrl() {
     const candidates = [
         cliOptions.url,
@@ -85,9 +67,7 @@ async function resolveWorkingUrl() {
     return null;
 }
 
-/**
- * Валидация ответа модели против ожиданий тест-кейса
- */
+
 function validateTestCase(tc, result, durationMs) {
     const issues = [];
     const exp = tc.expectations || {};
@@ -180,9 +160,7 @@ function validateTestCase(tc, result, durationMs) {
     };
 }
 
-/**
- * Генерация Markdown отчета
- */
+
 function generateMarkdownReport({ results, stats, durationTotalSec, targetUrl }) {
     const timestamp = new Date().toLocaleString('ru-RU', { timeZoneName: 'short' });
 
@@ -236,16 +214,14 @@ function generateMarkdownReport({ results, stats, durationTotalSec, targetUrl })
     return md;
 }
 
-/**
- * Основной цикл запуска оценки
- */
+
 async function run() {
     console.log('\n' + '='.repeat(70));
-    console.log('  🚀 AeroCast Local LLM (gemma-4-E2B-it-Q4_K_M) E2E Eval Runner');
+    console.log('  AeroCast Local LLM (gemma-4-E2B-it-Q4_K_M) E2E Eval Runner');
     console.log('='.repeat(70) + '\n');
 
     if (!fs.existsSync(DATASET_PATH)) {
-        console.error(`❌ Файл датасета не найден: ${DATASET_PATH}`);
+        console.error(`Файл датасета не найден: ${DATASET_PATH}`);
         process.exit(1);
     }
 
@@ -254,15 +230,15 @@ async function run() {
 
     if (cliOptions.category) {
         testCases = testCases.filter(tc => tc.category === cliOptions.category);
-        console.log(`🔍 Фильтр по категории: "${cliOptions.category}" (${testCases.length} тестов)`);
+        console.log(`Фильтр по категории: "${cliOptions.category}" (${testCases.length} тестов)`);
     }
 
     if (cliOptions.limit && cliOptions.limit > 0) {
         testCases = testCases.slice(0, cliOptions.limit);
-        console.log(`⏱️ Ограничение выборки: первые ${testCases.length} тестов`);
+        console.log(`⏱Ограничение выборки: первые ${testCases.length} тестов`);
     }
 
-    console.log(`📦 Загружено сценариев для оценки: ${testCases.length}`);
+    console.log(`Загружено сценариев для оценки: ${testCases.length}`);
 
     // Проверка доступности llama-server
     console.log(`🔌 Проверка связи с llama-server...`);
@@ -270,7 +246,7 @@ async function run() {
 
     if (!workingUrl) {
         console.log('\n' + '!'.repeat(70));
-        console.log('  ⚠️  ВНИМАНИЕ: llama-server не доступен!');
+        console.log('  ⚠ВНИМАНИЕ: llama-server не доступен!');
         console.log('!'.repeat(70));
         console.log('\nЛокальная LLM не отвечает по адресам:');
         console.log(`  - ${aiConfig.baseURL}`);
@@ -356,7 +332,7 @@ async function run() {
     };
 
     console.log('\n' + '='.repeat(70));
-    console.log(`📊 ИТОГИ ОЦЕНКИ (Pass Rate: ${stats.passRate.toFixed(1)}%)`);
+    console.log(`ИТОГИ ОЦЕНКИ (Pass Rate: ${stats.passRate.toFixed(1)}%)`);
     console.log('='.repeat(70));
     console.log(`Всего тестов:     ${stats.total}`);
     console.log(`Успешно:          ✅ ${stats.passed}`);
