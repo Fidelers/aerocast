@@ -1,0 +1,183 @@
+
+.dynamics-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background-color: var(--surface-card, #ffffff);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.dynamics-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 0;
+}
+
+.dynamics-modal-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dynamics-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-h, #08060d);
+  line-height: 1.3;
+}
+
+.dynamics-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+  font-family: var(--mono, ui-monospace);
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-secondary, #f1f5f9);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.dynamics-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+.dynamics-modal-close:hover {
+  background-color: var(--surface-secondary, #f1f5f9);
+  color: var(--text-h, #08060d);
+  transform: scale(1.05);
+}
+
+.dynamics-modal-close:active {
+  transform: scale(0.95);
+}
+
+.dynamics-modal-content {
+  background: var(--bg, #fff);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  max-width: 1200px;
+  width: 95%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dynamics-modal-scroll-area {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dynamics-modal-main-chart,
+.dynamics-modal-pollutants-grid {
+  padding: 24px;
+}
+
+.dynamics-modal-main-chart {
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding-bottom: 24px;
+  margin-bottom: 0;
+}
+
+.dynamics-modal-pollutants-grid {
+  padding-top: 24px;
+}
+
+.dynamics-modal-pollutants-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 0;
+  grid-template-columns: 1fr;
+}
+
+/* Планшеты: 2 колонки (<=860px) */
+@media (min-width: 541px) and (max-width: 860px) {
+  .dynamics-modal-pollutants-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Десктоп: 3 колонки (>860px) */
+@media (min-width: 861px) {
+  .dynamics-modal-pollutants-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pollutant-chart-card {
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s ease;
+}
+
+.pollutant-chart-card:hover {
+  border-color: var(--border-hover, #93c5fd);
+}
+
+.pollutant-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.pollutant-card-header strong {
+  font-size: 1.1rem;
+  color: var(--text-h, #08060d);
+  font-family: var(--heading, system-ui);
+}
+
+.pollutant-card-current {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary, #2563eb);
+  font-family: var(--mono, ui-monospace);
+}
+
+.pollutant-card-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 8px;
+  font-family: var(--mono, ui-monospace);
+}

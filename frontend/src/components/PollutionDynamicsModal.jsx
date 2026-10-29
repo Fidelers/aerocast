@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import DynamicsChart from './DynamicsChart';
-import '../styles/RightAirPanel.css';
 import { parseIsoTimeString } from '../utils/timeUtils';
+import '../styles/PollutionDynamicsModal.css';
 
 //измеряемые загрязнители
 const POLLUTANTS_CONFIG = [
@@ -142,21 +142,27 @@ export default function PollutionDynamicsModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dynamics-modal-header">
+          <div className="dynamics-modal-header-content">
           <h2>Суточная динамика качества воздуха</h2>
           <div className="dynamics-modal-meta">
             <span>Дата: {formatDate(selectedDateStr)}</span>
             {latStr && lonStr && <span>Координаты: {latStr}, {lonStr}</span>}
           </div>
-          <button
-            type="button"
-            className="dynamics-modal-close"
-            onClick={onClose}
-            aria-label="Закрыть окно"
-          >
-            ×
-          </button>
         </div>
+        <button
+          type="button"
+          className="dynamics-modal-close"
+          onClick={onClose}
+          aria-label="Закрыть окно"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
 
+      <div className="dynamics-modal-scroll-area">
         <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
           <h3>Общий индекс качества воздуха (EAQI)</h3>
           <DynamicsChart
@@ -176,38 +182,47 @@ export default function PollutionDynamicsModal({
             const vals = finalDayData
               .map((d) => d[p.key])
               .filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v)));
+              
+              const min = vals.length > 0 ? Math.min(...vals) : 0;
+              const max = vals.length > 0 ? Math.max(...vals) : 0;
 
-            const min = vals.length > 0 ? Math.min(...vals) : 0;
-            const max = vals.length > 0 ? Math.max(...vals) : 0;
 
-            return (
-              <div
-                key={p.key}
-                className="pollutant-chart-card"
-                data-testid={`pollutant-card-${p.key}`}
-              >
-                <div className="pollutant-card-header">
-                  <strong>{p.label}</strong>
-                  <span className="pollutant-card-unit">мкг/м³</span>
+              // текущая концентрация для акцентирования
+              const currentVal = finalDayData[activeHourInDay]?.[p.key];
+              const displayCurrent =
+                currentVal !== null && currentVal !== undefined && !Number.isNaN(Number(currentVal))
+                  ? Number(currentVal).toFixed(1)
+                  : '—';
+
+              return (
+                <div
+                  key={p.key}
+                  className="pollutant-chart-card"
+                  data-testid={`pollutant-card-${p.key}`}
+                >
+                  <div className="pollutant-card-header">
+                    <strong>{p.label}</strong>
+                    <span className="pollutant-card-unit">{displayCurrent} мкг/м³</span>
+                  </div>
+                  <div className="pollutant-card-stats">
+                    <span>Минимум: {min !== null ? min.toFixed(1) : '—'}</span>
+                    <span>Максимум: {max !== null ? max.toFixed(1) : '—'}</span>
+                  </div>
+                  <DynamicsChart
+                    mode="pollutant"
+                    data={finalDayData}
+                    valueKey={p.key}
+                    unit="мкг/м³"
+                    color={p.color}
+                    activeIndex={activeHourInDay}
+                    isColorBlind={isColorBlind}
+                    colorBlindType={colorBlindType}
+                    height={90}
+                  />
                 </div>
-                <div className="pollutant-card-stats">
-                  <span>мин: {min}</span>
-                  <span>макс: {max}</span>
-                </div>
-                <DynamicsChart
-                  mode="pollutant"
-                  data={finalDayData}
-                  valueKey={p.key}
-                  unit="мкг/м³"
-                  color={p.color}
-                  activeIndex={activeHourInDay}
-                  isColorBlind={isColorBlind}
-                  colorBlindType={colorBlindType}
-                  height={90}
-                />
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
