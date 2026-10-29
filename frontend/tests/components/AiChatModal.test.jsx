@@ -710,4 +710,205 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText(/Перемещаюсь в Екатеринбург/i)).toBeDefined();
     });
   });
+
+  it('отображает кнопку быстрой аналитики и передает pointAnalytics на бэкенд', async () => {
+    const mockAirData = {
+      latitude: 55.75,
+      longitude: 37.61,
+      hourly: {
+        time: ['2026-10-29T14:00'],
+        european_aqi: [25],
+        pm2_5: [12.4],
+        pm10: [20.1],
+        nitrogen_dioxide: [18.2]
+      }
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'В Москве сейчас индекс EAQI 25, воздух чистый, ня! ✨',
+        emotion: 'happy'
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        airData={mockAirData}
+        selectedTimeIndex={0}
+        coords={{ lat: 55.75, lon: 37.61 }}
+        locationName="Москва, Россия"
+      />
+    );
+
+    // Кнопка быстрой аналитики должна появиться в шапке слева от настроек без текста
+    const quickBtn = screen.getByTestId('ai-chat-quick-analytics-btn');
+    expect(quickBtn).toBeDefined();
+    expect(quickBtn.getAttribute('title')).toContain('Москва, Россия');
+    expect(quickBtn.getAttribute('title')).toContain('AQI 25');
+    expect(quickBtn.textContent.trim()).toBe('');
+
+    // Кликаем по быстрой аналитике
+    await userEvent.click(quickBtn);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/ai/chat',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('Москва, Россия')
+        })
+      );
+    });
+
+    const bodySent = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(bodySent.pointAnalytics).toBeDefined();
+    expect(bodySent.pointAnalytics.locationName).toBe('Москва, Россия');
+    expect(bodySent.pointAnalytics.aqi).toBe(25);
+    expect(bodySent.pointAnalytics.pm2_5).toBe(12.4);
+
+    await waitFor(() => {
+      expect(screen.getByText(/В Москве сейчас индекс EAQI 25/i)).toBeDefined();
+    });
+  });
+
+  it('при запросе качества воздуха в городе выполняет двухэтапный сценарий: перемещение и затем аналитика', async () => {
+    const handleLocationSelect = vi.fn();
+
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (typeof url === 'string' && url.includes('/api/air-quality')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            hourly: {
+              time: ['2026-10-29T12:00:00Z'],
+              european_aqi: [22],
+              pm2_5: [10.5],
+              pm10: [18.0]
+            }
+          })
+        });
+      }
+
+      if (typeof url === 'string' && url.includes('/api/ai/chat')) {
+        // Проверяем вызовы к чату
+        const callCount = global.fetch.mock.calls.filter(c => c[0].includes('/api/ai/chat')).length;
+        if (callCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              reply: 'Секундочку! Перемещаемся в Москву, смотрю свежие замеры воздуха, ня! ✨',
+              emotion: 'happy',
+              action: {
+                type: 'set_location',
+                lat: 55.75204,
+                lon: 37.61781,
+                cityName: 'Москва, Россия',
+                followUpAnalytics: true
+              }
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            reply: 'Смотри, в Москве сейчас прекрасный воздух! Индекс EAQI равен 22 (Хорошо). PM2.5 в норме, ня! ✨',
+            emotion: 'happy'
+          })
+        });
+      }
+
+      return Promise.reject(new Error('Unknown url'));
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLocationSelect={handleLocationSelect}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'можешь пожалуйста сказать что сейчас по воздуху в Москве');
+    await userEvent.keyboard('{Enter}');
+
+    // 1. Шаг 1: перемещение к Москве и первое сообщение
+    await waitFor(() => {
+      expect(handleLocationSelect).toHaveBeenCalledWith(expect.objectContaining({
+        lat: 55.75204,
+        lon: 37.61781,
+        display_name: 'Москва, Россия'
+      }));
+      expect(screen.getByText('Секундочку! Перемещаемся в Москву, смотрю свежие замеры воздуха, ня! ✨')).toBeDefined();
+    });
+
+    // 2. Шаг 2: автоматическая подгрузка аналитики и второе сообщение
+    await waitFor(() => {
+      expect(screen.getByText('Смотри, в Москве сейчас прекрасный воздух! Индекс EAQI равен 22 (Хорошо). PM2.5 в норме, ня! ✨')).toBeDefined();
+    });
+
+    const chatCalls = global.fetch.mock.calls.filter(c => c[0].includes('/api/ai/chat'));
+    expect(chatCalls).toHaveLength(2);
+    const step2Payload = JSON.parse(chatCalls[1][1].body);
+    expect(step2Payload.isFollowUpAnalytics).toBe(true);
+    expect(step2Payload.pointAnalytics).toBeDefined();
+    expect(step2Payload.pointAnalytics.forecast3Days).toBeDefined();
+  });
+
+  it('не путает фразы прогноза на 3 дня с названиями городов и включает forecast3Days в pointAnalytics', async () => {
+    const handleLocationSelect = vi.fn();
+    const mockAirData = {
+      latitude: 55.75,
+      longitude: 37.61,
+      hourly: {
+        time: ['2026-10-29T12:00:00Z', '2026-10-30T12:00:00Z', '2026-10-31T12:00:00Z'],
+        european_aqi: [25, 30, 20],
+        pm2_5: [12, 14, 9],
+        pm10: [18, 20, 15]
+      }
+    };
+
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (typeof url === 'string' && url.includes('/api/ai/chat')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            reply: 'По прогнозу на 3 дня средний индекс EAQI будет около 25, ня! ✨',
+            emotion: 'happy'
+          })
+        });
+      }
+      return Promise.reject(new Error('Unknown url'));
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLocationSelect={handleLocationSelect}
+        airData={mockAirData}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Скажи на ближайшие 3 дня какая будет тут погода и сам воздух');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('По прогнозу на 3 дня средний индекс EAQI будет около 25, ня! ✨')).toBeDefined();
+    });
+
+    // Убеждаемся, что не было ошибочного перемещения карты
+    expect(handleLocationSelect).not.toHaveBeenCalled();
+
+    const chatCalls = global.fetch.mock.calls.filter(c => c[0].includes('/api/ai/chat'));
+    expect(chatCalls).toHaveLength(1);
+    const reqBody = JSON.parse(chatCalls[0][1].body);
+    expect(reqBody.pointAnalytics).toBeDefined();
+    expect(reqBody.pointAnalytics.forecast3Days).toBeDefined();
+    expect(reqBody.pointAnalytics.forecast3Days.days).toHaveLength(3);
+  });
 });

@@ -757,6 +757,497 @@ describe('AI Module & Local LLM endpoints', () => {
 
             axiosSpy.mockRestore();
         });
+
+        it('форматирует контекст аналитики выбранной точки в системный промпт', () => {
+            const sampleAnalytics = {
+                locationName: 'Казань, Россия',
+                lat: 55.78,
+                lon: 49.12,
+                time: '2026-10-29T14:00',
+                aqi: 28,
+                pm2_5: 14.2,
+                pm10: 22.5,
+                no2: 18.0,
+                so2: 5.1,
+                o3: 42.0,
+                co: 320.0
+            };
+
+            const prompt = promptManager.getSystemPrompt(sampleAnalytics);
+            expect(prompt).toContain('ДАННЫЕ ТЕКУЩЕЙ ВЫБРАННОЙ ТОЧКИ НА КАРТЕ:');
+            expect(prompt).toContain('Казань, Россия');
+            expect(prompt).toContain('EAQI: 28');
+            expect(prompt).toContain('PM2.5 (мелкодисперсные частицы): 14.2 мкг/м³');
+            expect(prompt).toContain('PM10 (крупная пыль): 22.5 мкг/м³');
+            expect(prompt).toContain('Диоксид азота (NO₂): 18.0 мкг/м³');
+        });
+
+        it('отвечает аналитикой по текущей точке при запросе пользователя к модели', async () => {
+            const sampleAnalytics = {
+                locationName: 'Самара, Россия',
+                lat: 53.20,
+                lon: 50.13,
+                aqi: 18,
+                pm2_5: 8.5,
+                pm10: 15.0
+            };
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] В Самаре сейчас воздух отличный! Индекс EAQI всего 18, а PM2.5 около 8.5 мкг/м³, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'Какая аналитика по текущей точке?',
+                pointAnalytics: sampleAnalytics
+            });
+
+            expect(result.reply).toContain('Самаре');
+            expect(result.reply).toContain('18');
+            expect(result.emotion).toBe('happy');
+
+            // Проверяем, что в системном сообщении axios были переданы данные точки
+            const calledPayload = axiosSpy.mock.calls[0][1];
+            const systemMsg = calledPayload.messages.find(m => m.role === 'system');
+            expect(systemMsg.content).toContain('Самара, Россия');
+            expect(systemMsg.content).toContain('EAQI: 18');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('срабатывает защитный fallback с реальными данными точки при оффлайне LLM', async () => {
+            const sampleAnalytics = {
+                locationName: 'Новокузнецк, Россия',
+                lat: 53.75,
+                lon: 87.14,
+                aqi: 35,
+                pm2_5: 19.4,
+                pm10: 31.0
+            };
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValueOnce(new Error('Connection refused'));
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'Какой тут сейчас воздух и какая аналитика?',
+                pointAnalytics: sampleAnalytics
+            });
+
+            expect(result.reply).toContain('Новокузнецк, Россия');
+            expect(result.reply).toContain('35');
+            expect(result.reply).toContain('19.4 мкг/м³');
+            expect(result.emotion).toBe('happy');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('извлекает город при вежливом вопросе о качестве воздуха ("можешь пожалуйста сказать что сейчас по воздуху в Москве")', () => {
+            const city = aiService.extractCityIntent('можешь пожалуйста сказать что сейчас по воздуху в Москве');
+            expect(city).toBe('Москве');
+        });
+
+        it('при запросе качества воздуха в городе устанавливает followUpAnalytics: true в action', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    model: 'aerocast-model',
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_location:Москва] Секундочку! Перемещаемся в Москву, смотрю свежие замеры воздуха, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'можешь пожалуйста сказать что сейчас по воздуху в Москве'
+            });
+
+            expect(result.action).toBeDefined();
+            expect(result.action.type).toBe('set_location');
+            expect(result.action.cityName).toContain('Москва');
+            expect(result.action.followUpAnalytics).toBe(true);
+
+            axiosSpy.mockRestore();
+        });
+
+        it('если запрашивается новый город, не передает аналитику старой точки в системный промпт', async () => {
+            const oldPointAnalytics = {
+                locationName: 'Новокузнецк, Россия',
+                lat: 53.75,
+                lon: 87.14,
+                aqi: 70
+            };
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    model: 'aerocast-model',
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_location:Москва] Секундочку! Перемещаемся в Москву, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            await aiService.sendChatMessage({
+                userMessage: 'можешь пожалуйста сказать что сейчас по воздуху в Москве',
+                pointAnalytics: oldPointAnalytics
+            });
+
+            const calledPayload = axiosSpy.mock.calls[0][1];
+            const systemMsg = calledPayload.messages.find(m => m.role === 'system');
+            // Проверяем, что данные старого города не переданы
+            expect(systemMsg.content).not.toContain('Новокузнецк, Россия');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('isFollowUpAnalytics: true не генерирует set_location и передает аналитику в ответ', async () => {
+            const moscowAnalytics = {
+                locationName: 'Москва, Россия',
+                lat: 55.75,
+                lon: 37.61,
+                aqi: 25,
+                pm2_5: 12.0,
+                pm10: 18.0
+            };
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    model: 'aerocast-model',
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Смотри, в Москве отличный воздух, EAQI равен 25, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'Предоставь подробную аналитику по воздуху для локации Москва, Россия',
+                pointAnalytics: moscowAnalytics,
+                isFollowUpAnalytics: true
+            });
+
+            expect(result.action).toBeNull();
+            expect(result.reply).toContain('Москве отличный воздух');
+            expect(result.reply).not.toContain('Перемещаемся');
+
+            const calledPayload = axiosSpy.mock.calls[0][1];
+            const systemMsg = calledPayload.messages.find(m => m.role === 'system');
+            expect(systemMsg.content).toContain('Москва, Россия');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('не считает фразы прогноза (3 дня, три дня, завтра) за названия городов', () => {
+            expect(aiService.extractCityIntent('Скажи на ближайшие 3 дня какая будет тут погода и сам воздух')).toBeNull();
+            expect(aiService.extractCityIntent('какой прогноз на 3 дня')).toBeNull();
+            expect(aiService.extractCityIntent('погода на завтра')).toBeNull();
+            expect(aiService.extractCityIntent('замеры на три дня')).toBeNull();
+        });
+
+        it('запросы расчета средних/мин/макс показателей AQI не перехватываются как оффтоп-калькулятор', async () => {
+            const forecastAnalytics = {
+                locationName: 'Москва, Россия',
+                lat: 55.75,
+                lon: 37.61,
+                aqi: 22,
+                forecast3Days: {
+                    days: [
+                        { date: '2026-10-29', dayLabel: 'Сегодня', avgAqi: 22, minAqi: 15, maxAqi: 30, avgPm25: 11, status: 'Хорошо' },
+                        { date: '2026-10-30', dayLabel: 'Завтра', avgAqi: 25, minAqi: 18, maxAqi: 35, avgPm25: 13, status: 'Хорошо' },
+                        { date: '2026-10-31', dayLabel: 'Послезавтра', avgAqi: 18, minAqi: 12, maxAqi: 22, avgPm25: 9, status: 'Отлично' }
+                    ],
+                    periodAvgAqi: 21.7,
+                    periodMinAqi: 12,
+                    periodMaxAqi: 35,
+                    periodAvgPm25: 11.0
+                }
+            };
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    model: 'aerocast-model',
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Средний индекс EAQI за 3 дня составит 21.7, минимум 12, максимум 35, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'можешь пожалуйста сказать на ближайшие 3 дня точное значение среднего Аки плюс среднее значение и там максимально минимально',
+                pointAnalytics: forecastAnalytics
+            });
+
+            expect(result.reply).not.toContain('Я же не калькулятор');
+            expect(result.reply).toContain('21.7');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('при оффлайне LLM возвращает сводку прогноза на 3 дня, если переданы данные прогноза', async () => {
+            const forecastAnalytics = {
+                locationName: 'Новосибирск, Россия',
+                lat: 55.02,
+                lon: 82.93,
+                aqi: 30,
+                forecast3Days: {
+                    days: [
+                        { date: '2026-10-29', dayLabel: 'Сегодня', avgAqi: 25, minAqi: 18, maxAqi: 32, avgPm25: 12, status: 'Хорошо' },
+                        { date: '2026-10-30', dayLabel: 'Завтра', avgAqi: 28, minAqi: 20, maxAqi: 38, avgPm25: 14, status: 'Хорошо' },
+                        { date: '2026-10-31', dayLabel: 'Послезавтра', avgAqi: 19, minAqi: 14, maxAqi: 24, avgPm25: 9, status: 'Отлично' }
+                    ],
+                    periodAvgAqi: 24.0,
+                    periodMinAqi: 14,
+                    periodMaxAqi: 38,
+                    periodAvgPm25: 11.7
+                }
+            };
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'Скажи на ближайшие 3 дня какая будет тут погода и сам воздух',
+                pointAnalytics: forecastAnalytics
+            });
+
+            expect(result.reply).toContain('прогноз качества воздуха для Новосибирск, Россия на ближайшие 3 дня');
+            expect(result.reply).toContain('24');
+            expect(result.reply).toContain('минимум 14, максимум 38');
+            expect(result.emotion).toBe('happy');
+        });
+
+        it('не считает слово точка или тачка за город и не геокодирует', async () => {
+            expect(aiService.extractCityIntent('Привет Можешь сказать чтобы в данной тачке ближайшие 3 дня и по качеству воздуха конкретно и сколько сейчас есть')).toBeNull();
+            expect(aiService.extractCityIntent('в этой точке')).toBeNull();
+            expect(aiService.extractCityIntent('в точке')).toBeNull();
+            expect(aiService.extractCityIntent('в тачке')).toBeNull();
+            expect(await aiService.resolveCity('Точка')).toBeNull();
+            expect(await aiService.resolveCity('Точку')).toBeNull();
+        });
+
+        it('если модель ошибочно вставила action:set_location:Точка, действие сбрасывается и выдается аналитика точки', async () => {
+            const pointAnalytics = {
+                locationName: 'Текущая точка',
+                lat: 55.75,
+                lon: 37.61,
+                aqi: 22,
+                pm2_5: 11.0,
+                pm10: 17.0
+            };
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    model: 'aerocast-model',
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_location:Точка] Секундочку! Перемещаемся в Точку, смотрю свежие замеры воздуха, ня! ✨'
+                        }
+                    }]
+                }
+            });
+            const result = await aiService.sendChatMessage({
+                userMessage: 'Привет Можешь сказать чтобы в данной тачке ближайшие 3 дня и по качеству воздуха конкретно и сколько сейчас есть',
+                pointAnalytics
+            });
+            expect(result.action).toBeNull();
+            expect(result.reply).not.toContain('Казахстан');
+            expect(result.reply).not.toContain('Перемещаемся в Точку');
+            expect(result.reply).toContain('22');
+            axiosSpy.mockRestore();
+        });
+        it('форматирует исторические/архивные данные и метку выбранного времени в системный промпт', () => {
+            const promptManager = require('../ai/services/promptManager');
+            const sampleAnalytics = {
+                locationName: 'Новосибирск',
+                lat: 55.03,
+                lon: 82.92,
+                time: '2026-10-26T18:00',
+                selectedTimeInfo: {
+                    timeStr: '2026-10-26T18:00',
+                    kind: 'past',
+                    kindLabel: 'архивный замер в прошлом',
+                    label: 'ПН, 26 октября в 18:00 (архивный замер в прошлом)'
+                },
+                aqi: 28,
+                historyData: {
+                    pastDaysCount: 7,
+                    pastMaxAqi: {
+                        aqi: 48,
+                        date: '2026-10-26',
+                        hour: 15,
+                        timeLabel: '15:00',
+                        label: 'ПН, 26 октября в 15:00'
+                    },
+                    pastMinAqi: {
+                        aqi: 12,
+                        date: '2026-10-24',
+                        hour: 6,
+                        timeLabel: '06:00',
+                        label: 'СБ, 24 октября в 06:00'
+                    },
+                    pastAvgAqi: 27.5,
+                    pastAvgPm25: 14.1,
+                    pastDays: [
+                        { date: '2026-10-26', dayLabel: 'ПН, 26 окт', avgAqi: 31, maxAqi: 48, maxAqiTime: '15:00', minAqi: 18, avgPm25: 16.2, status: 'Хорошо' }
+                    ]
+                }
+            };
+
+            const prompt = promptManager.formatPointAnalyticsContext(sampleAnalytics);
+            expect(prompt).toContain('АРХИВНЫЕ ДАННЫЕ ЗА ПРОШЕДШИЕ ДНИ');
+            expect(prompt).toContain('САМЫЙ ВЫСОКИЙ ПИК ЗАГРЯЗНЕНИЯ ЗА ПРОШЕДШИЕ ДНИ (максимум EAQI): 48 (зафиксировано: ПН, 26 октября в 15:00)');
+            expect(prompt).toContain('САМЫЙ ЧИСТЫЙ ВОЗДУХ ЗА ПРОШЕДШИЕ ДНИ (минимум EAQI): 12 (зафиксировано: СБ, 24 октября в 06:00)');
+            expect(prompt).toContain('ПН, 26 октября в 18:00 (архивный замер в прошлом)');
+            expect(prompt).toContain('[ВНИМАНИЕ: пользователь выбрал точку в ПРОШЛОМ на таймлайне, это архивный замер!]');
+        });
+
+        it('распознает запросы про прошедшие дни, историю и пик загрязнения как аналитические', () => {
+            expect(aiService.isAnalyticsQuery('а можешь пожалуйста называть какое было самое высокое число даже за предыдущие дни по значению Аки И в какой это было время')).toBe(true);
+            expect(aiService.isAnalyticsQuery('что было вчера по воздуху?')).toBe(true);
+            expect(aiService.isAnalyticsQuery('какой был пик загрязнения за предыдущие дни?')).toBe(true);
+            expect(aiService.isAnalyticsQuery('покажи архивные замеры')).toBe(true);
+        });
+
+        it('generateHistoryReply формирует ответ с историческим пиком и временем', () => {
+            const historyData = {
+                pastDaysCount: 7,
+                pastMaxAqi: {
+                    aqi: 48,
+                    label: 'в понедельник, 26 октября в 15:00'
+                },
+                pastMinAqi: {
+                    aqi: 12,
+                    label: 'в субботу, 24 октября в 06:00'
+                },
+                pastAvgAqi: 28,
+                pastDays: [
+                    { date: '2026-10-28', dayLabel: 'СР, 28 окт', avgAqi: 24, maxAqi: 35, maxAqiTime: '14:00', status: 'Хорошо' }
+                ]
+            };
+
+            const peakReply = aiService.generateHistoryReply(historyData, 'Новосибирске', 'какое было самое высокое число даже за предыдущие дни по значению Аки И в какой это было время');
+            expect(peakReply).not.toBeNull();
+            expect(peakReply.reply).toContain('48');
+            expect(peakReply.reply).toContain('в понедельник, 26 октября в 15:00');
+            expect(peakReply.reply).toContain('Новосибирске');
+
+            const yReply = aiService.generateHistoryReply(historyData, 'Новосибирске', 'что было вчера');
+            expect(yReply.reply).toContain('Вчера в Новосибирске');
+            expect(yReply.reply).toContain('24');
+        });
+
+        it('при запросе исторического максимума при оффлайне LLM возвращает архивный пик и время', async () => {
+            const historyAnalytics = {
+                locationName: 'Новосибирск',
+                lat: 55.03,
+                lon: 82.92,
+                aqi: 28,
+                historyData: {
+                    pastDaysCount: 7,
+                    pastMaxAqi: {
+                        aqi: 48,
+                        label: 'в понедельник, 26 октября в 15:00'
+                    },
+                    pastMinAqi: {
+                        aqi: 12,
+                        label: 'в субботу, 24 октября в 06:00'
+                    },
+                    pastAvgAqi: 28
+                }
+            };
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'а можешь пожалуйста называть какое было самое высокое число даже за предыдущие дни по значению Аки И в какой это было время',
+                pointAnalytics: historyAnalytics
+            });
+
+            expect(result.reply).toContain('48');
+            expect(result.reply).toContain('в понедельник, 26 октября в 15:00');
+            expect(result.reply).not.toContain('я не калькулятор');
+            expect(result.emotion).toBe('happy');
+        });
+        it('извлекает город из сложного предложения с опечаткой маки и дополнительными фразами', () => {
+            const query = 'можешь пожалуйста сказать что было за предыдущие дни по значению маки в Новокузнецке мне бы хотелось знать среднее значение';
+            const city = aiService.extractCityIntent(query);
+            expect(city).toBe('Новокузнецке');
+        });
+
+        it('форматирует блок ДАННЫЕ ЗА ВСЕ ДНИ (прошедшие, сегодня и прогноз) в системный промпт', () => {
+            const promptManager = require('../ai/services/promptManager');
+            const sampleAnalytics = {
+                locationName: 'Новокузнецк',
+                lat: 53.75,
+                lon: 87.14,
+                aqi: 28,
+                allDaysSummary: {
+                    totalDaysCount: 11,
+                    overallAvgAqi: 26.5,
+                    overallMaxAqi: { aqi: 48, label: 'ПН, 26 октября в 15:00 (архив)' },
+                    overallMinAqi: { aqi: 12, label: 'СБ, 31 октября в 06:00 (прогноз)' },
+                    overallAvgPm25: 13.5,
+                    days: [
+                        { kindLabel: 'Архив', dayLabel: 'ПН, 26 окт', avgAqi: 31, maxAqi: 48, maxAqiTime: '15:00', minAqi: 18, avgPm25: 16.2, status: 'Хорошо' },
+                        { kindLabel: 'Сегодня', dayLabel: 'ЧТ, 29 окт (Сегодня)', avgAqi: 25, maxAqi: 32, maxAqiTime: '12:00', minAqi: 20, avgPm25: 11.0, status: 'Хорошо' },
+                        { kindLabel: 'Прогноз', dayLabel: 'ПТ, 30 окт', avgAqi: 22, maxAqi: 28, maxAqiTime: '18:00', minAqi: 14, avgPm25: 9.5, status: 'Хорошо' }
+                    ]
+                }
+            };
+
+            const prompt = promptManager.formatPointAnalyticsContext(sampleAnalytics);
+            expect(prompt).toContain('ДАННЫЕ ЗА ВСЕ ДНИ (ОБЩИЙ ПЕРИОД: ПРОШЕДШИЕ ДНИ, СЕГОДНЯ И ПРОГНОЗ — ВСЕГО 11 ДН.)');
+            expect(prompt).toContain('СРЕДНИЙ ИНДЕКС EAQI ЗА ВСЕ ДНИ (ПОЛНЫЙ ПЕРИОД): 26.5');
+            expect(prompt).toContain('АБСОЛЮТНЫЙ ПИК ЗАГРЯЗНЕНИЯ ЗА ВСЕ ДНИ: 48 (зафиксирован: ПН, 26 октября в 15:00 (архив))');
+            expect(prompt).toContain('АБСОЛЮТНЫЙ МИНИМУМ ЗА ВСЕ ДНИ: 12 (зафиксирован: СБ, 31 октября в 06:00 (прогноз))');
+            expect(prompt).toContain('[Архив] ПН, 26 окт');
+            expect(prompt).toContain('[Сегодня] ЧТ, 29 окт (Сегодня)');
+            expect(prompt).toContain('[Прогноз] ПТ, 30 окт');
+        });
+
+        it('generateAllDaysReply формирует сводку за весь период с архивом и прогнозом', () => {
+            const allDaysSummary = {
+                totalDaysCount: 11,
+                overallAvgAqi: 26.1,
+                overallMaxAqi: { aqi: 48, label: 'в понедельник, 26 октября в 15:00 (архив)' },
+                overallMinAqi: { aqi: 14, label: 'в субботу, 24 октября в 06:00 (архив)' }
+            };
+
+            const reply = aiService.generateAllDaysReply(allDaysSummary, 'Новокузнецке', 'какое среднее за все дни');
+            expect(reply).not.toBeNull();
+            expect(reply.reply).toContain('26.1');
+            expect(reply.reply).toContain('48');
+            expect(reply.reply).toContain('Новокузнецке');
+            expect(reply.reply).toContain('все 11 дней');
+        });
+
+        it('при запросе за все дни при оффлайне LLM возвращает общую статистику за весь период', async () => {
+            const allDaysAnalytics = {
+                locationName: 'Новокузнецк',
+                lat: 53.75,
+                lon: 87.14,
+                aqi: 28,
+                allDaysSummary: {
+                    totalDaysCount: 11,
+                    overallAvgAqi: 26.1,
+                    overallMaxAqi: { aqi: 48, label: 'в понедельник, 26 октября в 15:00 (архив)' },
+                    overallMinAqi: { aqi: 14, label: 'в субботу, 24 октября в 06:00 (архив)' }
+                }
+            };
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'А можешь сказать среднее значение за все дни?',
+                pointAnalytics: allDaysAnalytics
+            });
+
+            expect(result.reply).toContain('26.1');
+            expect(result.reply).toContain('48');
+            expect(result.reply).not.toContain('я не калькулятор');
+            expect(result.reply).not.toContain('не историк');
+            expect(result.emotion).toBe('happy');
+        });
     });
 });
-

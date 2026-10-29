@@ -13,6 +13,8 @@ function Sidebar({
   airData,
   selectedTimeIndex = null,
   referenceDate,
+  coords,
+  locationName,
   onSelectTime,
   onTimeSelect,
   viewMode = 'combo',
@@ -932,6 +934,10 @@ function Sidebar({
             theme={theme}
             onThemeChange={onThemeChange}
             onLocationSelect={onLocationSelect}
+            airData={airData}
+            selectedTimeIndex={selectedTimeIndex}
+            coords={coords}
+            locationName={locationName}
           />
         </div>
       ) : mascotMode === 'button' ? (

@@ -1206,3 +1206,61 @@
     border-radius: 20px;
   }
 }
+
+
+/* =========================================================
+   Быстрые кнопки аналитики точки (Quick Action Chips)
+   ========================================================= */
+.ai-chat-quick-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 6px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ai-chat-quick-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-chat-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: 12px;
+  color: var(--text-primary, #e2e8f0);
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+  max-width: 100%;
+}
+
+.ai-chat-quick-btn:hover {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: rgba(99, 102, 241, 0.5);
+  transform: translateY(-1px);
+}
+
+.ai-chat-quick-btn strong {
+  color: #818cf8;
+}
+
+[data-theme="light"] .ai-chat-quick-btn {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.22);
+  color: #1e293b;
+}
+
+[data-theme="light"] .ai-chat-quick-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+}
+
+[data-theme="light"] .ai-chat-quick-btn strong {
+  color: #4f46e5;
+}

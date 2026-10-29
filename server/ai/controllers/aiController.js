@@ -5,7 +5,7 @@ const aiConfig = require('../config/aiConfig');
 
 
 async function handleChat(req, res) {
-    const { message, history, currentLayer, isColorBlind, colorBlindType, theme } = req.body;
+    const { message, history, currentLayer, isColorBlind, colorBlindType, theme, pointAnalytics, isFollowUpAnalytics } = req.body;
 
     if (!message || typeof message !== 'string' || !message.trim()) {
         return res.status(400).json({ error: 'Поле message обязательно и не должно быть пустым.' });
@@ -18,7 +18,9 @@ async function handleChat(req, res) {
             currentLayer,
             isColorBlind,
             colorBlindType,
-            theme
+            theme,
+            pointAnalytics,
+            isFollowUpAnalytics: Boolean(isFollowUpAnalytics)
         });
 
         res.json({

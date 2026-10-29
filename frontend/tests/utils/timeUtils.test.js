@@ -5,7 +5,11 @@ import {
     formatDateKey,
     getDayInfo,
     groupTimesByDay,
-    findDefaultTimeIndex
+    findDefaultTimeIndex,
+    computeForecast3Days,
+    computeAirHistory,
+    formatSelectedTimeInfo,
+    computeAllDaysSummary
 } from '../../src/utils/timeUtils.js';
 
 describe('timeUtils', () => {
@@ -253,5 +257,190 @@ describe('timeUtils', () => {
             expect(findDefaultTimeIndex(oddTimes, refDate, 3)).toBe(0);
         });
     });
-});
 
+    describe('computeForecast3Days', () => {
+        it('возвращает null для некорректных входных данных', () => {
+            expect(computeForecast3Days(null)).toBeNull();
+            expect(computeForecast3Days({})).toBeNull();
+            expect(computeForecast3Days({ time: [] })).toBeNull();
+        });
+
+        it('рассчитывает средние, минимум и максимум за 3 дня', () => {
+            const mockHourly = {
+                time: [
+                    '2026-10-29T00:00', '2026-10-29T12:00',
+                    '2026-10-30T00:00', '2026-10-30T12:00',
+                    '2026-10-31T00:00', '2026-10-31T12:00'
+                ],
+                european_aqi: [20, 30, 40, 50, 10, 20],
+                pm2_5: [10, 15, 20, 25, 5, 10],
+                pm10: [15, 20, 30, 35, 10, 15]
+            };
+            const refDate = new Date('2026-10-29T08:00:00');
+            const res = computeForecast3Days(mockHourly, refDate);
+
+            expect(res).not.toBeNull();
+            expect(res.days).toHaveLength(3);
+            expect(res.days[0].avgAqi).toBe(25);
+            expect(res.days[0].minAqi).toBe(20);
+            expect(res.days[0].maxAqi).toBe(30);
+            expect(res.days[0].avgPm25).toBe(12.5);
+            expect(res.days[0].dayLabel).toBe('Сегодня');
+            expect(res.days[0].status).toBe('Хорошо');
+
+            expect(res.days[1].avgAqi).toBe(45);
+            expect(res.days[1].dayLabel).toBe('Завтра');
+            expect(res.days[1].status).toBe('Удовлетворительно');
+
+            expect(res.days[2].avgAqi).toBe(15);
+            expect(res.days[2].dayLabel).toBe('Послезавтра');
+            expect(res.days[2].status).toBe('Отлично');
+
+            expect(res.periodMinAqi).toBe(10);
+            expect(res.periodMaxAqi).toBe(50);
+            expect(res.periodAvgAqi).toBe(28.3);
+            expect(res.periodAvgPm25).toBe(14.2);
+        });
+    });
+
+    describe('computeAirHistory', () => {
+        it('возвращает null для некорректных или пустых данных', () => {
+            expect(computeAirHistory(null)).toBeNull();
+            expect(computeAirHistory({})).toBeNull();
+            expect(computeAirHistory({ time: [] })).toBeNull();
+        });
+
+        it('возвращает null, если в данных нет прошедших дней', () => {
+            const mockHourly = {
+                time: ['2026-10-29T00:00', '2026-10-29T12:00', '2026-10-30T00:00'],
+                european_aqi: [20, 30, 40]
+            };
+            const refDate = new Date('2026-10-29T08:00:00');
+            expect(computeAirHistory(mockHourly, refDate)).toBeNull();
+        });
+
+        it('корректно вычисляет исторический максимум, минимум и разбивку по прошедшим дням', () => {
+            const mockHourly = {
+                time: [
+                    '2026-10-26T00:00', '2026-10-26T15:00', '2026-10-26T18:00',
+                    '2026-10-27T06:00', '2026-10-27T12:00',
+                    '2026-10-28T09:00', '2026-10-28T21:00',
+                    // Сегодня
+                    '2026-10-29T00:00', '2026-10-29T12:00'
+                ],
+                european_aqi: [25, 48, 30, 12, 20, 35, 40, 22, 19],
+                pm2_5: [10, 24, 15, 5, 8, 16, 20, 11, 9],
+                pm10: [15, 30, 20, 8, 12, 22, 28, 14, 12]
+            };
+            const refDate = new Date('2026-10-29T08:00:00');
+            const res = computeAirHistory(mockHourly, refDate);
+
+            expect(res).not.toBeNull();
+            expect(res.pastDaysCount).toBe(3);
+            expect(res.pastDays).toHaveLength(3);
+
+            // Проверяем пик за прошедшие дни
+            expect(res.pastMaxAqi).not.toBeNull();
+            expect(res.pastMaxAqi.aqi).toBe(48);
+            expect(res.pastMaxAqi.date).toBe('2026-10-26');
+            expect(res.pastMaxAqi.hour).toBe(15);
+            expect(res.pastMaxAqi.timeLabel).toBe('15:00');
+            expect(res.pastMaxAqi.label).toContain('26');
+            expect(res.pastMaxAqi.label).toContain('15:00');
+
+            // Проверяем минимум за прошедшие дни
+            expect(res.pastMinAqi).not.toBeNull();
+            expect(res.pastMinAqi.aqi).toBe(12);
+            expect(res.pastMinAqi.date).toBe('2026-10-27');
+            expect(res.pastMinAqi.timeLabel).toBe('06:00');
+
+            // Проверяем средние
+            expect(res.pastAvgAqi).toBeCloseTo(30, 0);
+
+            // Дни по отдельности
+            expect(res.pastDays[0].date).toBe('2026-10-26');
+            expect(res.pastDays[0].maxAqi).toBe(48);
+            expect(res.pastDays[0].maxAqiTime).toBe('15:00');
+        });
+    });
+
+    describe('formatSelectedTimeInfo', () => {
+        const refDate = new Date('2026-10-29T14:00:00');
+
+        it('корректно помечает архивные замеры в прошлом', () => {
+            const past = formatSelectedTimeInfo('2026-10-26T18:00', refDate);
+            expect(past).not.toBeNull();
+            expect(past.kind).toBe('past');
+            expect(past.kindLabel).toBe('архивный замер в прошлом');
+            expect(past.label).toContain('архивный замер в прошлом');
+            expect(past.label).toContain('18:00');
+        });
+
+        it('корректно помечает текущий замер', () => {
+            const curr = formatSelectedTimeInfo('2026-10-29T14:00', refDate);
+            expect(curr).not.toBeNull();
+            expect(curr.kind).toBe('current');
+            expect(curr.kindLabel).toContain('актуальный замер');
+        });
+
+        it('корректно помечает прогноз на будущее', () => {
+            const fc = formatSelectedTimeInfo('2026-10-31T12:00', refDate);
+            expect(fc).not.toBeNull();
+            expect(fc.kind).toBe('forecast');
+            expect(fc.kindLabel).toBe('прогноз на будущее');
+        });
+
+        it('возвращает null для некорректных значений', () => {
+            expect(formatSelectedTimeInfo(null)).toBeNull();
+            expect(formatSelectedTimeInfo('')).toBeNull();
+        });
+    });
+    describe('computeAllDaysSummary', () => {
+        it('возвращает null для некорректных или пустых данных', () => {
+            expect(computeAllDaysSummary(null)).toBeNull();
+            expect(computeAllDaysSummary({})).toBeNull();
+            expect(computeAllDaysSummary({ time: [] })).toBeNull();
+        });
+
+        it('рассчитывает общую статистику за все доступные дни (архив + сегодня + прогноз)', () => {
+            const mockHourly = {
+                time: [
+                    '2026-10-26T00:00', '2026-10-26T15:00', // Прошлое
+                    '2026-10-29T12:00',                      // Сегодня
+                    '2026-10-31T06:00', '2026-10-31T18:00'  // Прогноз
+                ],
+                european_aqi: [30, 48, 22, 10, 18],
+                pm2_5: [12, 25, 11, 4, 8],
+                pm10: [18, 32, 16, 8, 12]
+            };
+            const refDate = new Date('2026-10-29T08:00:00');
+            const res = computeAllDaysSummary(mockHourly, refDate);
+
+            expect(res).not.toBeNull();
+            expect(res.totalDaysCount).toBe(3);
+            expect(res.pastCount).toBe(1);
+            expect(res.forecastCount).toBe(1);
+
+            // Пик за все дни
+            expect(res.overallMaxAqi).not.toBeNull();
+            expect(res.overallMaxAqi.aqi).toBe(48);
+            expect(res.overallMaxAqi.kind).toBe('past');
+            expect(res.overallMaxAqi.label).toContain('26');
+            expect(res.overallMaxAqi.label).toContain('15:00');
+
+            // Минимум за все дни
+            expect(res.overallMinAqi).not.toBeNull();
+            expect(res.overallMinAqi.aqi).toBe(10);
+            expect(res.overallMinAqi.kind).toBe('forecast');
+
+            // Среднее за все дни
+            expect(res.overallAvgAqi).toBeCloseTo(25.6, 1);
+
+            // Дни в списке
+            expect(res.days).toHaveLength(3);
+            expect(res.days[0].kind).toBe('past');
+            expect(res.days[1].kind).toBe('today');
+            expect(res.days[2].kind).toBe('forecast');
+        });
+    });
+});

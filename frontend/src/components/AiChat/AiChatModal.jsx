@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AyaMascot from './AyaMascot';
 import { AYA_CHAT_DOCK_PHRASES } from '../../utils/ayaPhrases';
+import { findDefaultTimeIndex, computeForecast3Days, computeAirHistory, formatSelectedTimeInfo, computeAllDaysSummary } from '../../utils/timeUtils';
 import '../../styles/AiChatModal.css';
 
 const INITIAL_GREETING = {
@@ -195,8 +196,39 @@ const KNOWN_CLIENT_CITIES = {
   'владивосток': { lat: 43.10562, lon: 131.87354, name: 'Владивосток, Россия' },
   'ростов-на-дону': { lat: 47.23135, lon: 39.72328, name: 'Ростов-на-Дону, Россия' },
   'ростов': { lat: 47.23135, lon: 39.72328, name: 'Ростов-на-Дону, Россия' },
-  'уфа': { lat: 54.74306, lon: 55.96779, name: 'Уфа, Башкортостан, Россия' }
+  'уфа': { lat: 54.74306, lon: 55.96779, name: 'Уфа, Башкортостан, Россия' },
+  'красноярск': { lat: 56.01839, lon: 92.86717, name: 'Красноярск, Россия' },
+  'нижний новгород': { lat: 56.32867, lon: 44.00205, name: 'Нижний Новгород, Россия' },
+  'челябинск': { lat: 55.15402, lon: 61.42915, name: 'Челябинск, Россия' },
+  'омск': { lat: 54.99244, lon: 73.36859, name: 'Омск, Россия' },
+  'воронеж': { lat: 51.67204, lon: 39.1843, name: 'Воронеж, Россия' },
+  'пермь': { lat: 58.01046, lon: 56.22944, name: 'Пермь, Россия' },
+  'волгоград': { lat: 48.71939, lon: 44.50183, name: 'Волгоград, Россия' },
+  'томск': { lat: 56.50104, lon: 84.99245, name: 'Томск, Россия' },
+  'кемерово': { lat: 55.33333, lon: 86.08333, name: 'Кемерово, Россия' },
+  'новокузнецк': { lat: 53.7596, lon: 87.1467, name: 'Новокузнецк, Кемеровская область, Россия' },
+  'барнаул': { lat: 53.36056, lon: 83.76361, name: 'Барнаул, Россия' },
+  'иркутск': { lat: 52.29778, lon: 104.29639, name: 'Иркутск, Россия' },
+  'тюмень': { lat: 57.15222, lon: 65.52722, name: 'Тюмень, Россия' },
+  'хабаровск': { lat: 48.48278, lon: 135.08389, name: 'Хабаровск, Россия' },
+  'ярославль': { lat: 57.62987, lon: 39.87368, name: 'Ярославль, Россия' }
 };
+
+function toAccusativeCity(name) {
+  if (!name || typeof name !== 'string') return 'выбранный город';
+  const base = name.split(',')[0].trim();
+  return base.replace(/а$/i, 'у').replace(/я$/i, 'ю');
+}
+
+function isClientNotCityName(str) {
+  if (!str) return true;
+  const s = str.trim().toLowerCase();
+  if (/^(?:точк[а-яё]*|тачк[а-яё]*|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*|карт[а-яё]*|тут|здесь|сейчас|сегодня)$/i.test(s)) return true;
+  if (/(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*)\s+(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(s)) return true;
+  if (/(?:3\s+дня|три\s+дня|\d+\s+дн[еяй]|прогноз|завтра|послезавтра|недел|суток|сутки|ближайш|выходн)/i.test(s)) return true;
+  if (/^(?:значени[а-яё]*|качеств[а-яё]*|уровн[а-яё]*|воздух[а-яё]*|данн[а-яё]*|замер[а-яё]*|аналитик[а-яё]*|шкал[а-яё]*|индекс[а-яё]*|дн[еяй]*|недел[а-яё]*|месяц[а-яё]*|год[а-яё]*|времен[а-яё]*|период[а-яё]*|архив[а-яё]*|истори[а-яё]*|числ[а-яё]*|маки|аки|aqi|eaqi|пм|pm|средн[а-яё]*|максим[а-яё]*|миним[а-яё]*|пик[а-яё]*|норм[а-яё]*|мире|росси[а-яё]*|планет[а-яё]*|стран[а-яё]*)$/i.test(s)) return true;
+  return false;
+}
 
 function detectClientCityIntent(text) {
   if (!text || typeof text !== 'string') return null;
@@ -205,34 +237,65 @@ function detectClientCityIntent(text) {
   if (/^(?:какие\s+города|как\s+найти|где\s+найти|кто\s+ты|кто\s+тебя)\b/i.test(clean)) return null;
   if (/(?:т[её]мн|светл|ночн|дневн)\s+(?:тем[ау]|режим)/i.test(clean)) return null;
   if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп)/i.test(clean)) return null;
+  if (/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(clean)) {
+    const withoutPoint = clean.replace(/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/gi, '').trim();
+    if (!/(?:перейди|перемести|покажи|слетай|поехали|город|в|во|на|к|до)\s+[А-ЯЁ][а-яё]{2,}/i.test(withoutPoint)) {
+      return null;
+    }
+  }
+
+  // Снимаем вежливые вводные слова в начале («можешь пожалуйста сказать», «подскажи пожалуйста», «скажи», «хочу узнать»)
+  const stripped = clean.replace(/^(?:(?:можешь|можете)(?:\s+ли)?(?:\s+пожалуйста|\s+пж|\s+плиз)?\s+(?:сказать|подсказать|рассказать|узнать|проверить|глянуть|посмотреть|показать)|подскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|скажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|расскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|пожалуйста\s+|пж\s+|плиз\s+|хочу\s+узнать|интересно|дай\s+знать|проверь(?:те)?)\s+/i, '').trim();
 
   const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
-  const navMatch = clean.match(NAV_REGEX);
+  const navMatch = stripped.match(NAV_REGEX) || clean.match(NAV_REGEX);
   let cityRaw = navMatch ? navMatch[1] : null;
 
   if (!cityRaw) {
-    const AIR_CITY_REGEX = /(?:(?:что(?:\s+там)?(?:\s+(?:с\s+воздухом|по\s+воздуху))?|как(?:\s+там)?(?:\s+(?:воздух|погода))?|качество\s+воздуха|воздух|погода|замеры)\s+(?:пожалуйста\s+)?(?:в|во|на)\s+)(?:город\s+)?(.+)$/i;
-    const airMatch = clean.match(AIR_CITY_REGEX);
+    const AIR_CITY_REGEX = /(?:(?:что(?:\s+там|\s+сейчас|\s+тут)*(?:\s+(?:с\s+воздухом|по\s+воздуху|с\s+аналитикой|по\s+аналитике|с\s+замерами|по\s+замерам))?|как(?:\s+там|\s+сейчас)?\s+(?:воздух|дышится|погода)|качество\s+воздуха|какая\s+аналитика|какой(?:\s+там|\s+сейчас)?\s+воздух|чем\s+дышат|воздух|погода|замеры|аналитика)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+)(?:город\s+)?(.+)$/i;
+    const airMatch = stripped.match(AIR_CITY_REGEX) || clean.match(AIR_CITY_REGEX);
     cityRaw = airMatch ? airMatch[1] : null;
   }
+
+  if (!cityRaw) {
+    const PRO_CITY_REGEX = /(?:про\s+(?:воздух|аналитику|погоду|замеры)\s+(?:в|во|на|по)\s+)(?:город\s+)?(.+)$/i;
+    const proMatch = stripped.match(PRO_CITY_REGEX) || clean.match(PRO_CITY_REGEX);
+    cityRaw = proMatch ? proMatch[1] : null;
+  }
+
+  if (!cityRaw) {
+    const CAP_CITY_REGEX = /(?:^|\s)(?:в|во|на|к|до)\s+(?:городе\s+|город\s+)?([А-ЯЁ][а-яё\-]+(?:\s+[А-ЯЁ][а-яё\-]+)?)/g;
+    let inMatch;
+    while ((inMatch = CAP_CITY_REGEX.exec(clean)) !== null) {
+      let cand = inMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+      if (cand.length >= 2 && cand.length <= 40 && !isClientNotCityName(cand)) {
+        cityRaw = cand;
+        break;
+      }
+    }
+  }
+
+  const wantsAnalytics = /(?:воздух|аналитик|дыш|aqi|аки|маки|eaqi|пм|pm|замер|смог|чист|показател|качество|погод|прогноз|прошл|предыдущ|вчера|все\s+дни|весь\s+период|вс[её]\s+время|пик|средн)/i.test(clean);
 
   if (cityRaw) {
     let cleanCity = cityRaw.trim().replace(/[.,!?;:()]+$/, '').replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
     cleanCity = cleanCity.replace(/^(?:в|во|на|к|до)\s+/i, '').trim();
+    if (isClientNotCityName(cleanCity)) return null;
+
     const lower = cleanCity.toLowerCase();
     if (KNOWN_CLIENT_CITIES[lower]) {
-      return { raw: cleanCity, ...KNOWN_CLIENT_CITIES[lower] };
+      return { raw: cleanCity, wantsAnalytics, ...KNOWN_CLIENT_CITIES[lower] };
     }
     const normalized = lower.replace(/у$/i, 'а').replace(/е$/i, '').replace(/и$/i, 'ь');
     if (KNOWN_CLIENT_CITIES[normalized]) {
-      return { raw: cleanCity, ...KNOWN_CLIENT_CITIES[normalized] };
+      return { raw: cleanCity, wantsAnalytics, ...KNOWN_CLIENT_CITIES[normalized] };
     }
     const normalizedA = lower.replace(/е$/i, 'а').replace(/и$/i, 'я');
     if (KNOWN_CLIENT_CITIES[normalizedA]) {
-      return { raw: cleanCity, ...KNOWN_CLIENT_CITIES[normalizedA] };
+      return { raw: cleanCity, wantsAnalytics, ...KNOWN_CLIENT_CITIES[normalizedA] };
     }
     if (cleanCity.length >= 2 && cleanCity.length <= 40) {
-      return { raw: cleanCity };
+      return { raw: cleanCity, wantsAnalytics };
     }
   }
 
@@ -245,6 +308,7 @@ function detectClientCityFromReply(replyText) {
   const replyMatch = clean.match(/(?:перемещаюсь|перемещаемся|открываю|летим|перелетаем|перехожу|переходим|показываю)\s+(?:в|во|на)?\s*(?:город\s+)?([а-яёА-ЯЁa-zA-Z0-9\s-]+?)(?:,|\.|\!|\?|\s+смотрю|\s+проверяю|\s+глянем|\s+на\s+карте)/i);
   if (replyMatch) {
     const rawCity = replyMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+    if (isClientNotCityName(rawCity)) return null;
     const lower = rawCity.toLowerCase();
     if (KNOWN_CLIENT_CITIES[lower]) return { raw: rawCity, ...KNOWN_CLIENT_CITIES[lower] };
     const norm = lower.replace(/у$/i, 'а').replace(/е$/i, '').replace(/и$/i, 'ь');
@@ -269,7 +333,11 @@ export default function AiChatModal({
   onColorBlindTypeChange,
   theme,
   onThemeChange,
-  onLocationSelect
+  onLocationSelect,
+  airData,
+  selectedTimeIndex,
+  coords,
+  locationName
 }) {
   const [messages, setMessages] = useState([INITIAL_GREETING]);
   const [inputMessage, setInputMessage] = useState('');
@@ -431,6 +499,56 @@ export default function AiChatModal({
     inputMessageRef.current = inputMessage;
   }, [inputMessage]);
 
+  // Структурированная аналитика по текущей выбранной точке на карте
+  const pointAnalytics = useMemo(() => {
+    if (!airData?.hourly) return null;
+    const defaultIdx = findDefaultTimeIndex(airData.hourly.time, new Date(), 1);
+    const idx = (typeof selectedTimeIndex === 'number' && selectedTimeIndex >= 0 && selectedTimeIndex < (airData.hourly.time?.length || 0))
+      ? selectedTimeIndex
+      : ((typeof defaultIdx === 'number' && defaultIdx >= 0) ? defaultIdx : 0);
+
+    const time = airData.hourly.time?.[idx] || null;
+    const aqi = airData.hourly.european_aqi?.[idx] ?? null;
+    const pm2_5 = airData.hourly.pm2_5?.[idx] ?? null;
+    const pm10 = airData.hourly.pm10?.[idx] ?? null;
+    const no2 = airData.hourly.nitrogen_dioxide?.[idx] ?? null;
+    const so2 = airData.hourly.sulphur_dioxide?.[idx] ?? null;
+    const o3 = airData.hourly.ozone?.[idx] ?? null;
+    const co = airData.hourly.carbon_monoxide?.[idx] ?? null;
+    const dust = airData.hourly.dust?.[idx] ?? null;
+    const uv = airData.hourly.uv_index?.[idx] ?? null;
+    const now = new Date();
+    const selectedTimeInfo = time ? formatSelectedTimeInfo(time, now) : null;
+    const forecast3Days = computeForecast3Days(airData.hourly, now);
+    const historyData = computeAirHistory(airData.hourly, now);
+    const allDaysSummary = computeAllDaysSummary(airData.hourly, now);
+
+    return {
+      locationName: locationName || (coords?.lat != null ? `Точка (${Number(coords.lat).toFixed(2)}, ${Number(coords.lon).toFixed(2)})` : 'Текущая точка'),
+      lat: coords?.lat ?? airData.latitude ?? null,
+      lon: coords?.lon ?? airData.longitude ?? null,
+      time,
+      aqi: aqi != null && !isNaN(Number(aqi)) ? Number(aqi) : null,
+      pm2_5: pm2_5 != null && !isNaN(Number(pm2_5)) ? Number(pm2_5) : null,
+      pm10: pm10 != null && !isNaN(Number(pm10)) ? Number(pm10) : null,
+      no2: no2 != null && !isNaN(Number(no2)) ? Number(no2) : null,
+      so2: so2 != null && !isNaN(Number(so2)) ? Number(so2) : null,
+      o3: o3 != null && !isNaN(Number(o3)) ? Number(o3) : null,
+      co: co != null && !isNaN(Number(co)) ? Number(co) : null,
+      dust: dust != null && !isNaN(Number(dust)) ? Number(dust) : null,
+      uv: uv != null && !isNaN(Number(uv)) ? Number(uv) : null,
+      selectedTimeInfo,
+      forecast3Days,
+      historyData,
+      allDaysSummary
+    };
+  }, [airData, selectedTimeIndex, coords, locationName]);
+
+  const pointAnalyticsRef = useRef(pointAnalytics);
+  useEffect(() => {
+    pointAnalyticsRef.current = pointAnalytics;
+  }, [pointAnalytics]);
+
   // Единая точка добавления сообщений: ref обновляется сразу, чтобы история
   // для следующего запроса была актуальной без ожидания рендера.
   const appendMessage = useCallback((message) => {
@@ -449,6 +567,126 @@ export default function AiChatModal({
       return next;
     });
   };
+
+  // Второй шаг двухэтапного сценария: подгрузка и озвучивание аналитики по новому городу
+  const triggerFollowUpAnalytics = useCallback(async (targetLat, targetLon, cityName, generation, originalUserMessage = '') => {
+    if (generation !== dialogGenerationRef.current) return;
+    setIsLoading(true);
+
+    let targetAnalytics = null;
+    try {
+      const airRes = await fetch(`/api/air-quality?lat=${targetLat}&lon=${targetLon}`);
+      if (airRes.ok) {
+        const airJson = await airRes.json();
+        const hourly = airJson?.hourly;
+        if (hourly && Array.isArray(hourly.time) && hourly.time.length > 0) {
+          const defaultIdx = findDefaultTimeIndex(hourly.time, new Date(), 1);
+          const idx = (typeof defaultIdx === 'number' && defaultIdx >= 0 && defaultIdx < hourly.time.length)
+            ? defaultIdx
+            : (hourly.time.length - 1);
+          const now = new Date();
+          const time = hourly.time[idx] || null;
+          const selectedTimeInfo = time ? formatSelectedTimeInfo(time, now) : null;
+          const forecast3Days = computeForecast3Days(hourly, now);
+          const historyData = computeAirHistory(hourly, now);
+          const allDaysSummary = computeAllDaysSummary(hourly, now);
+          targetAnalytics = {
+            locationName: cityName || `Точка (${Number(targetLat).toFixed(2)}, ${Number(targetLon).toFixed(2)})`,
+            lat: targetLat,
+            lon: targetLon,
+            time,
+            selectedTimeInfo,
+            aqi: hourly.european_aqi?.[idx] ?? null,
+            pm2_5: hourly.pm2_5?.[idx] ?? null,
+            pm10: hourly.pm10?.[idx] ?? null,
+            no2: hourly.nitrogen_dioxide?.[idx] ?? null,
+            so2: hourly.sulphur_dioxide?.[idx] ?? null,
+            o3: hourly.ozone?.[idx] ?? null,
+            co: hourly.carbon_monoxide?.[idx] ?? null,
+            dust: hourly.dust?.[idx] ?? null,
+            uv: hourly.uv_index?.[idx] ?? null,
+            forecast3Days,
+            historyData,
+            allDaysSummary
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Не удалось загрузить данные воздуха для второго шага аналитики:', e);
+    }
+
+    if (generation !== dialogGenerationRef.current) return;
+
+    const followUpHistory = messagesRef.current
+      .filter((m) => m.id !== 'init-1' && !m.isError)
+      .slice(-4)
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    const followUpMessage = originalUserMessage
+      ? `Предоставь подробную аналитику по воздуху для локации ${cityName}. Пользователь спрашивал: "${originalUserMessage}"`
+      : `Предоставь подробную аналитику по воздуху для локации ${cityName}`;
+
+    try {
+      const followUpRes = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: followUpMessage,
+          isFollowUpAnalytics: true,
+          history: followUpHistory,
+          currentLayer: activeBaseLayerRef.current,
+          isColorBlind: isColorBlindRef.current,
+          colorBlindType: colorBlindTypeRef.current,
+          theme: themeRef.current,
+          pointAnalytics: targetAnalytics
+        })
+      });
+
+      if (generation !== dialogGenerationRef.current) return;
+
+      if (followUpRes.ok) {
+        const step2Data = await followUpRes.json();
+        const isRepeatMove = step2Data.reply && /перемеща(?:емся|юсь)|перехожу|летим/i.test(step2Data.reply);
+        let finalReply = (!isRepeatMove && step2Data.reply) ? step2Data.reply : null;
+        if (!finalReply && targetAnalytics && targetAnalytics.aqi !== null) {
+          finalReply = `Смотри, в ${cityName} индекс EAQI равен ${targetAnalytics.aqi}! PM2.5: ${targetAnalytics.pm2_5 != null ? targetAnalytics.pm2_5 + ' мкг/м³' : 'в норме'}, PM10: ${targetAnalytics.pm10 != null ? targetAnalytics.pm10 + ' мкг/м³' : 'в норме'}. Данные свежие, ня! ✨`;
+        }
+
+        appendMessage({
+          id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          role: 'assistant',
+          content: finalReply || 'Данные аналитики получены, ня! ✨',
+          emotion: step2Data.emotion || 'happy',
+          timestamp: Date.now()
+        });
+      } else {
+        if (targetAnalytics && targetAnalytics.aqi !== null) {
+          appendMessage({
+            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            role: 'assistant',
+            content: `Смотри, в ${cityName} индекс EAQI равен ${targetAnalytics.aqi}! PM2.5: ${targetAnalytics.pm2_5 != null ? targetAnalytics.pm2_5 + ' мкг/м³' : 'в норме'}, PM10: ${targetAnalytics.pm10 != null ? targetAnalytics.pm10 + ' мкг/м³' : 'в норме'}. Данные свежие, ня! ✨`,
+            emotion: 'happy',
+            timestamp: Date.now()
+          });
+        }
+      }
+    } catch (e) {
+      if (generation !== dialogGenerationRef.current) return;
+      if (targetAnalytics && targetAnalytics.aqi !== null) {
+        appendMessage({
+          id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          role: 'assistant',
+          content: `Смотри, в ${cityName} индекс EAQI равен ${targetAnalytics.aqi}! PM2.5: ${targetAnalytics.pm2_5 != null ? targetAnalytics.pm2_5 + ' мкг/м³' : 'в норме'}, PM10: ${targetAnalytics.pm10 != null ? targetAnalytics.pm10 + ' мкг/м³' : 'в норме'}. Данные свежие, ня! ✨`,
+          emotion: 'happy',
+          timestamp: Date.now()
+        });
+      }
+    } finally {
+      if (generation === dialogGenerationRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [appendMessage]);
 
   // Последовательная обработка очереди: даже если пользователь отправил
   // несколько сообщений подряд, ответы придут в том же порядке.
@@ -484,7 +722,8 @@ export default function AiChatModal({
               currentLayer: activeBaseLayerRef.current,
               isColorBlind: isColorBlindRef.current,
               colorBlindType: colorBlindTypeRef.current,
-              theme: themeRef.current
+              theme: themeRef.current,
+              pointAnalytics: pointAnalyticsRef.current
             }),
             ...(controller ? { signal: controller.signal } : {})
           });
@@ -531,36 +770,68 @@ export default function AiChatModal({
             }
           }
 
+          let pendingFollowUp = null;
+
           // Интерактивное перемещение к городу по команде от AI
           if (data?.action?.type === 'set_location' && data.action.lat != null && data.action.lon != null) {
+            const targetLat = Number(data.action.lat);
+            const targetLon = Number(data.action.lon);
+            const targetName = data.action.cityName || data.action.name;
             if (typeof onLocationSelectRef.current === 'function') {
               onLocationSelectRef.current({
-                lat: Number(data.action.lat),
-                lon: Number(data.action.lon),
-                display_name: data.action.cityName || data.action.name
+                lat: targetLat,
+                lon: targetLon,
+                display_name: targetName
               });
+            }
+            if (data.action.followUpAnalytics) {
+              pendingFollowUp = {
+                lat: targetLat,
+                lon: targetLon,
+                name: targetName
+              };
             }
           } else if (!data?.action) {
             // Клиентская страховка: если в тексте ответа или вопросе подтвержден переход к городу
             const clientCity = detectClientCityIntent(job.text) || (data?.reply ? detectClientCityFromReply(data.reply) : null);
             if (clientCity && clientCity.lat != null && clientCity.lon != null) {
+              const targetLat = Number(clientCity.lat);
+              const targetLon = Number(clientCity.lon);
+              const targetName = clientCity.name || clientCity.raw;
               if (typeof onLocationSelectRef.current === 'function') {
                 onLocationSelectRef.current({
-                  lat: Number(clientCity.lat),
-                  lon: Number(clientCity.lon),
-                  display_name: clientCity.name || clientCity.raw
+                  lat: targetLat,
+                  lon: targetLon,
+                  display_name: targetName
                 });
+              }
+              if (clientCity.wantsAnalytics) {
+                pendingFollowUp = {
+                  lat: targetLat,
+                  lon: targetLon,
+                  name: targetName
+                };
               }
             }
           }
 
+          const isFollowUp = Boolean(pendingFollowUp || data?.action?.followUpAnalytics);
+          const rawCityName = pendingFollowUp?.name || data?.action?.cityName || '';
+          const shortCity = toAccusativeCity(rawCityName);
+
           appendMessage({
             id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             role: 'assistant',
-            content: data.reply || 'Ответ не получен.',
-            emotion: data.emotion || 'idle',
+            content: isFollowUp
+              ? `Секундочку! Перемещаемся в ${shortCity}, смотрю свежие замеры воздуха, ня! ✨`
+              : (data.reply || 'Ответ не получен.'),
+            emotion: isFollowUp ? 'happy' : (data.emotion || 'idle'),
             timestamp: Date.now()
           });
+
+          if (pendingFollowUp && job.generation === dialogGenerationRef.current) {
+            await triggerFollowUpAnalytics(pendingFollowUp.lat, pendingFollowUp.lon, pendingFollowUp.name, job.generation, job.text);
+          }
         } catch (err) {
           if (err?.name === 'AbortError') continue;
           if (job.generation !== dialogGenerationRef.current) continue;
@@ -655,20 +926,27 @@ export default function AiChatModal({
           // Клиентский fallback: переход к городу при сбое сетевого запроса
           const fallbackCity = detectClientCityIntent(job.text);
           if (fallbackCity && fallbackCity.lat != null && fallbackCity.lon != null) {
+            const targetLat = Number(fallbackCity.lat);
+            const targetLon = Number(fallbackCity.lon);
+            const targetName = fallbackCity.name || fallbackCity.raw;
             if (typeof onLocationSelectRef.current === 'function') {
               onLocationSelectRef.current({
-                lat: Number(fallbackCity.lat),
-                lon: Number(fallbackCity.lon),
-                display_name: fallbackCity.name || fallbackCity.raw
+                lat: targetLat,
+                lon: targetLon,
+                display_name: targetName
               });
             }
             appendMessage({
               id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               role: 'assistant',
-              content: `Секундочку! Перемещаемся в ${fallbackCity.name ? fallbackCity.name.split(',')[0] : fallbackCity.raw}, смотрю свежие замеры воздуха, ня! ✨`,
+              content: `Секундочку! Перемещаемся в ${toAccusativeCity(fallbackCity.name || fallbackCity.raw)}, смотрю свежие замеры воздуха, ня! ✨`,
               emotion: 'happy',
               timestamp: Date.now()
             });
+
+            if (fallbackCity.wantsAnalytics && job.generation === dialogGenerationRef.current) {
+              await triggerFollowUpAnalytics(targetLat, targetLon, targetName, job.generation);
+            }
             continue;
           }
 
@@ -1234,6 +1512,21 @@ export default function AiChatModal({
         </div>
 
         <div className="ai-chat-header__actions">
+          <button
+            type="button"
+            className="ai-chat-header__btn"
+            onClick={() => handleSendMessage(null, 'Какая аналитика по текущей точке?')}
+            title={pointAnalytics ? `Аналитика: ${pointAnalytics.locationName}${pointAnalytics.aqi !== null ? ` · AQI ${pointAnalytics.aqi}` : ''}` : 'Аналитика по текущей точке'}
+            aria-label={pointAnalytics ? `Аналитика: ${pointAnalytics.locationName}${pointAnalytics.aqi !== null ? ` · AQI ${pointAnalytics.aqi}` : ''}` : 'Аналитика по текущей точке'}
+            data-testid="ai-chat-quick-analytics-btn"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          </button>
+
           {onOpenSettings && (
             <button
               type="button"

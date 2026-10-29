@@ -23,6 +23,7 @@ function App({ referenceDate } = {}) {
     const [selectedTimeIndex, setSelectedTimeIndex] = useState(null);
     const [viewMode, setViewMode] = useState('combo');
     const [coords, setCoords] = useState(DEFAULT_COORDS);
+    const [locationName, setLocationName] = useState('Новокузнецк, Россия');
     const [recenterTrigger, setRecenterTrigger] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
@@ -269,11 +270,13 @@ function App({ referenceDate } = {}) {
         setViewMode(mode);
     };
 
-    const handleLocationSelect = (loc, maybeLon) => {
+    const handleLocationSelect = (loc, maybeLon, maybeName) => {
         setIsMobileSidebarOpen(false);
         let targetLat = null;
         let targetLon = null;
+        let targetName = null;
         if (typeof loc === 'object' && loc !== null) {
+            targetName = loc.name || loc.cityName || loc.display_name || null;
             if (loc.lat == null || loc.lon == null) {
                 setCoords({ lat: null, lon: null });
                 return;
@@ -284,9 +287,12 @@ function App({ referenceDate } = {}) {
                 targetLat = lat;
                 targetLon = lon;
                 setCoords({ lat, lon });
+                if (targetName) setLocationName(targetName);
+                else setLocationName(`Точка (${lat.toFixed(2)}, ${lon.toFixed(2)})`);
                 setRecenterTrigger((prev) => prev + 1);
             }
         } else if (loc !== undefined && maybeLon !== undefined) {
+            targetName = typeof maybeName === 'string' && maybeName.trim() ? maybeName.trim() : null;
             if (loc == null || maybeLon == null) {
                 setCoords({ lat: null, lon: null });
                 return;
@@ -297,6 +303,8 @@ function App({ referenceDate } = {}) {
                 targetLat = lat;
                 targetLon = lon;
                 setCoords({ lat, lon });
+                if (targetName) setLocationName(targetName);
+                else setLocationName(`Точка (${lat.toFixed(2)}, ${lon.toFixed(2)})`);
                 setRecenterTrigger((prev) => prev + 1);
             }
         }
@@ -322,6 +330,8 @@ function App({ referenceDate } = {}) {
                 referenceDate={activeReferenceDate}
                 airData={airData}
                 selectedTimeIndex={selectedTimeIndex}
+                coords={coords}
+                locationName={locationName}
                 onSelectTime={handleSelectTime}
                 onLocationSelect={handleLocationSelect}
                 viewMode={viewMode}
