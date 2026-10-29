@@ -65,13 +65,19 @@ function detectClientMapLayerIntent(text) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
 
-  // 1. Возврат на схему или отключение спутника
-  const TO_OSM_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:со\s+)?спутник[а-я]*|(?:переключи(?:сь|ть)?\s+со\s+спутник[а-я]*)|(?:переключи(?:сь|ть)?|верни(?:ть)?|поставь|покажи|включи(?:ть)?|открой|перейди)\s+(?:мне\s+)?(?:на\s+)?(?:обычн(?:ую|ый)|стандартн(?:ую|ый)|схему|карту|osm|улицы|вектор)(?:\s+карту)?|^(?:обычная\s+карта|схема|верни\s+карту|карту|выключи\s+спутник|убери\s+спутник)$/i;
-  if (TO_OSM_REGEX.test(clean)) return 'osm';
+  const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
+  if (IS_QUESTION_REGEX.test(clean)) return null;
 
-  // 2. Переключение на спутник
-  const TO_SATELLITE_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|покажи|открой|сделай|перейди|хочу|вруби|запусти)\s+(?:мне\s+)?(?:на\s+)?(?:спутник(?:овую\s+карту|\s+карту|\s+слой)?|космос|снимок\s+со\s+спутника)|^(?:спутник|со\s+спутника|спутниковая\s+карта|включи\s+спутник)$/i;
-  if (TO_SATELLITE_REGEX.test(clean)) return 'satellite';
+  const hasOff = /(?:выключ|отключ|убер|убир|сним|выруб)/i.test(clean);
+  const hasOn = /(?:включ|переключ|постав|покажи|открой|сделай|перейди|хочу|вруб|запусти|верни)/i.test(clean);
+  const hasSatellite = /(?:спутник|космос)/i.test(clean);
+  const hasOsm = /(?:обычн[а-я]*\s+карт|стандартн[а-я]*\s+карт|схем[а-я]*|улиц[а-я]*|вектор|osm)/i.test(clean);
+
+  if (hasOff && hasSatellite) return 'osm';
+  if (hasOn && hasSatellite) return 'satellite';
+  if (hasOn && hasOsm) return 'osm';
+  if (/^(?:спутник|со\s+спутника|спутниковая\s+карта)$/i.test(clean)) return 'satellite';
+  if (/^(?:обычная\s+карта|схема|верни\s+карту|векторная\s+карта)$/i.test(clean)) return 'osm';
 
   return null;
 }
@@ -82,26 +88,44 @@ function detectClientMapLayerIntent(text) {
  * { enabled: true, colorBlindType: 'okabe' | 'deuteranopia' | 'protanopia' | 'tritanopia' } — включение
  * { unsupported: true, requested?: string } — запрос нереализованного вида
  */
-function detectClientColorBlindIntent(text) {
+function detectClientColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
 
   // Вопросы о дальтонизме не должны триггерить действие
-  const IS_QUESTION_REGEX = /^(?:какие|какой|что\s+такое|расскажи|как\s+включить|как\s+настроить|где\s+настроить|почему|зачем)\b/i;
+  const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|какую|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
   if (IS_QUESTION_REGEX.test(clean)) return null;
 
+  let historyText = '';
+  if (Array.isArray(history)) {
+    historyText = history.map(h => (h?.content || '')).join(' ').toLowerCase();
+  }
+
+  const hasOffWord = /(?:выключ|отключ|убер|убир|сним|выруб|сброс)/i.test(clean);
+  const hasOnWord = /(?:включ|переключ|постав|сделай|активир|открой|вруб)/i.test(clean);
+  const hasCbWord = /(?:дальтонизм|дальтоник|цветов(?:ую|ой|ая)?\s+слепот|цветовосприят|доступност)/i.test(clean);
+  const hasReturnNormalColors = /(?:верни|возврат|стандартн|обычн|нормальн|исходн|прежн).*(?:цвет|гамм|палитр)/i.test(clean) ||
+                                /(?:цвет|гамм|палитр).*(?:стандартн|обычн|нормальн|исходн|прежн|как\s+было)/i.test(clean);
+
+  const isContextCb = Boolean(isColorBlind) || /(?:дальтонизм|палитр|гамм|цветов|окабе|дейтераноп|протаноп|тританоп)/i.test(historyText);
+  const hasPronounOff = hasOffWord && /(?:его|е[её]|это|этот|режим|палитру|доступность)/i.test(clean);
+
   // 1. Выключение режима дальтонизма
-  const TO_OFF_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:мне\s+)?(?:режим\s+)?(?:дальтонизм[а-я]*|дальтоник[а-я]*|для\s+дальтоников|доступност[иь]|цветовую\s+слепоту|дейтеранопи[юеи]|протанопи[юеи]|тританопи[юеи]|окабе)|(?:верни(?:ть)?\s+(?:стандартн[а-я]+|обычн[а-я]+)\s+цвета)|^(?:выключи\s+дальтонизм|отключи\s+дальтонизм)$/i;
-  if (TO_OFF_REGEX.test(clean)) return { enabled: false };
+  if ((hasOffWord && (hasCbWord || /(?:окабе|дейтераноп|протаноп|тританоп)/i.test(clean))) ||
+      hasReturnNormalColors ||
+      (hasPronounOff && isContextCb) ||
+      (/^(?:выключи|отключи|убери|сними|выруби)\s+(?:пожалуйста\s+)?(?:его|е[её]|это|режим)?$/i.test(clean) && isContextCb)) {
+    return { enabled: false };
+  }
 
   // Известные медицинские термины, не реализованные в приложении
-  const KNOWN_UNSUPPORTED = /(?:ахроматопс[а-я]*|монохромаз[а-я]*|дихромаз[а-я]*|тетрахромат[а-я]*|трихромат[а-я]*|блютоп[а-я]*|редтоп[а-я]*)/i;
+  const KNOWN_UNSUPPORTED = /(?:ахроматопс[а-я]*|монохромаз[а-я]*|дихромаз[а-я]*|тетрахромат[а-я]*|трихромат[а-я]*|блютоп[а-я]*|редтоп[а-я]*|монохром\b)/i;
   if (KNOWN_UNSUPPORTED.test(clean)) {
     return { unsupported: true };
   }
 
-  // Проверяем паттерны вида: "режим дальтонизма <название>", "палитра <название>", "дальтонизм <название>"
-  const SPECIFIED_TYPE_REGEX = /(?:режим(?:а)?\s+дальтонизма\s+|дальтонизм(?:а)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
+  // Проверяем паттерны вида: "режим дальтонизма [название]", "палитра [название]", "дальтонизм [название]"
+  const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+дальтонизма\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
   const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
   if (specMatch) {
     const word = specMatch[1].toLowerCase();
@@ -109,7 +133,7 @@ function detectClientColorBlindIntent(text) {
     if (/^(?:дейтераноп[а-я]*|deuteranop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'deuteranopia' };
     if (/^(?:протаноп[а-я]*|protanop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'protanopia' };
     if (/^(?:тританоп[а-я]*|tritanop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'tritanopia' };
-    if (!/^(?:по|для|в|на|онлайн|свой|новый|мне|только|все)$/i.test(word)) {
+    if (!/^(?:по|для|в|на|онлайн|свой|новый|мне|только|все|пожалуйста|пж|плиз|есть|бывает)$/i.test(word)) {
       return { unsupported: true, requested: word };
     }
   }
@@ -121,10 +145,39 @@ function detectClientColorBlindIntent(text) {
   if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
 
   // 3. Запрос на включение дальтонизма без типа -> Окабе по умолчанию
-  const GENERAL_ON_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|сделай|активируй|открой)\s+(?:мне\s+)?(?:режим\s+)?(?:дальтонизм[а-я]*|дальтоник[а-я]*|для\s+дальтоников|доступност[иь]|цветовую\s+слепоту)|^(?:дальтонизм|режим\s+дальтонизма)$/i;
-  if (GENERAL_ON_REGEX.test(clean)) {
+  if ((hasOnWord && hasCbWord) || /^(?:дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
     return { enabled: true, colorBlindType: 'okabe' };
   }
+
+  return null;
+}
+
+/**
+ * Распознает команду переключения темы оформления на клиенте:
+ * 'dark' — тёмная тема
+ * 'light' — светлая тема
+ */
+function detectClientThemeIntent(text) {
+  if (!text || typeof text !== 'string') return null;
+  const clean = text.toLowerCase().trim();
+
+  const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
+  if (IS_QUESTION_REGEX.test(clean)) return null;
+
+  const hasOff = /(?:выключ|отключ|убер|убир|сним|выруб)/i.test(clean);
+  const hasOn = /(?:включ|переключ|постав|сделай|активир|открой|вруб|верни)/i.test(clean);
+  const hasDark = /(?:т[её]мн|ночн)/i.test(clean);
+  const hasLight = /(?:светл|дневн)/i.test(clean);
+  const hasThemeWord = /(?:тем[ауеы]|режим|стиль|оформлен)/i.test(clean);
+
+  if (/(?:сделай\s+темно|темноту)/i.test(clean)) return 'dark';
+  if (/(?:сделай\s+светло|посветлее)/i.test(clean)) return 'light';
+
+  if (hasOff && hasDark) return 'light';
+  if (hasOff && hasLight) return 'dark';
+
+  if ((hasOn || hasThemeWord) && hasDark) return 'dark';
+  if ((hasOn || hasThemeWord) && hasLight) return 'light';
 
   return null;
 }
@@ -140,7 +193,9 @@ export default function AiChatModal({
   isColorBlind,
   onColorBlindChange,
   colorBlindType,
-  onColorBlindTypeChange
+  onColorBlindTypeChange,
+  theme,
+  onThemeChange
 }) {
   const [messages, setMessages] = useState([INITIAL_GREETING]);
   const [inputMessage, setInputMessage] = useState('');
@@ -254,6 +309,10 @@ export default function AiChatModal({
   const activeBaseLayerRef = useRef(activeBaseLayer);
   const onColorBlindChangeRef = useRef(onColorBlindChange);
   const onColorBlindTypeChangeRef = useRef(onColorBlindTypeChange);
+  const onThemeChangeRef = useRef(onThemeChange);
+  const isColorBlindRef = useRef(isColorBlind);
+  const colorBlindTypeRef = useRef(colorBlindType);
+  const themeRef = useRef(theme);
 
   useEffect(() => {
     onBaseLayerChangeRef.current = onBaseLayerChange;
@@ -270,6 +329,22 @@ export default function AiChatModal({
   useEffect(() => {
     onColorBlindTypeChangeRef.current = onColorBlindTypeChange;
   }, [onColorBlindTypeChange]);
+
+  useEffect(() => {
+    onThemeChangeRef.current = onThemeChange;
+  }, [onThemeChange]);
+
+  useEffect(() => {
+    isColorBlindRef.current = isColorBlind;
+  }, [isColorBlind]);
+
+  useEffect(() => {
+    colorBlindTypeRef.current = colorBlindType;
+  }, [colorBlindType]);
+
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
 
   useEffect(() => {
     inputMessageRef.current = inputMessage;
@@ -312,20 +387,23 @@ export default function AiChatModal({
 
         setIsLoading(true);
 
-        try {
-          // Собираем последние реплики для контекста (ровно до 4 реплик: 2 пары вопрос-ответ)
-          const historyPayload = messagesRef.current
-            .filter((m) => m.id !== 'init-1' && !m.isError && m.id !== job.userMessageId)
-            .slice(-4)
-            .map((m) => ({ role: m.role, content: m.content }));
+        // Собираем последние реплики для контекста (ровно до 4 реплик: 2 пары вопрос-ответ)
+        const historyPayload = messagesRef.current
+          .filter((m) => m.id !== 'init-1' && !m.isError && m.id !== job.userMessageId)
+          .slice(-4)
+          .map((m) => ({ role: m.role, content: m.content }));
 
+        try {
           const response = await fetch('/api/ai/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: job.text,
               history: historyPayload,
-              currentLayer: activeBaseLayerRef.current
+              currentLayer: activeBaseLayerRef.current,
+              isColorBlind: isColorBlindRef.current,
+              colorBlindType: colorBlindTypeRef.current,
+              theme: themeRef.current
             }),
             ...(controller ? { signal: controller.signal } : {})
           });
@@ -365,6 +443,13 @@ export default function AiChatModal({
             }
           }
 
+          // Интерактивное переключение темы оформления
+          if (data?.action?.type === 'set_theme' && (data.action.theme === 'dark' || data.action.theme === 'light')) {
+            if (typeof onThemeChangeRef.current === 'function') {
+              onThemeChangeRef.current(data.action.theme);
+            }
+          }
+
           appendMessage({
             id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             role: 'assistant',
@@ -395,7 +480,10 @@ export default function AiChatModal({
           }
 
           // Клиентский fallback: переключение режима дальтонизма при сбое сетевого запроса
-          const fallbackCB = detectClientColorBlindIntent(job.text);
+          const fallbackCB = detectClientColorBlindIntent(job.text, {
+            isColorBlind: isColorBlindRef.current,
+            history: historyPayload
+          });
           if (fallbackCB) {
             if (fallbackCB.unsupported) {
               appendMessage({
@@ -440,6 +528,24 @@ export default function AiChatModal({
               });
               continue;
             }
+          }
+
+          // Клиентский fallback: переключение темы оформления при сбое сетевого запроса
+          const fallbackTheme = detectClientThemeIntent(job.text);
+          if (fallbackTheme) {
+            if (typeof onThemeChangeRef.current === 'function') {
+              onThemeChangeRef.current(fallbackTheme);
+            }
+            appendMessage({
+              id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              role: 'assistant',
+              content: fallbackTheme === 'dark'
+                ? 'Секундочку! Переключаю интерфейс на уютную тёмную тему, ня! ✨'
+                : 'Как скажешь! Возвращаю яркую светлую тему, ня! ✨',
+              emotion: 'happy',
+              timestamp: Date.now()
+            });
+            continue;
           }
 
           console.error('AI chat error:', err);

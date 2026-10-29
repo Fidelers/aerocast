@@ -30,7 +30,9 @@ function Sidebar({
   isColorBlind,
   onColorBlindChange,
   colorBlindType,
-  onColorBlindTypeChange
+  onColorBlindTypeChange,
+  theme,
+  onThemeChange
 }) {
   const handleSelectTime = onSelectTime || onTimeSelect;
   const [geoError, setGeoError] = useState(null);
@@ -927,6 +929,8 @@ function Sidebar({
             onColorBlindChange={onColorBlindChange}
             colorBlindType={colorBlindType}
             onColorBlindTypeChange={onColorBlindTypeChange}
+            theme={theme}
+            onThemeChange={onThemeChange}
           />
         </div>
       ) : mascotMode === 'button' ? (

@@ -484,4 +484,135 @@ describe('AiChatModal Component', () => {
     expect(handleColorBlindChange).not.toHaveBeenCalled();
     expect(handleColorBlindTypeChange).not.toHaveBeenCalled();
   });
+
+  it('вызывает onThemeChange("dark") при получении команды смены темы на тёмную', async () => {
+    const handleThemeChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Включаю тёмную тему, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_theme', theme: 'dark' }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        theme="light"
+        onThemeChange={handleThemeChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи темную тему');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Включаю тёмную тему, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleThemeChange).toHaveBeenCalledWith('dark');
+  });
+
+  it('вызывает onThemeChange("light") при получении команды смены темы на светлую', async () => {
+    const handleThemeChange = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Включаю светлую тему, ня! ✨',
+        emotion: 'happy',
+        action: { type: 'set_theme', theme: 'light' }
+      })
+    });
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        theme="dark"
+        onThemeChange={handleThemeChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи светлую тему');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Включаю светлую тему, ня! ✨')).toBeDefined();
+    });
+
+    expect(handleThemeChange).toHaveBeenCalledWith('light');
+  });
+
+  it('переключает тему через клиентский fallback при недоступности сервера', async () => {
+    const handleThemeChange = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        theme="light"
+        onThemeChange={handleThemeChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'Включи темную тему');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleThemeChange).toHaveBeenCalledWith('dark');
+      expect(screen.getByText(/Переключаю интерфейс на уютную тёмную тему/i)).toBeDefined();
+    });
+  });
+
+  it('выключает дальтонизм при вежливой фразе "выключи пожалуйста режим дальтонизма" через fallback', async () => {
+    const handleColorBlindChange = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        isColorBlind={true}
+        onColorBlindChange={handleColorBlindChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'выключи пожалуйста режим дальтонизма');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleColorBlindChange).toHaveBeenCalledWith(false);
+      expect(screen.getByText(/Возвращаю стандартную цветовую гамму/i)).toBeDefined();
+    });
+  });
+
+  it('выключает дальтонизм при запросе с местоимением "можешь пожалуйста выключить его"', async () => {
+    const handleColorBlindChange = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+
+    render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        isColorBlind={true}
+        onColorBlindChange={handleColorBlindChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Спроси что-нибудь...');
+    await userEvent.type(input, 'можешь пожалуйста выключить его');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(handleColorBlindChange).toHaveBeenCalledWith(false);
+      expect(screen.getByText(/Возвращаю стандартную цветовую гамму/i)).toBeDefined();
+    });
+  });
 });

@@ -512,6 +512,61 @@ describe('AI Module & Local LLM endpoints', () => {
             axiosSpy.mockRestore();
         });
 
+        it('распознает выключение дальтонизма при вежливых формулировках и местоимениях', async () => {
+            // Без тега от модели: 'выключи пожалуйста режим дальтонизма'
+            const axiosSpy1 = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: 'Как скажешь! Возвращаю стандартную цветовую гамму, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const res1 = await aiService.sendChatMessage({ userMessage: 'выключи пожалуйста режим дальтонизма' });
+            expect(res1.action).toEqual({ type: 'set_colorblind', enabled: false });
+            axiosSpy1.mockRestore();
+
+            // С контекстом: 'можешь пожалуйста выключить его'
+            const axiosSpy2 = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: 'Как скажешь! Выключаю режим дальтонизма, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const res2 = await aiService.sendChatMessage({
+                userMessage: 'можешь пожалуйста выключить его',
+                isColorBlind: true,
+                history: [
+                    { role: 'user', content: 'включи дальтонизм' },
+                    { role: 'assistant', content: 'Включаю режим дальтонизма' }
+                ]
+            });
+            expect(res2.action).toEqual({ type: 'set_colorblind', enabled: false });
+            axiosSpy2.mockRestore();
+        });
+
+        it('извлекает action из текста реплики, если модель забыла тег [action:...]', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: 'Как скажешь! Выключаю режим дальтонизма, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const res = await aiService.sendChatMessage({ userMessage: 'отключи' });
+            expect(res.action).toEqual({ type: 'set_colorblind', enabled: false });
+            axiosSpy.mockRestore();
+        });
+
         it('срабатывает защитный fallback при сбое/оффлайне LLM для смены дальтонизма', async () => {
             const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValue(new Error('Connection refused'));
 
@@ -526,6 +581,82 @@ describe('AI Module & Local LLM endpoints', () => {
             const offResult = await aiService.sendChatMessage({ userMessage: 'Выключи дальтонизм' });
             expect(offResult.action).toEqual({ type: 'set_colorblind', enabled: false });
             expect(offResult.reply).toContain('Возвращаю стандартную цветовую гамму');
+
+            axiosSpy.mockRestore();
+        });
+
+        it('распознает теги [action:set_theme:dark] и [action:set_theme:light]', async () => {
+            const darkSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_theme:dark] Включаю тёмную тему, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const darkRes = await aiService.sendChatMessage({ userMessage: 'Включи темную тему' });
+            expect(darkRes.action).toEqual({ type: 'set_theme', theme: 'dark' });
+            expect(darkRes.reply).toBe('Включаю тёмную тему, ня! ✨');
+            darkSpy.mockRestore();
+
+            const lightSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] [action:set_theme:light] Включаю светлую тему, ня! ✨'
+                        }
+                    }]
+                }
+            });
+
+            const lightRes = await aiService.sendChatMessage({ userMessage: 'Включи светлую тему' });
+            expect(lightRes.action).toEqual({ type: 'set_theme', theme: 'light' });
+            expect(lightRes.reply).toBe('Включаю светлую тему, ня! ✨');
+            lightSpy.mockRestore();
+        });
+
+        it('дополняет action смены темы по намерению, если модель не сгенерировала тег', async () => {
+            const darkSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Перехожу на тёмную тему!'
+                        }
+                    }]
+                }
+            });
+
+            const darkRes = await aiService.sendChatMessage({ userMessage: 'Поставь ночной режим' });
+            expect(darkRes.action).toEqual({ type: 'set_theme', theme: 'dark' });
+            darkSpy.mockRestore();
+
+            const lightSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    choices: [{
+                        message: {
+                            content: '[mood:happy] Перехожу на светлую тему!'
+                        }
+                    }]
+                }
+            });
+
+            const lightRes = await aiService.sendChatMessage({ userMessage: 'Сделай светлую тему' });
+            expect(lightRes.action).toEqual({ type: 'set_theme', theme: 'light' });
+            lightSpy.mockRestore();
+        });
+
+        it('срабатывает защитный fallback при сбое/оффлайне LLM для смены темы оформления', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValue(new Error('Connection refused'));
+
+            const darkRes = await aiService.sendChatMessage({ userMessage: 'Включи темную тему' });
+            expect(darkRes.action).toEqual({ type: 'set_theme', theme: 'dark' });
+            expect(darkRes.reply).toContain('тёмную тему');
+
+            const lightRes = await aiService.sendChatMessage({ userMessage: 'Включи светлую тему' });
+            expect(lightRes.action).toEqual({ type: 'set_theme', theme: 'light' });
+            expect(lightRes.reply).toContain('светлую тему');
 
             axiosSpy.mockRestore();
         });

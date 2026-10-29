@@ -345,6 +345,8 @@ function App({ referenceDate } = {}) {
                 onColorBlindChange={setIsColorBlind}
                 colorBlindType={colorBlindType}
                 onColorBlindTypeChange={setColorBlindType}
+                theme={theme}
+                onThemeChange={setTheme}
             />
             <div
                 className={`sidebar-backdrop ${isMobileSidebarOpen ? 'sidebar-backdrop--visible' : ''}`}

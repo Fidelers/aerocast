@@ -8,3 +8,4 @@
 /frontend/coverage/
 /models/
 frontend.log
+node_modules/

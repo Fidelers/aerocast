@@ -37,17 +37,19 @@ function detectMapLayerIntent(text) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
 
-    // 1. Возврат на обычную карту (схему OpenStreetMap) или отключение спутника
-    const TO_OSM_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:со\s+)?спутник[а-я]*|(?:переключи(?:сь|ть)?\s+со\s+спутник[а-я]*)|(?:переключи(?:сь|ть)?|верни(?:ть)?|поставь|покажи|включи(?:ть)?|открой|перейди)\s+(?:мне\s+)?(?:на\s+)?(?:обычн(?:ую|ый)|стандартн(?:ую|ый)|схему|карту|osm|улицы|вектор)(?:\s+карту)?|^(?:обычная\s+карта|схема|верни\s+карту|карту|выключи\s+спутник|убери\s+спутник)$/i;
-    if (TO_OSM_REGEX.test(clean)) {
-        return 'osm';
-    }
+    const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
+    if (IS_QUESTION_REGEX.test(clean)) return null;
 
-    // 2. Переключение на спутниковые снимки
-    const TO_SATELLITE_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|покажи|открой|сделай|перейди|хочу|вруби|запусти)\s+(?:мне\s+)?(?:на\s+)?(?:спутник(?:овую\s+карту|\s+карту|\s+слой)?|космос|снимок\s+со\s+спутника)|^(?:спутник|со\s+спутника|спутниковая\s+карта|включи\s+спутник)$/i;
-    if (TO_SATELLITE_REGEX.test(clean)) {
-        return 'satellite';
-    }
+    const hasOff = /(?:выключ|отключ|убер|убир|сним|выруб)/i.test(clean);
+    const hasOn = /(?:включ|переключ|постав|покажи|открой|сделай|перейди|хочу|вруб|запусти|верни)/i.test(clean);
+    const hasSatellite = /(?:спутник|космос)/i.test(clean);
+    const hasOsm = /(?:обычн[а-я]*\s+карт|стандартн[а-я]*\s+карт|схем[а-я]*|улиц[а-я]*|вектор|osm)/i.test(clean);
+
+    if (hasOff && hasSatellite) return 'osm';
+    if (hasOn && hasSatellite) return 'satellite';
+    if (hasOn && hasOsm) return 'osm';
+    if (/^(?:спутник|со\s+спутника|спутниковая\s+карта)$/i.test(clean)) return 'satellite';
+    if (/^(?:обычная\s+карта|схема|верни\s+карту|векторная\s+карта)$/i.test(clean)) return 'osm';
 
     return null;
 }
@@ -58,26 +60,44 @@ function detectMapLayerIntent(text) {
  * { enabled: true, colorBlindType: 'okabe' | 'deuteranopia' | 'protanopia' | 'tritanopia' } — включение
  * { unsupported: true, requested?: string } — запрос нереализованного вида
  */
-function detectColorBlindIntent(text) {
+function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
 
     // Вопросы о дальтонизме не должны триггерить действие
-    const IS_QUESTION_REGEX = /^(?:какие|какой|что\s+такое|расскажи|как\s+включить|как\s+настроить|где\s+настроить|почему|зачем)\b/i;
+    const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|какую|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
     if (IS_QUESTION_REGEX.test(clean)) return null;
 
+    let historyText = '';
+    if (Array.isArray(history)) {
+        historyText = history.map(h => (h?.content || '')).join(' ').toLowerCase();
+    }
+
+    const hasOffWord = /(?:выключ|отключ|убер|убир|сним|выруб|сброс)/i.test(clean);
+    const hasOnWord = /(?:включ|переключ|постав|сделай|активир|открой|вруб)/i.test(clean);
+    const hasCbWord = /(?:дальтонизм|дальтоник|цветов(?:ую|ой|ая)?\s+слепот|цветовосприят|доступност)/i.test(clean);
+    const hasReturnNormalColors = /(?:верни|возврат|стандартн|обычн|нормальн|исходн|прежн).*(?:цвет|гамм|палитр)/i.test(clean) ||
+                                  /(?:цвет|гамм|палитр).*(?:стандартн|обычн|нормальн|исходн|прежн|как\s+было)/i.test(clean);
+
+    const isContextCb = Boolean(isColorBlind) || /(?:дальтонизм|палитр|гамм|цветов|окабе|дейтераноп|протаноп|тританоп)/i.test(historyText);
+    const hasPronounOff = hasOffWord && /(?:его|е[её]|это|этот|режим|палитру|доступность)/i.test(clean);
+
     // 1. Выключение режима дальтонизма
-    const TO_OFF_REGEX = /(?:выключи(?:ть)?|отключи(?:ть)?|убери|сними)\s+(?:мне\s+)?(?:режим\s+)?(?:дальтонизм[а-я]*|дальтоник[а-я]*|для\s+дальтоников|доступност[иь]|цветовую\s+слепоту|дейтеранопи[юеи]|протанопи[юеи]|тританопи[юеи]|окабе)|(?:верни(?:ть)?\s+(?:стандартн[а-я]+|обычн[а-я]+)\s+цвета)|^(?:выключи\s+дальтонизм|отключи\s+дальтонизм)$/i;
-    if (TO_OFF_REGEX.test(clean)) return { enabled: false };
+    if ((hasOffWord && (hasCbWord || /(?:окабе|дейтераноп|протаноп|тританоп)/i.test(clean))) ||
+        hasReturnNormalColors ||
+        (hasPronounOff && isContextCb) ||
+        (/^(?:выключи|отключи|убери|сними|выруби)\s+(?:пожалуйста\s+)?(?:его|е[её]|это|режим)?$/i.test(clean) && isContextCb)) {
+        return { enabled: false };
+    }
 
     // Известные медицинские термины, не реализованные в приложении
-    const KNOWN_UNSUPPORTED = /(?:ахроматопс[а-я]*|монохромаз[а-я]*|дихромаз[а-я]*|тетрахромат[а-я]*|трихромат[а-я]*|блютоп[а-я]*|редтоп[а-я]*)/i;
+    const KNOWN_UNSUPPORTED = /(?:ахроматопс[а-я]*|монохромаз[а-я]*|дихромаз[а-я]*|тетрахромат[а-я]*|трихромат[а-я]*|блютоп[а-я]*|редтоп[а-я]*|монохром\b)/i;
     if (KNOWN_UNSUPPORTED.test(clean)) {
         return { unsupported: true };
     }
 
-    // Проверяем паттерны вида: "режим дальтонизма <название>", "палитра <название>", "дальтонизм <название>"
-    const SPECIFIED_TYPE_REGEX = /(?:режим(?:а)?\s+дальтонизма\s+|дальтонизм(?:а)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
+    // Проверяем паттерны вида: "режим дальтонизма [название]", "палитра [название]", "дальтонизм [название]"
+    const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+дальтонизма\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
     const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
     if (specMatch) {
         const word = specMatch[1].toLowerCase();
@@ -85,7 +105,7 @@ function detectColorBlindIntent(text) {
         if (/^(?:дейтераноп[а-я]*|deuteranop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'deuteranopia' };
         if (/^(?:протаноп[а-я]*|protanop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'protanopia' };
         if (/^(?:тританоп[а-я]*|tritanop[a-z]*)$/i.test(word)) return { enabled: true, colorBlindType: 'tritanopia' };
-        if (!/^(?:по|для|в|на|онлайн|свой|новый|мне|только|все)$/i.test(word)) {
+        if (!/^(?:по|для|в|на|онлайн|свой|новый|мне|только|все|пожалуйста|пж|плиз|есть|бывает)$/i.test(word)) {
             return { unsupported: true, requested: word };
         }
     }
@@ -97,9 +117,89 @@ function detectColorBlindIntent(text) {
     if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
 
     // 3. Запрос на включение дальтонизма без указания типа -> Окабе по умолчанию
-    const GENERAL_ON_REGEX = /(?:включи(?:ть)?|переключи(?:сь|ть)?|поставь|сделай|активируй|открой)\s+(?:мне\s+)?(?:режим\s+)?(?:дальтонизм[а-я]*|дальтоник[а-я]*|для\s+дальтоников|доступност[иь]|цветовую\s+слепоту)|^(?:дальтонизм|режим\s+дальтонизма)$/i;
-    if (GENERAL_ON_REGEX.test(clean)) {
+    if ((hasOnWord && hasCbWord) || /^(?:дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
         return { enabled: true, colorBlindType: 'okabe' };
+    }
+
+    return null;
+}
+
+/**
+ * Распознает команду переключения темы оформления (тёмная / светлая):
+ * 'dark' — тёмная тема
+ * 'light' — светлая тема
+ */
+function detectThemeIntent(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.toLowerCase().trim();
+
+    const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
+    if (IS_QUESTION_REGEX.test(clean)) return null;
+
+    const hasOff = /(?:выключ|отключ|убер|убир|сним|выруб)/i.test(clean);
+    const hasOn = /(?:включ|переключ|постав|сделай|активир|открой|вруб|верни)/i.test(clean);
+    const hasDark = /(?:т[её]мн|ночн)/i.test(clean);
+    const hasLight = /(?:светл|дневн)/i.test(clean);
+    const hasThemeWord = /(?:тем[ауеы]|режим|стиль|оформлен)/i.test(clean);
+
+    if (/(?:сделай\s+темно|темноту)/i.test(clean)) return 'dark';
+    if (/(?:сделай\s+светло|посветлее)/i.test(clean)) return 'light';
+
+    if (hasOff && hasDark) return 'light';
+    if (hasOff && hasLight) return 'dark';
+
+    if ((hasOn || hasThemeWord) && hasDark) return 'dark';
+    if ((hasOn || hasThemeWord) && hasLight) return 'light';
+
+    return null;
+}
+
+/**
+ * Распознает подтверждение действия в тексте ответа модели (если модель забыла тег [action:...])
+ */
+function detectActionFromReply(replyText) {
+    if (!replyText || typeof replyText !== 'string') return null;
+    const clean = replyText.toLowerCase();
+
+    // Если ответ содержит отказ или сообщение об ошибке, действие не извлекаем
+    if (/(?:такого\s+режима|не\s+поддержива|нет\s+такого|не\s+буду|хмпф|ошибка)/i.test(clean)) {
+        return null;
+    }
+
+    // Выключение дальтонизма
+    if (/(?:выключаю\s+(?:режим\s+)?дальтонизма|отключаю\s+(?:режим\s+)?дальтонизма|выключаю\s+дальтонизм|отключаю\s+дальтонизм|возвращаю\s+стандартную\s+цветовую|возвращаю\s+стандартные\s+цвета|возвращаю\s+обычные\s+цвета|выключаю\s+его,\s+возвращаю)/i.test(clean)) {
+        return { type: 'set_colorblind', enabled: false };
+    }
+
+    // Включение конкретной палитры дальтонизма
+    const hasSwitchAction = /(?:включаю|переключаю|активирую|ставлю)/i.test(clean);
+    if (hasSwitchAction && /(?:дейтераноп)/i.test(clean)) {
+        return { type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' };
+    }
+    if (hasSwitchAction && /(?:протаноп)/i.test(clean)) {
+        return { type: 'set_colorblind', enabled: true, colorBlindType: 'protanopia' };
+    }
+    if (hasSwitchAction && /(?:тританоп)/i.test(clean)) {
+        return { type: 'set_colorblind', enabled: true, colorBlindType: 'tritanopia' };
+    }
+    if (hasSwitchAction && /(?:окабе|палитру\s+окабе|режим\s+дальтонизма|палитру\s+дальтонизма|режим\s+доступности\s+для\s+дальтоников)/i.test(clean)) {
+        return { type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' };
+    }
+
+    // Темы оформления
+    if (hasSwitchAction && /(?:т[её]мн(?:ую|ый)|ночн(?:ую|ой))\s+(?:тему|режим)/i.test(clean)) {
+        return { type: 'set_theme', theme: 'dark' };
+    }
+    if ((hasSwitchAction || /возвращаю/i.test(clean)) && /(?:светл(?:ую|ый)|дневн(?:ую|ой))\s+(?:тему|режим)/i.test(clean)) {
+        return { type: 'set_theme', theme: 'light' };
+    }
+
+    // Карта
+    if (hasSwitchAction && /(?:спутник)/i.test(clean)) {
+        return { type: 'set_base_layer', layer: 'satellite' };
+    }
+    if ((hasSwitchAction || /возвращаю/i.test(clean)) && /(?:схем[ау]|openstreetmap|обычн(?:ую|ая)\s+карт[ау])/i.test(clean)) {
+        return { type: 'set_base_layer', layer: 'osm' };
     }
 
     return null;
@@ -115,7 +215,7 @@ async function retry(fn, retries = 3, delay = 1000) {
     }
 }
 
-async function sendChatMessage({ history = [], userMessage }) {
+async function sendChatMessage({ history = [], userMessage, currentLayer, isColorBlind, colorBlindType, theme }) {
     const cleanUserMessage = String(userMessage || '').trim();
 
     // Защитный барьер 1: перехват запросов на генерацию программного кода
@@ -219,29 +319,51 @@ async function sendChatMessage({ history = [], userMessage }) {
                 } else if (['okabe', 'deuteranopia', 'protanopia', 'tritanopia'].includes(actVal)) {
                     action = { type: 'set_colorblind', enabled: true, colorBlindType: actVal };
                 }
+            } else if (actType === 'set_theme' || actType === 'theme') {
+                if (actVal === 'dark' || actVal === 'light') {
+                    action = { type: 'set_theme', theme: actVal };
+                }
             }
             reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)?[\])]/gi, '').trim();
         }
 
         // Если пользователь запросил нереализованный вид дальтонизма — строго сообщаем об этом
-        const cbIntent = detectColorBlindIntent(cleanUserMessage);
+        const cbIntent = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
         if (cbIntent?.unsupported) {
             action = null;
             reply = 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨';
             emotion = 'alert';
-        } else if (!action && cbIntent) {
-            if (cbIntent.enabled === false) {
-                action = { type: 'set_colorblind', enabled: false };
-            } else if (cbIntent.enabled === true) {
-                action = { type: 'set_colorblind', enabled: true, colorBlindType: cbIntent.colorBlindType || 'okabe' };
+        } else {
+            if (!action && cbIntent) {
+                if (cbIntent.enabled === false) {
+                    action = { type: 'set_colorblind', enabled: false };
+                } else if (cbIntent.enabled === true) {
+                    action = { type: 'set_colorblind', enabled: true, colorBlindType: cbIntent.colorBlindType || 'okabe' };
+                }
             }
-        }
 
-        // Если модель не сгенерировала тег действия, но пользователь явно просил переключить слой:
-        if (!action) {
-            const detectedLayer = detectMapLayerIntent(cleanUserMessage);
-            if (detectedLayer) {
-                action = { type: 'set_base_layer', layer: detectedLayer };
+            // Если модель не сгенерировала тег действия, но пользователь явно просил переключить тему оформления:
+            if (!action) {
+                const detectedTheme = detectThemeIntent(cleanUserMessage);
+                if (detectedTheme) {
+                    action = { type: 'set_theme', theme: detectedTheme };
+                }
+            }
+
+            // Если модель не сгенерировала тег действия, но пользователь явно просил переключить слой:
+            if (!action) {
+                const detectedLayer = detectMapLayerIntent(cleanUserMessage);
+                if (detectedLayer) {
+                    action = { type: 'set_base_layer', layer: detectedLayer };
+                }
+            }
+
+            // Если модель подтвердила действие в тексте ответа, но забыла вставить тег [action:...]:
+            if (!action) {
+                const detectedFromReply = detectActionFromReply(reply);
+                if (detectedFromReply) {
+                    action = detectedFromReply;
+                }
             }
         }
 
@@ -359,7 +481,7 @@ async function sendChatMessage({ history = [], userMessage }) {
         }
 
         // Fallback для смены дальтонизма при оффлайне/сбое LLM
-        const fallbackCB = detectColorBlindIntent(cleanUserMessage);
+        const fallbackCB = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
         if (fallbackCB?.unsupported) {
             return {
                 reply: 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨',
@@ -389,6 +511,19 @@ async function sendChatMessage({ history = [], userMessage }) {
             };
         }
 
+        // Fallback для смены темы оформления при оффлайне/сбое LLM
+        const fallbackTheme = detectThemeIntent(cleanUserMessage);
+        if (fallbackTheme) {
+            return {
+                reply: fallbackTheme === 'dark'
+                    ? 'Секундочку! Переключаю интерфейс на уютную тёмную тему, ня! ✨'
+                    : 'Как скажешь! Возвращаю яркую светлую тему, ня! ✨',
+                model: aiConfig.model,
+                emotion: 'happy',
+                action: { type: 'set_theme', theme: fallbackTheme }
+            };
+        }
+
         const status = err.response?.status;
         const errMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
 
@@ -411,5 +546,7 @@ module.exports = {
     sendChatMessage,
     transcribeAudio,
     detectMapLayerIntent,
-    detectColorBlindIntent
+    detectColorBlindIntent,
+    detectThemeIntent,
+    detectActionFromReply
 };
