@@ -1,8 +1,12 @@
+process.env.JEV_ENABLED = 'false';
 const request = require('supertest');
 const app = require('../server');
 const aiService = require('../ai/services/aiService');
 
 describe('AI Module & Local LLM endpoints', () => {
+    beforeAll(() => {
+        process.env.JEV_ENABLED = 'false';
+    });
     afterAll(async () => {
         await app.stopServer();
     });

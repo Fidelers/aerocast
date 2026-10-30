@@ -7,11 +7,35 @@ services:
       - "3000:3000"
     environment:
       - LLM_BASE_URL=http://llama-server:8080/v1
+      - JEV_BASE_URL=http://jev-service:8001
       - DB_PATH=/app/data/cache.db
     volumes:
       - ./server/data:/app/data
     depends_on:
       - llama-server
+      - jev-service
+
+  jev-service:
+    build:
+      context: .
+      dockerfile: docker/jev-service/Dockerfile
+    container_name: jev-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./models:/models
+    environment:
+      - OMP_NUM_THREADS=4
+      - JEV_GPU_LAYERS=99
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
 
   llama-server:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda

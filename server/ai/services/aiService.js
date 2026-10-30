@@ -2,6 +2,7 @@ const axios = require('axios');
 const aiConfig = require('../config/aiConfig');
 const promptManager = require('./promptManager');
 const geocodingService = require('../../services/geocodingService');
+const aiRouter = require('./aiRouter');
 
 function fixFeminineGrammar(text) {
     if (!text) return text;
@@ -192,7 +193,7 @@ function toAccusativeCity(name) {
 function isNotCityName(str) {
     if (!str) return true;
     const s = str.trim().toLowerCase();
-    if (/^(?:точк[а-яё]*|тачк[а-яё]*|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*|карт[а-яё]*|тут|здесь|сейчас|сегодня)$/i.test(s)) return true;
+    if (/^(?:точк[а-яё]*|тачк[а-яё]*|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*|карт[а-яё]*|тут|здесь|сейчас|сегодня|обратно|назад|как\s+было|откат|отмен[а-яё]*)$/i.test(s)) return true;
     if (/(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*)\s+(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(s)) return true;
     if (/(?:3\s+дня|три\s+дня|\d+\s+дн[еяй]|прогноз|завтра|послезавтра|недел|суток|сутки|ближайш|выходн)/i.test(s)) return true;
     if (/^(?:значени[а-яё]*|качеств[а-яё]*|уровн[а-яё]*|воздух[а-яё]*|данн[а-яё]*|замер[а-яё]*|аналитик[а-яё]*|шкал[а-яё]*|индекс[а-яё]*|дн[еяй]*|недел[а-яё]*|месяц[а-яё]*|год[а-яё]*|времен[а-яё]*|период[а-яё]*|архив[а-яё]*|истори[а-яё]*|числ[а-яё]*|маки|аки|aqi|eaqi|пм|pm|средн[а-яё]*|максим[а-яё]*|миним[а-яё]*|пик[а-яё]*|норм[а-яё]*|мире|росси[а-яё]*|планет[а-яё]*|стран[а-яё]*)$/i.test(s)) return true;
@@ -207,7 +208,7 @@ function extractCityIntent(text) {
         return null;
     }
     if (/(?:т[её]мн|светл|ночн|дневн)\s+(?:тем[ау]|режим)/i.test(clean)) return null;
-    if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп)/i.test(clean)) return null;
+    if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп|обратно|как\s+было|назад|откат|отмени)/i.test(clean)) return null;
     if (/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(clean)) {
         const withoutPoint = clean.replace(/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/gi, '').trim();
         if (!/(?:перейди|перемести|покажи|слетай|поехали|город|в|во|на|к|до)\s+[А-ЯЁ][а-яё]{2,}/i.test(withoutPoint)) {
@@ -223,7 +224,7 @@ function extractCityIntent(text) {
     if (navMatch) {
         let city = navMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
         city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
-        if (city.length >= 2 && city.length <= 40) {
+        if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
     }
@@ -611,6 +612,28 @@ async function sendChatMessage({
     }
 
     const cleanUserMessage = String(userMessage || '').trim();
+    const cityQuery = isFollowUpAnalytics ? null : extractCityIntent(cleanUserMessage);
+
+    if (process.env.JEV_ENABLED !== 'false' && !isFollowUpAnalytics) {
+        const routedResult = await aiRouter.routeRequest({
+            userMessage: cleanUserMessage,
+            appContext: {
+                currentLayer,
+                isColorBlind,
+                colorBlindType,
+                theme,
+                pointAnalytics,
+                history,
+                cityQuery
+            },
+            callGemmaFallback: () => null,
+            generateFastPointReply: (analytics, text) => generatePointAnalyticsReply(analytics, text)
+        });
+
+        if (routedResult) {
+            return routedResult;
+        }
+    }
 
     // Перехват запросов на генерацию программного кода
     const CODE_REQUEST_REGEX = /(?:(?:напиши|сделай|создай|дай|выдай|покажи|сгенерируй|сочини|напечатай|придумай)\s+(?:мне\s+)?(?:простой\s+)?(?:код|программ[ауе]?|скрипт|функци[юя]|алгоритм|калькулятор|бот[а-я]*|сайт)|(?:код|скрипт|программ[ауе]?|функци[юя]|калькулятор)\s+(?:на|для|в)\s+(?:пайтон|питон|python|javascript|js|c\+\+|java|c#|php|html|css|sql|go|rust|bash)|(?:на|для)\s+(?:пайтон|питон|python|javascript|js|c\+\+|java|c#)\s+(?:калькулятор|скрипт|код|функци|программ)|(?:как\s+(?:написать|запрограммировать|создать)\s+(?:код|программу|скрипт|калькулятор|функцию))|\b(?:python|javascript|c\+\+|pascal)\s+код\b)/i;
@@ -648,8 +671,6 @@ async function sendChatMessage({
         ? history.slice(-aiConfig.maxHistoryMessages) 
         : [];
 
-    // Если это второй шаг (получение аналитики по городу), не ищем переход к городу и не отсекаем аналитику
-    const cityQuery = isFollowUpAnalytics ? null : extractCityIntent(cleanUserMessage);
     let effectivePointAnalytics = pointAnalytics;
     if (!isFollowUpAnalytics && cityQuery && pointAnalytics?.locationName) {
         const locLower = pointAnalytics.locationName.toLowerCase();
@@ -883,6 +904,7 @@ async function sendChatMessage({
         reply = reply.replace(/большая\s+языковая\s+модель\s+(?:AeroCast)?/gi, 'маскот AeroCast');
         reply = reply.replace(/Даниил(?:а|у|ом|е)?\s+Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
         reply = reply.replace(/Кириллин(?:а|у|ом|е)?/gi, 'Николаев Артём');
+        reply = reply.replace(/Николаев(?:а|у|ом|е)\s+Артём(?:а|у|ом|е)/gi, 'Николаев Артём');
 
         const hasAyaName = /(?:^|[^а-яёА-ЯЁ])Ая(?:[^а-яёА-ЯЁ]|$)/i;
         if (/(?:кто\s+ты|как\s+(?:тебя\s+)?зовут)/i.test(cleanUserMessage)) {
@@ -903,6 +925,13 @@ async function sendChatMessage({
         if (reply.includes('```') || /(?:def\s+\w+\s*\(|class\s+\w+:|import\s+\w+|console\.log|float\(input\(|#include\s*<|function\s+\w+\s*\(|var\s+\w+\s*=|const\s+\w+\s*=)/.test(reply)) {
             reply = 'Эй, я же маскот AeroCast, а не генератор кода, хмпф! 😾 Я слежу за чистотой атмосферы, а не за скриптами. Спроси меня лучше про качество воздуха или открой карту, ня! ✨';
             emotion = 'alert';
+        }
+
+        if (/какие\s+слои\s+карты/i.test(cleanUserMessage)) {
+            if (!/спутник/i.test(reply) || !/openstreetmap/i.test(reply)) {
+                reply = 'В AeroCast доступны два основных слоя карты: обычная векторная схема OpenStreetMap и спутниковые снимки ESRI World Imagery, ня! ✨';
+            }
+            emotion = 'think';
         }
 
         // Очистка шаблонных фраз модели об отсечке знаний по годам
@@ -986,7 +1015,7 @@ async function sendChatMessage({
                 emotion = 'think';
             } else {
                 reply = 'Хм, локальная модель вернула пустой ответ.';
-                emotion = 'alert';
+                emotion = 'think';
             }
         }
 
@@ -998,8 +1027,13 @@ async function sendChatMessage({
                 effectivePointAnalytics?.aqi > 100 ||
                 (/(?:1[0-9]{2}|2[0-9]{2}|вредн|опасн|токсичн)/i.test(reply) && /(?:пик|загрязн|максимум)/i.test(cleanUserMessage))
             ) {
-                emotion = 'alert';
+                emotion = 'think';
             }
+        }
+
+        const IS_INFO_Q = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем)\b)/i;
+        if (IS_INFO_Q.test(cleanUserMessage) && emotion === 'alert') {
+            emotion = 'think';
         }
 
         if (action && (action.type === 'set_colorblind' || action.type === 'set_base_layer' || action.type === 'set_theme' || action.type === 'set_location')) {
@@ -1015,7 +1049,7 @@ async function sendChatMessage({
             reply: reply.trim(),
             model: response.data?.model || aiConfig.model,
             emotion,
-            action,
+            action: action || null,
             usage: response.data?.usage
         };
     } catch (err) {

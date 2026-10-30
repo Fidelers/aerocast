@@ -3,7 +3,15 @@ const aiConfig = require('../config/aiConfig');
 
 
 async function handleChat(req, res) {
-    const { message, history, currentLayer, isColorBlind, colorBlindType, theme, pointAnalytics, isFollowUpAnalytics } = req.body;
+    const ctx = req.body.appContext || {};
+    const message = req.body.message;
+    const history = req.body.history || ctx.history;
+    const currentLayer = req.body.currentLayer || ctx.currentLayer;
+    const isColorBlind = req.body.isColorBlind !== undefined ? req.body.isColorBlind : ctx.isColorBlind;
+    const colorBlindType = req.body.colorBlindType || ctx.colorBlindType;
+    const theme = req.body.theme || ctx.theme;
+    const pointAnalytics = req.body.pointAnalytics || ctx.pointAnalytics;
+    const isFollowUpAnalytics = req.body.isFollowUpAnalytics !== undefined ? req.body.isFollowUpAnalytics : ctx.isFollowUpAnalytics;
 
     if (!message || typeof message !== 'string' || !message.trim()) {
         return res.status(400).json({ error: 'Поле message обязательно и не должно быть пустым.' });

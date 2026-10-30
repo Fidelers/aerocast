@@ -263,6 +263,16 @@ async function run() {
     console.log(`✅ Связь с LLM установлена: ${workingUrl}`);
     aiConfig.baseURL = workingUrl;
 
+    try {
+        const jevConfig = require('../config/jevConfig');
+        const jevHealth = await axios.get(`${jevConfig.baseURL}/health`, { timeout: 1500 });
+        if (jevHealth.data?.status === 'ok') {
+            console.log(`✅ System 1 (Jev-Style) активен: ${jevConfig.baseURL} (${jevHealth.data.model})`);
+        }
+    } catch (e) {
+        console.log(`ℹ️ System 1 (Jev-Style) не отвечает (${e.message}), используется Gemma fallback`);
+    }
+
     const results = [];
     const startTimeTotal = Date.now();
 

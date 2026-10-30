@@ -1,5 +1,5 @@
 # server/Dockerfile
-FROM node:22-slim
+FROM mirror.gcr.io/library/node:22-slim
 
 # Устанавливаем инструменты для сборки бинарных модулей (sqlite3)
 RUN printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \
