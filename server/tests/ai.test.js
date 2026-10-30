@@ -1248,5 +1248,82 @@ describe('AI Module & Local LLM endpoints', () => {
             expect(result.reply).not.toContain('не историк');
             expect(result.emotion).toBe('happy');
         });
+
+        it('корректно извлекает город из запросов полной/подробной аналитики и сопоставляет падежи', () => {
+            expect(aiService.extractCityIntent('покажи полную аналитику по новосибирску')).toBe('новосибирску');
+            expect(aiService.extractCityIntent('покажи аналитику по новосибирску')).toBe('новосибирску');
+            expect(aiService.extractCityIntent('полная аналитика по новосибирску')).toBe('новосибирску');
+            expect(aiService.extractCityIntent('подробная аналитика по москве')).toBe('москве');
+            expect(aiService.extractCityIntent('сводка по казани')).toBe('казани');
+
+            expect(aiService.cityMatchesLocation('новосибирску', 'Новосибирск, Новосибирская область, Россия')).toBe(true);
+            expect(aiService.cityMatchesLocation('москве', 'Москва, Россия')).toBe(true);
+            expect(aiService.cityMatchesLocation('казани', 'Казань, Татарстан, Россия')).toBe(true);
+            expect(aiService.cityMatchesLocation('новосибирску', 'Москва, Россия')).toBe(false);
+        });
+
+        it('при запросе полной аналитики по новому городу перемещается с followUpAnalytics: true', async () => {
+            const moscowAnalytics = {
+                locationName: 'Москва, Россия',
+                lat: 55.75,
+                lon: 37.61,
+                aqi: 20
+            };
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'покажи полную аналитику по новосибирску',
+                pointAnalytics: moscowAnalytics
+            });
+
+            expect(result.action).toBeDefined();
+            expect(result.action.type).toBe('set_location');
+            expect(result.action.cityName).toContain('Новосибирск');
+            expect(result.action.followUpAnalytics).toBe(true);
+            expect(result.reply).toContain('Новосибирск');
+        });
+
+        it('если модель вернула отговорку "это объемная задача", заменяет ее полной аналитикой', async () => {
+            const nskAnalytics = {
+                locationName: 'Новосибирск, Россия',
+                lat: 55.02,
+                lon: 82.93,
+                aqi: 35,
+                pm2_5: 14.5,
+                historyData: {
+                    pastMaxAqi: { aqi: 62, label: '27 октября, 18:00' },
+                    pastAvgAqi: 28
+                },
+                forecast3Days: {
+                    periodAvgAqi: 24,
+                    periodMinAqi: 18,
+                    periodMaxAqi: 32
+                }
+            };
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
+                data: {
+                    model: 'gemma-4',
+                    choices: [{
+                        message: {
+                            content: 'Хмпф! Полную аналитику за весь период, это довольно объемная задача, ня~. Я могу показать тебе подробный анализ по архиву последних семи дней'
+                        }
+                    }]
+                }
+            });
+
+            const result = await aiService.sendChatMessage({
+                userMessage: 'покажи полную аналитику по новосибирску',
+                isFollowUpAnalytics: true,
+                pointAnalytics: nskAnalytics
+            });
+
+            expect(result.reply).toContain('Новосибирск');
+            expect(result.reply).toContain('35');
+            expect(result.reply).toContain('62');
+            expect(result.reply).toContain('24');
+            expect(result.reply).not.toContain('объемная задача');
+
+            axiosSpy.mockRestore();
+        });
     });
 });

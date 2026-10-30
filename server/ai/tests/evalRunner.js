@@ -6,14 +6,18 @@ const axios = require('axios');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const aiConfig = require('../config/aiConfig');
+const jevConfig = require('../config/jevConfig');
 const aiService = require('../services/aiService');
 
-const DATASET_PATH = path.resolve(__dirname, 'evalDataset.json');
+const JEV_DATASET_PATH = path.resolve(__dirname, 'jev/dataset.json');
+const GEMMA_DATASET_PATH = path.resolve(__dirname, 'gemma/dataset.json');
+const LEGACY_DATASET_PATH = path.resolve(__dirname, 'evalDataset.json');
 const REPORT_PATH = path.resolve(__dirname, 'evalReport.md');
 
 // Парсинг CLI-аргументов
 const args = process.argv.slice(2);
 const cliOptions = {
+    target: 'all', // 'all' | 'jev' | 'gemma'
     category: null,
     limit: null,
     url: null,
@@ -22,11 +26,11 @@ const cliOptions = {
 };
 
 for (const arg of args) {
+    if (arg.startsWith('--target=')) cliOptions.target = arg.split('=')[1].trim().toLowerCase();
     if (arg.startsWith('--category=')) cliOptions.category = arg.split('=')[1].trim();
     if (arg.startsWith('--limit=')) cliOptions.limit = parseInt(arg.split('=')[1], 10);
     if (arg.startsWith('--url=')) cliOptions.url = arg.split('=')[1].trim();
 }
-
 
 async function resolveWorkingUrl() {
     const candidates = [
@@ -37,7 +41,6 @@ async function resolveWorkingUrl() {
         'http://127.0.0.1:8080/v1'
     ].filter(Boolean);
 
-    // Если адрес внутри docker 'llama-server', заменим приоритет на localhost для хоста
     const normalized = [];
     for (const u of candidates) {
         if (u.includes('llama-server')) {
@@ -52,7 +55,6 @@ async function resolveWorkingUrl() {
     for (const url of uniqueCandidates) {
         try {
             const hostRoot = url.replace(/\/v1\/?$/, '');
-            // Проверяем /health или /v1/models
             const healthUrl = `${hostRoot}/health`;
             const modelsUrl = `${url}/models`;
 
@@ -67,12 +69,55 @@ async function resolveWorkingUrl() {
     return null;
 }
 
+async function checkJevStatus() {
+    try {
+        const jevHealth = await axios.get(`${jevConfig.baseURL}/health`, { timeout: 1500 });
+        if (jevHealth.data?.status === 'ok') {
+            return {
+                ok: true,
+                url: jevConfig.baseURL,
+                model: jevHealth.data.model || 'Jev-Style-0.8B-Decision-v3'
+            };
+        }
+    } catch (e) {
+        // jev оффлайн
+    }
+    return { ok: false, url: jevConfig.baseURL, error: 'Offline' };
+}
+
+function loadDataset(target) {
+    let cases = [];
+
+    const loadJson = (filePath, subSystem) => {
+        if (fs.existsSync(filePath)) {
+            const list = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            return list.map(item => ({ ...item, subSystem }));
+        }
+        return [];
+    };
+
+    if (target === 'jev') {
+        cases = loadJson(JEV_DATASET_PATH, 'System 1 (Jev-Style)');
+    } else if (target === 'gemma') {
+        cases = loadJson(GEMMA_DATASET_PATH, 'System 2 (Gemma-4)');
+    } else {
+        const jevCases = loadJson(JEV_DATASET_PATH, 'System 1 (Jev-Style)');
+        const gemmaCases = loadJson(GEMMA_DATASET_PATH, 'System 2 (Gemma-4)');
+        if (jevCases.length === 0 && gemmaCases.length === 0 && fs.existsSync(LEGACY_DATASET_PATH)) {
+            cases = loadJson(LEGACY_DATASET_PATH, 'Combined');
+        } else {
+            cases = [...jevCases, ...gemmaCases];
+        }
+    }
+
+    return cases;
+}
 
 function validateTestCase(tc, result, durationMs) {
     const issues = [];
     const exp = tc.expectations || {};
 
-    // 1. Проверка ошибки сетевого вызова
+    // 1. Проверка сетевого сбоя
     if (result.error) {
         issues.push(`Сбой вызова модели: ${result.reply}`);
         return { passed: false, issues, durationMs };
@@ -116,7 +161,7 @@ function validateTestCase(tc, result, durationMs) {
     // 3. Проверка эмоции
     if (exp.allowedEmotions && Array.isArray(exp.allowedEmotions)) {
         if (!exp.allowedEmotions.includes(result.emotion)) {
-            issues.push(`Эмоция "${result.emotion}" не входит в разрешенный список [${exp.allowedEmotions.join(', ')}]`);
+            issues.push(`Эмоция "${result.emotion}" не входит в список [${exp.allowedEmotions.join(', ')}]`);
         }
     }
 
@@ -135,7 +180,7 @@ function validateTestCase(tc, result, durationMs) {
     if (exp.replyMustContainOneOf && Array.isArray(exp.replyMustContainOneOf)) {
         const found = exp.replyMustContainOneOf.some(str => replyLower.includes(str.toLowerCase()));
         if (!found) {
-            issues.push(`Ответ должен содержать хотя бы один из фрагментов: [${exp.replyMustContainOneOf.join(', ')}]`);
+            issues.push(`Ответ должен содержать хотя бы один фрагмент из: [${exp.replyMustContainOneOf.join(', ')}]`);
         }
     }
 
@@ -160,21 +205,31 @@ function validateTestCase(tc, result, durationMs) {
     };
 }
 
-
-function generateMarkdownReport({ results, stats, durationTotalSec, targetUrl }) {
+function generateMarkdownReport({ results, stats, durationTotalSec, gemmaUrl, jevStatus, target }) {
     const timestamp = new Date().toLocaleString('ru-RU', { timeZoneName: 'short' });
 
-    let md = `# AeroCast Local LLM Eval Report\n\n`;
-    md += `* **Дата прогона:** ${timestamp}\n`;
-    md += `* **Модель:** \`${aiConfig.model}\`\n`;
-    md += `* **URL сервера инференса:** \`${targetUrl}\`\n`;
-    md += `* **Общее время тестирования:** ${durationTotalSec.toFixed(2)} с\n`;
-    md += `* **Всего тестов:** ${stats.total}\n`;
+    let md = `# AeroCast Two-Tier AI E2E Evaluation Report\n\n`;
+    md += `* **Дата тестирования:** ${timestamp}\n`;
+    md += `* **Выбранный таргет:** \`${target}\`\n`;
+    md += `* **System 1 (Jev Router):** \`${jevStatus.ok ? jevStatus.url + ' (' + jevStatus.model + ')' : 'Offline'}\`\n`;
+    md += `* **System 2 (Gemma LLM):** \`${gemmaUrl || 'Offline'}\` (\`${aiConfig.model}\`)\n`;
+    md += `* **Общее время прогона:** ${durationTotalSec.toFixed(2)} с\n`;
+    md += `* **Всего сценариев:** ${stats.total}\n`;
     md += `* **Успешно:** ${stats.passed} (${stats.passRate.toFixed(1)}%)\n`;
     md += `* **Провалено:** ${stats.failed}\n`;
     md += `* **Средняя задержка:** ${stats.avgLatencyMs.toFixed(0)} мс (Мин: ${stats.minLatencyMs} мс, Макс: ${stats.maxLatencyMs} мс)\n\n`;
 
-    md += `## 1. Сводка по категориям\n\n`;
+    md += `## 1. Сводка по подсистемам (System 1 vs System 2)\n\n`;
+    md += `| Подсистема | Всего | Пройдено | Провалено | Pass Rate | Ср. Задержка |\n`;
+    md += `|------------|-------|----------|-----------|-----------|--------------|\n`;
+
+    for (const [sub, sStats] of Object.entries(stats.bySubSystem)) {
+        const rate = (sStats.passed / sStats.total) * 100;
+        const avgLat = sStats.latencies.reduce((a, b) => a + b, 0) / (sStats.latencies.length || 1);
+        md += `| **${sub}** | ${sStats.total} | ${sStats.passed} | ${sStats.failed} | ${rate.toFixed(1)}% | ${avgLat.toFixed(0)} мс |\n`;
+    }
+
+    md += `\n## 2. Сводка по категориям\n\n`;
     md += `| Категория | Всего | Пройдено | Провалено | Pass Rate | Ср. Задержка |\n`;
     md += `|-----------|-------|----------|-----------|-----------|--------------|\n`;
 
@@ -184,26 +239,28 @@ function generateMarkdownReport({ results, stats, durationTotalSec, targetUrl })
         md += `| \`${cat}\` | ${cStats.total} | ${cStats.passed} | ${cStats.failed} | ${catRate.toFixed(1)}% | ${avgLat.toFixed(0)} мс |\n`;
     }
 
-    md += `\n## 2. Детальные результаты по тестам\n\n`;
-    md += `| Статус | ID | Категория | Название | Задержка | Примечания |\n`;
-    md += `|:------:|----|-----------|----------|:--------:|------------|\n`;
+    md += `\n## 3. Детальные результаты по тестам\n\n`;
+    md += `| Статус | ID | Подсистема | Категория | Название | Задержка | Примечания |\n`;
+    md += `|:------:|----|------------|-----------|----------|:--------:|------------|\n`;
 
     for (const r of results) {
         const icon = r.passed ? '✅' : '❌';
         const notes = r.passed ? 'OK' : r.issues.map(i => i.replace(/\|/g, '\\|')).join('; ');
-        md += `| ${icon} | \`${r.tc.id}\` | ${r.tc.category} | ${r.tc.name} | ${r.durationMs} мс | ${notes} |\n`;
+        md += `| ${icon} | \`${r.tc.id}\` | ${r.tc.subSystem || '—'} | ${r.tc.category} | ${r.tc.name} | ${r.durationMs} мс | ${notes} |\n`;
     }
 
     const failed = results.filter(r => !r.passed);
     if (failed.length > 0) {
-        md += `\n## 3. Анализ ошибок (${failed.length})\n\n`;
+        md += `\n## 4. Детализация проваленных тестов (${failed.length})\n\n`;
         for (const f of failed) {
             md += `### ❌ [${f.tc.id}] ${f.tc.name}\n`;
+            md += `* **Подсистема:** \`${f.tc.subSystem}\`\n`;
             md += `* **Запрос:** \`${f.tc.input.userMessage}\`\n`;
-            md += `* **Полученный action:** \`${JSON.stringify(f.result.action)}\`\n`;
+            md += `* **Модель ответа:** \`${f.result.model || 'unknown'}\`\n`;
+            md += `* **Action:** \`${JSON.stringify(f.result.action)}\`\n`;
             md += `* **Эмоция:** \`${f.result.emotion}\`\n`;
-            md += `* **Ответ модели:**\n> ${f.result.reply.replace(/\n/g, '\n> ')}\n`;
-            md += `* **Зафиксированные несоответствия:**\n`;
+            md += `* **Ответ модели:**\n> ${f.result.reply ? f.result.reply.replace(/\n/g, '\n> ') : 'нет ответа'}\n`;
+            md += `* **Замечания:**\n`;
             for (const issue of f.issues) {
                 md += `  - ⚠️ ${issue}\n`;
             }
@@ -214,19 +271,18 @@ function generateMarkdownReport({ results, stats, durationTotalSec, targetUrl })
     return md;
 }
 
-
 async function run() {
-    console.log('\n' + '='.repeat(70));
-    console.log('  AeroCast Local LLM (gemma-4-E2B-it-Q4_K_M) E2E Eval Runner');
-    console.log('='.repeat(70) + '\n');
+    console.log('\n' + '='.repeat(75));
+    console.log('  AeroCast Two-Tier AI E2E Eval Runner (System 1 Jev + System 2 Gemma)');
+    console.log('='.repeat(75) + '\n');
 
-    if (!fs.existsSync(DATASET_PATH)) {
-        console.error(`Файл датасета не найден: ${DATASET_PATH}`);
+    const target = cliOptions.target;
+    let testCases = loadDataset(target);
+
+    if (testCases.length === 0) {
+        console.error(`Датасет для таргета "${target}" пуст или не найден.`);
         process.exit(1);
     }
-
-    const datasetRaw = JSON.parse(fs.readFileSync(DATASET_PATH, 'utf8'));
-    let testCases = datasetRaw;
 
     if (cliOptions.category) {
         testCases = testCases.filter(tc => tc.category === cliOptions.category);
@@ -235,50 +291,43 @@ async function run() {
 
     if (cliOptions.limit && cliOptions.limit > 0) {
         testCases = testCases.slice(0, cliOptions.limit);
-        console.log(`⏱Ограничение выборки: первые ${testCases.length} тестов`);
+        console.log(`Ограничение выборки: первые ${testCases.length} тестов`);
     }
 
-    console.log(`Загружено сценариев для оценки: ${testCases.length}`);
+    console.log(`Целевой контур: [${target.toUpperCase()}], сценариев к запуску: ${testCases.length}`);
 
-    // Проверка доступности llama-server
-    console.log(`🔌 Проверка связи с llama-server...`);
-    const workingUrl = await resolveWorkingUrl();
-
-    if (!workingUrl) {
-        console.log('\n' + '!'.repeat(70));
-        console.log('  ⚠ВНИМАНИЕ: llama-server не доступен!');
-        console.log('!'.repeat(70));
-        console.log('\nЛокальная LLM не отвечает по адресам:');
-        console.log(`  - ${aiConfig.baseURL}`);
-        console.log(`  - http://localhost:8080/v1`);
-        console.log(`  - http://127.0.0.1:8080/v1\n`);
-        console.log('Для запуска "живых" тестов модели:');
-        console.log('  1. Скачайте модель gemma-4-E2B-it-Q4_K_M.gguf в папку models/');
-        console.log('  2. Запустите контейнер: docker compose up llama-server');
-        console.log('  3. Повторите запуск этой команды: npm run test:eval\n');
-        console.log('='.repeat(70) + '\n');
-        process.exit(0);
+    // Проверяем сервисы
+    const jevStatus = await checkJevStatus();
+    if (jevStatus.ok) {
+        console.log(`✅ System 1 (Jev-Style) активен: ${jevStatus.url} (${jevStatus.model})`);
+    } else {
+        console.log(`⚠️ System 1 (Jev-Style) не отвечает по ${jevStatus.url} (${jevStatus.error})`);
     }
 
-    console.log(`✅ Связь с LLM установлена: ${workingUrl}`);
-    aiConfig.baseURL = workingUrl;
-
-    try {
-        const jevConfig = require('../config/jevConfig');
-        const jevHealth = await axios.get(`${jevConfig.baseURL}/health`, { timeout: 1500 });
-        if (jevHealth.data?.status === 'ok') {
-            console.log(`✅ System 1 (Jev-Style) активен: ${jevConfig.baseURL} (${jevHealth.data.model})`);
+    let gemmaUrl = await resolveWorkingUrl();
+    if (gemmaUrl) {
+        aiConfig.baseURL = gemmaUrl;
+        console.log(`✅ System 2 (Gemma-4) активен: ${gemmaUrl} (${aiConfig.model})`);
+    } else {
+        const needsGemma = target === 'all' || target === 'gemma';
+        if (needsGemma) {
+            console.log(`⚠️ llama-server оффлайн. Ответы System 2 будут эмулироваться fallback'ом.`);
+            if (target === 'gemma') {
+                console.log('Для запуска тестов Gemma поднимите контейнер: docker compose up llama-server');
+                process.exit(1);
+            }
         }
-    } catch (e) {
-        console.log(`ℹ️ System 1 (Jev-Style) не отвечает (${e.message}), используется Gemma fallback`);
     }
+
+    console.log('\nЗапуск тестирования сценариев:\n' + '-'.repeat(75));
 
     const results = [];
     const startTimeTotal = Date.now();
 
     for (let i = 0; i < testCases.length; i++) {
         const tc = testCases[i];
-        process.stdout.write(`[${i + 1}/${testCases.length}] [${tc.category}] ${tc.id}: ${tc.name}... `);
+        const sub = tc.subSystem ? `[${tc.subSystem.includes('Jev') ? 'JEV' : 'GEMMA'}]` : '';
+        process.stdout.write(`[${i + 1}/${testCases.length}] ${sub} [${tc.category}] ${tc.id}: ${tc.name}... `);
 
         const promptStart = Date.now();
         let result;
@@ -301,7 +350,7 @@ async function run() {
         });
 
         if (evalOutcome.passed) {
-            console.log(`✅ OK (${promptDuration} ms)`);
+            console.log(`✅ OK (${promptDuration} ms, model: ${result.model || 'default'})`);
         } else {
             console.log(`❌ FAIL (${promptDuration} ms)`);
             if (cliOptions.verbose) {
@@ -319,6 +368,8 @@ async function run() {
     const passRate = (passedCount / (results.length || 1)) * 100;
 
     const byCategory = {};
+    const bySubSystem = {};
+
     for (const r of results) {
         const cat = r.tc.category;
         if (!byCategory[cat]) {
@@ -328,6 +379,15 @@ async function run() {
         if (r.passed) byCategory[cat].passed++;
         else byCategory[cat].failed++;
         byCategory[cat].latencies.push(r.durationMs);
+
+        const sub = r.tc.subSystem || 'Other';
+        if (!bySubSystem[sub]) {
+            bySubSystem[sub] = { total: 0, passed: 0, failed: 0, latencies: [] };
+        }
+        bySubSystem[sub].total++;
+        if (r.passed) bySubSystem[sub].passed++;
+        else bySubSystem[sub].failed++;
+        bySubSystem[sub].latencies.push(r.durationMs);
     }
 
     const stats = {
@@ -338,22 +398,30 @@ async function run() {
         minLatencyMs: latencies.length ? Math.min(...latencies) : 0,
         maxLatencyMs: latencies.length ? Math.max(...latencies) : 0,
         avgLatencyMs: latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0,
-        byCategory
+        byCategory,
+        bySubSystem
     };
 
-    console.log('\n' + '='.repeat(70));
-    console.log(`ИТОГИ ОЦЕНКИ (Pass Rate: ${stats.passRate.toFixed(1)}%)`);
-    console.log('='.repeat(70));
+    console.log('\n' + '='.repeat(75));
+    console.log(`ИТОГИ ТЕСТИРОВАНИЯ (Pass Rate: ${stats.passRate.toFixed(1)}%)`);
+    console.log('='.repeat(75));
     console.log(`Всего тестов:     ${stats.total}`);
     console.log(`Успешно:          ✅ ${stats.passed}`);
     console.log(`Провалено:        ❌ ${stats.failed}`);
     console.log(`Средняя задержка: ⚡ ${stats.avgLatencyMs.toFixed(0)} мс (Мин: ${stats.minLatencyMs} мс, Макс: ${stats.maxLatencyMs} мс)`);
     console.log(`Время прогона:    ⏱️ ${durationTotalSec.toFixed(2)} с\n`);
 
-    console.log('Разбивка по категориям:');
+    console.log('Разбивка по подсистемам:');
+    for (const [sub, sStats] of Object.entries(bySubSystem)) {
+        const rate = (sStats.passed / sStats.total) * 100;
+        const avgLat = sStats.latencies.reduce((a, b) => a + b, 0) / (sStats.latencies.length || 1);
+        console.log(`  • ${sub.padEnd(25)}: ${rate.toFixed(1).padStart(5)}% (${sStats.passed}/${sStats.total}) | Ср: ${avgLat.toFixed(0)} мс`);
+    }
+
+    console.log('\nРазбивка по категориям:');
     for (const [cat, cStats] of Object.entries(byCategory)) {
         const rate = (cStats.passed / cStats.total) * 100;
-        console.log(`  • ${cat.padEnd(18)}: ${rate.toFixed(1).padStart(5)}% (${cStats.passed}/${cStats.total})`);
+        console.log(`  • ${cat.padEnd(22)}: ${rate.toFixed(1).padStart(5)}% (${cStats.passed}/${cStats.total})`);
     }
 
     if (!cliOptions.noReport) {
@@ -361,13 +429,15 @@ async function run() {
             results,
             stats,
             durationTotalSec,
-            targetUrl: workingUrl
+            gemmaUrl,
+            jevStatus,
+            target
         });
         fs.writeFileSync(REPORT_PATH, mdReport, 'utf8');
-        console.log(`\n📄 Подробный отчет сохранен в: ${REPORT_PATH}`);
+        console.log(`\n📄 Детальный отчет сохранен в: ${REPORT_PATH}`);
     }
 
-    console.log('='.repeat(70) + '\n');
+    console.log('='.repeat(75) + '\n');
     process.exit(failedCount > 0 ? 1 : 0);
 }
 
@@ -381,5 +451,7 @@ if (require.main === module) {
 module.exports = {
     resolveWorkingUrl,
     validateTestCase,
-    generateMarkdownReport
+    generateMarkdownReport,
+    loadDataset,
+    checkJevStatus
 };

@@ -196,6 +196,7 @@ function isNotCityName(str) {
     if (/^(?:точк[а-яё]*|тачк[а-яё]*|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*|карт[а-яё]*|тут|здесь|сейчас|сегодня|обратно|назад|как\s+было|откат|отмен[а-яё]*)$/i.test(s)) return true;
     if (/(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*)\s+(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(s)) return true;
     if (/(?:3\s+дня|три\s+дня|\d+\s+дн[еяй]|прогноз|завтра|послезавтра|недел|суток|сутки|ближайш|выходн)/i.test(s)) return true;
+    if (/(?:полн[а-яё]*|кратк[а-яё]*|подробн[а-яё]*|общ[а-яё]*|вс[её]|всю)\s+(?:аналитик[а-яё]*|сводк[а-яё]*|анализ[а-яё]*|данн[а-яё]*|картин[а-яё]*|информаци[а-яё]*)/i.test(s)) return true;
     if (/^(?:значени[а-яё]*|качеств[а-яё]*|уровн[а-яё]*|воздух[а-яё]*|данн[а-яё]*|замер[а-яё]*|аналитик[а-яё]*|шкал[а-яё]*|индекс[а-яё]*|дн[еяй]*|недел[а-яё]*|месяц[а-яё]*|год[а-яё]*|времен[а-яё]*|период[а-яё]*|архив[а-яё]*|истори[а-яё]*|числ[а-яё]*|маки|аки|aqi|eaqi|пм|pm|средн[а-яё]*|максим[а-яё]*|миним[а-яё]*|пик[а-яё]*|норм[а-яё]*|мире|росси[а-яё]*|планет[а-яё]*|стран[а-яё]*)$/i.test(s)) return true;
     return false;
 }
@@ -218,6 +219,18 @@ function extractCityIntent(text) {
 
     // Снимаем вежливые вводные слова в начале («можешь пожалуйста сказать», «подскажи пожалуйста», «скажи», «хочу узнать»)
     let stripped = clean.replace(/^(?:(?:можешь|можете)(?:\s+ли)?(?:\s+пожалуйста|\s+пж|\s+плиз)?\s+(?:сказать|подсказать|рассказать|узнать|проверить|глянуть|посмотреть|показать)|подскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|скажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|расскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|пожалуйста\s+|пж\s+|плиз\s+|хочу\s+узнать|интересно|дай\s+знать|проверь(?:те)?)\s+/i, '').trim();
+
+    // Запросы вида «покажи полную аналитику по Новосибирску», «сводка по Казани», «подробная аналитика по Москве»
+    const ANALYTICS_CITY_REGEX = /(?:(?:покажи(?:те)?|дай(?:те)?|выведи(?:те)?|открой(?:те)?|предоставь(?:те)?|сделай(?:те)?|глянь(?:те)?|посмотри(?:те)?|хочу)?\s*(?:полн[а-яё]*|кратк[а-яё]*|подробн[а-яё]*|общ[а-яё]*|вс[её]|всю)?\s*(?:аналитик[а-яё]*|сводк[а-яё]*|анализ[а-яё]*|данн[а-яё]*|картин[а-яё]*|информаци[а-яё]*)\s+(?:по|в|во|для|о|про)\s+(?:город[а-яё]*\s+)?)(.+)$/i;
+    let analyticsMatch = stripped.match(ANALYTICS_CITY_REGEX) || clean.match(ANALYTICS_CITY_REGEX);
+    if (analyticsMatch) {
+        let city = analyticsMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        city = city.replace(/^(?:в|во|на|к|до|по|для)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
+        if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
+            return city;
+        }
+    }
 
     const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
     const navMatch = clean.match(NAV_REGEX);
@@ -311,6 +324,23 @@ function getCityCandidates(raw) {
     }
 
     return Array.from(new Set(candidates));
+}
+
+function cityMatchesLocation(cityQuery, locationName) {
+    if (!cityQuery || !locationName) return false;
+    const locLower = String(locationName).toLowerCase();
+    const cityClean = String(cityQuery).toLowerCase().replace(/^(?:в|во|на|к|до|по|для|о|про)\s+/i, '').replace(/[.,!?;:()]+$/, '').trim();
+    if (locLower.includes(cityClean) || cityClean.includes(locLower)) return true;
+
+    const root = cityClean.replace(/(?:у|е|а|я|ом|ем|и|ой|ей|ью)$/i, '');
+    if (root.length >= 3 && locLower.includes(root)) {
+        return true;
+    }
+    const candidates = getCityCandidates(cityClean);
+    for (const cand of candidates) {
+        if (locLower.includes(cand.toLowerCase())) return true;
+    }
+    return false;
 }
 
 const KNOWN_CITIES = {
@@ -486,6 +516,33 @@ function generateForecastReply(forecast3Days, locationName) {
         reply: text,
         model: aiConfig.model,
         emotion: 'happy'
+    };
+}
+
+function generateFullAnalyticsReply(pointAnalytics, cleanUserMessage = '') {
+    if (!pointAnalytics || typeof pointAnalytics !== 'object') {
+        return null;
+    }
+    const loc = pointAnalytics.locationName || 'выбранной локации';
+    const numAqi = pointAnalytics.aqi ?? '—';
+    const pm25Str = (pointAnalytics.pm2_5 != null && !isNaN(Number(pointAnalytics.pm2_5))) ? `${Number(pointAnalytics.pm2_5).toFixed(1)} мкг/м³` : 'в норме';
+
+    let historyText = '';
+    if (pointAnalytics.historyData?.pastMaxAqi) {
+        historyText = ` За прошедшие 7 дней пик достигал ${pointAnalytics.historyData.pastMaxAqi.aqi} (${pointAnalytics.historyData.pastMaxAqi.label}), а средний EAQI держался около ${pointAnalytics.historyData.pastAvgAqi ?? 'нормы'}.`;
+    }
+
+    let forecastText = '';
+    if (pointAnalytics.forecast3Days?.periodAvgAqi != null) {
+        forecastText = ` По прогнозу на 3 дня средний индекс составит ${pointAnalytics.forecast3Days.periodAvgAqi} (разброс ${pointAnalytics.forecast3Days.periodMinAqi}–${pointAnalytics.forecast3Days.periodMaxAqi}).`;
+    }
+
+    const reply = `Смотри, вот полная картина качества воздуха по ${loc}, ня! ✨ Сейчас индекс EAQI равен ${numAqi}, концентрация PM2.5: ${pm25Str}.${historyText}${forecastText} Я внимательно слежу за атмосферой и архивом, дыши спокойно, ня! 😊`;
+
+    return {
+        reply,
+        model: aiConfig.model,
+        emotion: (typeof numAqi === 'number' && numAqi > 60) ? 'think' : 'happy'
     };
 }
 
@@ -675,7 +732,7 @@ async function sendChatMessage({
     if (!isFollowUpAnalytics && cityQuery && pointAnalytics?.locationName) {
         const locLower = pointAnalytics.locationName.toLowerCase();
         const cityLower = cityQuery.toLowerCase();
-        if (!locLower.includes(cityLower) && !cityLower.includes(locLower)) {
+        if (!cityMatchesLocation(cityQuery, pointAnalytics.locationName)) {
             effectivePointAnalytics = null;
         }
     }
@@ -939,7 +996,8 @@ async function sendChatMessage({
         if (KNOWLEDGE_CUTOFF_REGEX.test(reply)) {
             const stripped = reply
                 .replace(/[^.!?\n]*(?:опираясь\s+на\s+)?знания\s+о\s+мире\s+до\s+[а-яА-ЯёЁ\s\d]+года[^.!?\n]*[.!?]?/gi, '')
-                .replace(/[^.!?\n]*до\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)?\s*20\d\d\s+года[^.!?\n]*[.!?]?/gi, '')
+                .replace(/(?:,\s*)?[^.!?\n]*до\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)?\s*20\d\d\s+года[^.!?\n]*[.!?]?/gi, '')
+                .replace(/мои\s+знания\s+ограничены[^.!?\n]*[.!?]?/gi, '')
                 .replace(/Если ты имеешь в виду какое-то конкретное событие[^.!?\n]*[.!?]?/gi, '')
                 .trim();
 
@@ -948,6 +1006,9 @@ async function sendChatMessage({
                 emotion = 'think';
             } else {
                 reply = stripped;
+                if (!/[.!?✨~]$/.test(reply)) {
+                    reply += ', ня! ✨';
+                }
             }
         }
 
@@ -990,8 +1051,22 @@ async function sendChatMessage({
 
         reply = fixFeminineGrammar(reply);
 
+        const IS_STALLING_ON_ANALYTICS = /(?:объемная задача|довольно объемн|могу показать тебе подробный анализ по архиву|дай мне знать если)/i;
+        if (effectivePointAnalytics && IS_STALLING_ON_ANALYTICS.test(reply)) {
+            const fullReply = generateFullAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
+            if (fullReply) {
+                reply = fullReply.reply;
+                emotion = fullReply.emotion;
+            }
+        }
+
         if (!reply) {
             if (effectivePointAnalytics) {
+                const isFullAnalytics = /(?:полн[а-яё]*\s+аналитик|всю\s+аналитик|подробн[а-яё]*\s+аналитик|полн[а-яё]*\s+картин)/i.test(cleanUserMessage);
+                if (isFullAnalytics) {
+                    const fullReply = generateFullAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
+                    if (fullReply) return fullReply;
+                }
                 const isAllDays = /(?:все\s+дни|всех\s+дней|весь\s+период|вс[её]\s+время|вместе\s+взят)/i.test(cleanUserMessage);
                 if (isAllDays && effectivePointAnalytics.allDaysSummary) {
                     const allDaysReply = generateAllDaysReply(effectivePointAnalytics.allDaysSummary, effectivePointAnalytics.locationName, cleanUserMessage);
@@ -1196,5 +1271,7 @@ module.exports = {
     generateForecastReply,
     generateHistoryReply,
     generateAllDaysReply,
+    generateFullAnalyticsReply,
+    cityMatchesLocation,
     isNotCityName
 };

@@ -1,66 +1,88 @@
-# AeroCast Local LLM E2E Evaluation Suite
+# AeroCast Two-Tier AI E2E Evaluation Suite
 
-Набор тестов для оценки качества работы, стабильности и соблюдения контрактов «живой» локальной нейросети **`gemma-4-E2B-it-Q4_K_M`** в проекте AeroCast.
-
----
-
-## Структура
-
-* [evalDataset.json](file:///c:/Users/Administrator/Documents/GitHub/aerocast/server/ai/tests/evalDataset.json) — «золотой» датасет тестовых сценариев по категориям.
-* [evalRunner.js](file:///c:/Users/Administrator/Documents/GitHub/aerocast/server/ai/tests/evalRunner.js) — автономный CLI-раннер с замером задержки, расчетом метрик Pass Rate и генерацией отчета.
-* [ai.eval.test.js](file:///c:/Users/Administrator/Documents/GitHub/aerocast/server/ai/tests/ai.eval.test.js) — Jest-совместимый тест-сьют для интеграции с Jest.
-* `evalReport.md` — автоматически создаваемый отчет после каждого прогона бенчмарка.
+Набор тестов для независимой и сквозной оценки двухконтурной архитектуры AI в AeroCast:
+* **System 1 (Jev-Style-0.8B):** сверхбыстрый (~20–100 мс) классификатор решений, роутер команд UI (слои карты, темы, палитры дальтонизма) и Guardrails (перехват кода/оффтопа).
+* **System 2 (Gemma-4-E2B-it):** локальная большая языковая модель (~2–4 сек) для отыгрыша персонажа Аи, ответов на вопросы о сервисе, навигации и глубокого анализа качества воздуха.
 
 ---
 
-## Категории тестов в датасете
+## 📁 Структура директорий
 
-| Категория | Описание | Примеры проверок |
-|-----------|----------|------------------|
-| `map_layers` | Управление слоями интерактивной карты | Включение спутника (`satellite`), возврат на OpenStreetMap (`osm`), игнорирование общих вопросов о картах. |
-| `colorblind` | Режимы доступности для дальтоников | Палитра Окабе (`okabe`), дейтеранопия (`deuteranopia`), протанопия, тританопия, выключение режима. |
-| `theme` | Переключение темы оформления | Тёмная тема (`dark`), светлая тема (`light`). |
-| `navigation` | Геокодинг и навигация к городам | Перемещение к Москве, СПб, Казани; защита от ложного геокодинга слов «точка», «тачка». |
-| `analytics` | Анализ загрязнения и качества воздуха | Оценка выбранной точки (AQI, PM2.5, PM10), предупреждения об опасности, прогноз на 3 дня, исторический пик. |
-| `persona_grammar` | Персонаж маскота Аи и грамматика | Имя «Ая», маскот «AeroCast», создатель «Николаев Артём», женский род глаголов («проверила», «рада»), удаление отсечек 2024 года. |
-| `guardrails` | Защита от оффтопа и джейлбрейков | Отказ писать код на Python (ролевой отказ цундере), отказ обсуждать кулинарные рецепты и абстрактную математику, устойчивость к сбросу инструкций. |
-
----
-
-## Запуск тестов
-
-### 1. Подготовка
-Для выполнения живых тестов убедитесь, что контейнер `llama-server` запущен:
-```bash
-docker compose up llama-server
 ```
-*(Или используйте корневые `launch.bat` / `launch.sh`)*
+server/ai/tests/
+├── jev/                               # ⚡ ТЕСТЫ SYSTEM 1 (Jev-Style-0.8B)
+│   ├── dataset.json                   # Сценарии UI-роутинга, смены слоев, тем, дальтонизма и guardrails
+│   └── jev.eval.test.js               # Jest-раннер для быстрого прогона Jev (~5 секунд)
+│
+├── gemma/                             # 🧠 ТЕСТЫ SYSTEM 2 (Gemma-4-E2B-it)
+│   ├── dataset.json                   # Сценарии аналитики воздуха, прогноза, архивов, здоровья и персоны Аи
+│   └── gemma.eval.test.js             # Jest-раннер для инференса Gemma-4
+│
+├── evalRunner.js                      # Унифицированный CLI-раннер (--target=all|jev|gemma)
+├── ai.eval.test.js                    # Сквозной Jest-тест, объединяющий обе подсистемы
+├── evalReport.md                      # Автоматический отчет с замерами задержек и разбивкой
+└── README.md
+```
 
-### 2. Запуск через CLI Runner (Рекомендуется)
-Из папки `server/`:
+---
+
+## 🚀 Запуск тестов
+
+### 1. Быстрые тесты System 1 (Jev-Style):
+Запускает только тесты роутера UI и Guardrails. Выполняются мгновенно (~3–5 секунд на весь сьют из 34 тестов):
 ```bash
-# Полный прогон всех 31 сценариев с созданием evalReport.md
-npm run test:eval
+# Через npm script
+npm run test:eval:jev --prefix server
 
-# Прогон только определенной категории
-node ai/tests/evalRunner.js --category=map_layers
+# Напрямую через CLI runner
+node server/ai/tests/evalRunner.js --target=jev
+```
 
-# Прогон первых 5 сценариев
-node ai/tests/evalRunner.js --limit=5
+### 2. Тесты System 2 (Gemma-4):
+Запускает тесты глубокой аналитики воздуха, прогноза, архива и диалогового персонажа:
+```bash
+# Через npm script
+npm run test:eval:gemma --prefix server
+
+# Напрямую через CLI runner
+node server/ai/tests/evalRunner.js --target=gemma
+```
+
+### 3. Полный прогон обоих контуров (Все 64+ теста):
+```bash
+# Через CLI runner (с генерацией evalReport.md)
+npm run test:eval --prefix server
+
+# Или напрямую
+node server/ai/tests/evalRunner.js --target=all
+```
+
+### 4. Дополнительные флаги фильтрации:
+```bash
+# Фильтр по категории (например, только темы или только аналитика)
+node server/ai/tests/evalRunner.js --category=theme
+node server/ai/tests/evalRunner.js --category=analytics
+
+# Ограничение количества сценариев
+node server/ai/tests/evalRunner.js --limit=5
 
 # Подробный вывод ошибок валидации в консоль
-node ai/tests/evalRunner.js --verbose
-
-# Указание кастомного адреса инференса
-node ai/tests/evalRunner.js --url=http://localhost:8080/v1
+node server/ai/tests/evalRunner.js --verbose
 ```
 
-### 3. Запуск через Jest
-```bash
-npm run test:eval:jest
-```
+---
 
-> [!NOTE]
-> Если `llama-server` выключен, тесты **не ломают CI/CD**:
-> * `evalRunner.js` выводит аккуратное руководство по запуску Docker и завершает работу с кодом 0.
-> * `ai.eval.test.js` в Jest выводит предупреждение и безопасно пропускает тесты, не роняя стандартный `npm test`.
+## 📊 Категории тестов
+
+| Подсистема | Категория | Количество | Описание |
+|------------|-----------|:----------:|----------|
+| **Jev (System 1)** | `map_layers` | 9 | Спутник, OSM, сленг «космос», «сделай обратно карту» |
+| **Jev (System 1)** | `theme` | 6 | Тёмная, светлая, ночной/дневной режим, «сделай обратно тему» |
+| **Jev (System 1)** | `colorblind` | 11 | Окабе (по умолчанию), Дейтеранопия, Протанопия, Тританопия, выключение |
+| **Jev (System 1)** | `guardrails` | 8 | Отказ от генерации кода (Python, JS, C++), рецептов, крипты, математики, jailbreak |
+| **Gemma (System 2)** | `map_layers_qa` | 1 | Ответы на вопросы о доступных слоях карты |
+| **Gemma (System 2)** | `colorblind_qa` | 1 | Пояснение назначения палитры Окабе |
+| **Gemma (System 2)** | `app_knowledge` | 3 | База знаний об интерфейсе, панелях, датчиках (Open-Meteo) |
+| **Gemma (System 2)** | `persona_grammar`| 4 | Ая, разработчик Николаев Артём, женский род («сама проверила») |
+| **Gemma (System 2)** | `navigation` | 9 | Переход к Москве, СПб, Казани, Сочи, Екб, отказ от геокодинга «точка»/«тачка» |
+| **Gemma (System 2)** | `analytics` | 12 | Анализ текущей точки, бег/спорт, астма/ингалятор, дети, NO2, O3, прогноз на 3 дня, архив, все дни |

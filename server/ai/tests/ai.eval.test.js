@@ -1,20 +1,24 @@
-
-
 const path = require('path');
 const fs = require('fs');
 const aiConfig = require('../config/aiConfig');
 const aiService = require('../services/aiService');
-const { resolveWorkingUrl, validateTestCase } = require('./evalRunner');
+const { resolveWorkingUrl, validateTestCase, checkJevStatus } = require('./evalRunner');
 
-const DATASET_PATH = path.resolve(__dirname, 'evalDataset.json');
-const dataset = JSON.parse(fs.readFileSync(DATASET_PATH, 'utf8'));
+const JEV_DATASET_PATH = path.resolve(__dirname, 'jev/dataset.json');
+const GEMMA_DATASET_PATH = path.resolve(__dirname, 'gemma/dataset.json');
+
+const jevDataset = fs.existsSync(JEV_DATASET_PATH) ? JSON.parse(fs.readFileSync(JEV_DATASET_PATH, 'utf8')) : [];
+const gemmaDataset = fs.existsSync(GEMMA_DATASET_PATH) ? JSON.parse(fs.readFileSync(GEMMA_DATASET_PATH, 'utf8')) : [];
+
+const dataset = [...jevDataset, ...gemmaDataset];
 
 // Увеличиваем таймаут для живых обращений к локальной модели
-jest.setTimeout(120000);
+jest.setTimeout(240000);
 
-describe('Local LLM (gemma-4-E2B-it-Q4_K_M) Live E2E Evaluation', () => {
+describe('Unified AI System Evaluation (System 1 Jev + System 2 Gemma)', () => {
     let workingUrl = null;
     let isServerAvailable = false;
+    let isJevAvailable = false;
 
     beforeAll(async () => {
         workingUrl = await resolveWorkingUrl();
@@ -26,9 +30,16 @@ describe('Local LLM (gemma-4-E2B-it-Q4_K_M) Live E2E Evaluation', () => {
             console.warn('\n⚠️ [Jest E2E Eval] llama-server оффлайн. ' +
                 'Живые тесты будут пропущены. Для запуска выполните: docker compose up llama-server');
         }
+
+        if (process.env.JEV_ENABLED !== 'false') {
+            const jevStatus = await checkJevStatus();
+            if (jevStatus.ok) {
+                isJevAvailable = true;
+                console.log(`\n[Jest E2E Eval] Подключено к jev-service: ${jevStatus.url}`);
+            }
+        }
     });
 
-    // Группируем по категориям
     const categories = [...new Set(dataset.map(tc => tc.category))];
 
     categories.forEach(category => {
@@ -37,8 +48,10 @@ describe('Local LLM (gemma-4-E2B-it-Q4_K_M) Live E2E Evaluation', () => {
 
             categoryCases.forEach(tc => {
                 it(`[${tc.id}] ${tc.name}`, async () => {
-                    if (!isServerAvailable) {
-                        // Если локальная модель не запущена, аккуратно пропускаем
+                    if (tc.id.startsWith('jev_') && !isJevAvailable) {
+                        return;
+                    }
+                    if (!tc.id.startsWith('jev_') && !isServerAvailable) {
                         return;
                     }
 
@@ -61,7 +74,8 @@ describe('Local LLM (gemma-4-E2B-it-Q4_K_M) Live E2E Evaluation', () => {
                         const message = [
                             `\nТест-кейс: ${tc.id} (${tc.name})`,
                             `Запрос пользователя: "${tc.input.userMessage}"`,
-                            `Ответ модели: "${result.reply}"`,
+                            `Модель-обработчик: "${result.model || 'unknown'}"`,
+                            `Ответ: "${result.reply}"`,
                             `Эмоция: "${result.emotion}"`,
                             `Action: ${JSON.stringify(result.action)}`,
                             `Ошибки валидации:`,
