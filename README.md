@@ -290,22 +290,30 @@ npm run test:coverage    # отчёт о покрытии кода (v8)
 - `tests/types.test.js` — классификация AQI / EAQI по уровням, числовым диапазонам, подписям и цветам.
 
 
-## Локальная LLM (Llama 3.2 3B)
+## Двухконтурный ИИ (System 1 Jev-Style + System 2 Gemma 4)
 
-Проект использует локальную модель Llama 3.2 3B через llama-server (Docker).
-При первом запуске Docker Compose автоматически скачает модель (~2GB) в папку models/.
+В AeroCast реализована двухконтурная когнитивная архитектура локального искусственного интеллекта:
+
+1. **System 1 (Jev-Style-0.8B)**:
+   - Микросервис `jev-service` (порт `8001`, FastAPI + libllama CUDA).
+   - Быстрое принятие решений без генерации текста (**15–35 мс**): переключение слоев карты, тем интерфейса, палитр доступности для дальтоников и guardrails-фильтрация оффтопа (код, кулинария, математика, jailbreak).
+   - Подробная инструкция и ссылки на скачивание: **[jev_info.md](file:///c:/Users/Administrator/Documents/GitHub/aerocast/jev_info.md)**.
+
+2. **System 2 (Gemma-4-E2B-it-Q4_K_M)**:
+   - Сервис `llama-server` (порт `8080`, llama.cpp CUDA).
+   - Открытый диалог от лица персонажа **Ая** (милая девушка-маскот чистого воздуха, созданная Николаевым Артёмом), глубокая метеорологическая аналитика (замеры, 7-дневный архив, прогноз на 3 дня) и медицинские советы по качеству воздуха.
+   - Подробная инструкция и ссылки на скачивание: **[info_LLM.md](file:///c:/Users/Administrator/Documents/GitHub/aerocast/info_LLM.md)**.
 
 ### Требования
-- Docker Desktop + WSL2 (на Windows).
-- NVIDIA Driver + 
-vidia-container-toolkit для ускорения GPU.
+- **Docker Desktop** + WSL2 (на Windows) или Docker + Docker Compose (на Linux).
+- **NVIDIA Driver** + **nvidia-container-toolkit** для GPU-ускорения.
 
-### Инструкция
-1. Скопируйте .env.example в .env (в папке server/).
-2. Запустите проект:
-   `ash
+### Быстрый запуск ИИ-сервисов
+1. Скачайте файлы моделей в папку `models/` согласно руководствам [jev_info.md](file:///c:/Users/Administrator/Documents/GitHub/aerocast/jev_info.md) и [info_LLM.md](file:///c:/Users/Administrator/Documents/GitHub/aerocast/info_LLM.md).
+2. Запустите проект через Docker Compose:
+   ```bash
    docker compose up --build
-   `
-3. Сервер запустится на http://localhost:3000. Локальная LLM будет доступна автоматически.
+   ```
+3. Сервер запустится на `http://localhost:3000`, `jev-service` — на порту `8001`, а `llama-server` — на порту `8080`.
 
-*Примечание: Если GPU отсутствует, llama-server будет работать на CPU, но медленнее.*
+*Примечание: Если GPU отсутствует, сервисы могут работать в режиме CPU-only (на процессоре).*

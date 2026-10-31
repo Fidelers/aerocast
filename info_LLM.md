@@ -1,68 +1,166 @@
-# LLM Configuration Guide: gemma-4-E2B-it-Q4_K_M
+# LLM (System 2) Complete Guide: gemma-4-E2B-it-Q4_K_M
 
-Этот документ содержит руководство по настройке локальной LLM для проекта AeroCast.
+Руководство по загрузке, конфигурации и работе генеративной языковой модели **Gemma 4** (System 2) в экосистеме AeroCast.
 
-## 1. Локальная модель: gemma-4-E2B-it-Q4_K_M
-Для проекта используется модель **gemma-4-E2B-it-Q4_K_M** (квантизация Q4_K_M), которая оптимизирована для работы на железе среднего уровня и обладает высокой стабильностью при работе с русским языком.
+---
 
-### Загрузка модели
-1. Создайте папку `models/` в корне проекта.
-2. Скачайте файл модели по ссылке ниже с впн:
-   [Скачать gemma-4-E2B-it-Q4_K_M.gguf](https://huggingface.co/lmstudio-community/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf?download=true)
-3. Переместите скачанный файл в папку `models/`.
-4. Убедитесь, что файл называется **точно**: `gemma-4-E2B-it-Q4_K_M.gguf`.
+## 1. Концепция и роль модели
 
-## 2. Настройка Docker
-Проект использует Docker Compose для оркестрации бэкенда и `llama-server`.
+В двухконтурной архитектуре AeroCast модель **gemma-4-E2B-it-Q4_K_M** отвечает за уровень **System 2** («глубокое рассуждающее мышление»):
 
-### Требования
-*   **Docker Desktop** (с включенным WSL2 на Windows).
-*   **NVIDIA Driver** (установлен на хосте).
-*   **NVIDIA Container Toolkit** (необходим для проброса GPU в контейнер).
+* **Персонаж:** Девушка-маскот чистого воздуха **Ая** с эмоциональным характером заботливой цундере (*«хмпф!», «ня!», «бака!»*).
+* **Создатель и разработчик платформы:** **Николаев Артём**.
+* **Основные задачи:**
+  1. **Открытый диалог:** Ответы на вопросы пользователей об атмосфере, платформе AeroCast и экологии.
+  2. **Комплексная метеоаналитика:** Глубокий анализ замеров воздуха в реальном времени, почасового архива за 7 дней, прогноза на 3 дня и сводки за весь период (11 дней).
+  3. **Персональные рекомендации по здоровью:** Оценка безопасности прогулок, пробежек и активностей для здоровых людей и групп риска (астматики, аллергики, дети), учет влияния газов ($NO_2$, $O_3$, $SO_2$, $CO$) и микрочастиц ($PM_{2.5}$, $PM_{10}$).
+  4. **Навигация по карте:** Автоматическая генерация действий перехода к запрашиваемым городам (`[action:set_location:НазваниеГорода]`).
 
-### Требования на Arch-based linux
+---
 
-*   sudo pacman -S docker docker-compose
-*   sudo systemctl enable --now docker
-*   sudo pacman -S nvidia nvidia-utils        # или nvidia-open nvidia-utils
-*   sudo pacman -S nvidia-container-toolkit
-*   sudo nvidia-ctk runtime configure --runtime=docker
-*   sudo systemctl restart docker
+## 2. Ссылки для скачивания модели
 
-### Настройка
-Убедитесь, что в корне проекта находятся:
-*   `docker-compose.yml` (настроен на использование `./models` и GPU).
-*   `server/Dockerfile` (настроен на пересборку `sqlite3` под Linux).
+Модель распространяется в формате GGUF с квантизацией **Q4_K_M** (баланс между скоростью, потреблением памяти и качеством русского языка).
 
-## 3. Настройка ИИ (Backend)
-Все параметры ИИ вынесены в переменные окружения.
+* **Репозиторий:** [`lmstudio-community/gemma-4-E2B-it-GGUF`](https://huggingface.co/lmstudio-community/gemma-4-E2B-it-GGUF)
+* **Прямая ссылка на файл:**  
+  👉 **[Скачать gemma-4-E2B-it-Q4_K_M.gguf (~1.8 GB)](https://huggingface.co/lmstudio-community/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf?download=true)**
 
-1. Перейдите в `server/` и создайте файл `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Убедитесь, что в `.env` указаны верные настройки:
-   ```env
-   LLM_BASE_URL=http://llama-server:8080/v1
-   LLM_API_KEY=not-needed
-   LLM_MODEL=gemma-4-E2B-it-Q4_K_M
-   LLM_MAX_TOKENS=2000
-   LLM_TEMPERATURE=0.2
-   LLM_TIMEOUT_MS=75000
-   LLM_MAX_HISTORY=4
-   ```
-3. В файле `docker-compose.yml` убедитесь что указано `/models/gemma-4-E2B-it-Q4_K_M.gguf`, или чёткое название файла вашей модели если используйте другую
-
-
-## 4. Запуск проекта
-Выполните команду в корне проекта:
-```bash
-docker compose up --build
+### Размещение файла в проекте
+Файл модели должен быть сохранен строго по пути:
 ```
-Или используйте .bat файлы
-Эти же файлы используются для остальных функций соответственно
+aerocast/
+└── models/
+    └── gemma-4-E2B-it-Q4_K_M.gguf
+```
 
-### Устранение проблем
-*   **Модель не загружается:** Проверьте наличие файла в `models/` и правильность названия.
-*   **Ошибка sqlite3:** Если сервер падает с ошибкой `sqlite3`, выполните `docker compose build --no-cache`, чтобы принудительно пересобрать бинарные зависимости внутри контейнера.
-*   Какие-то библиотеки npm могут не поставится с включенным ВПН
+### Загрузка через консоль
+
+#### Через `huggingface-cli`:
+```bash
+pip install huggingface_hub
+huggingface-cli download lmstudio-community/gemma-4-E2B-it-GGUF gemma-4-E2B-it-Q4_K_M.gguf --local-dir models
+```
+
+#### Через PowerShell (Windows):
+```powershell
+New-Item -ItemType Directory -Force -Path "models"
+Invoke-WebRequest -Uri "https://huggingface.co/lmstudio-community/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf?download=true" -OutFile "models/gemma-4-E2B-it-Q4_K_M.gguf"
+```
+
+> [!NOTE]
+> В РФ прямое скачивание с Hugging Face может требовать VPN или использование зеркала (например, `hf-mirror.com`).
+
+---
+
+## 3. Архитектура взаимодействия с LLM
+
+### 3.1. Структура системного промпта
+Системный промпт формируется динамически в [`server/ai/services/promptManager.js`](file:///c:/Users/Administrator/Documents/GitHub/aerocast/server/ai/services/promptManager.js) и состоит из двух частей:
+1. **Базовая ролевая инструкция:**
+   * Характер Аи, правила речи (строго женский род, кириллица, эмоциональные фразочки).
+   * Теги настроения в начале реплики: `[mood:happy]`, `[mood:alert]`, `[mood:think]`, `[mood:idle]`.
+   * Запреты: отказ от написания программного кода, запрет упоминания отсечки знаний («мои знания до 2024 года»), запрет отговорок вроде «это объемная задача».
+2. **Динамические блоки данных точки (`formatPointAnalyticsContext`):**
+   * **Текущая точка:** Точные координаты, индекс EAQI (0–20 Отлично, 21–40 Хорошо, 41–60 Удовлетворительно, 61–80 Плохо, 81–100 Очень плохо, 100+ Опасно), концентрации 6 веществ ($PM_{2.5}$, $PM_{10}$, $NO_2$, $SO_2$, $O_3$, $CO$), пыли и УФ-индекса.
+   * **Архив за 7 дней:** Точный пик загрязнения с датой и временем (например, *«182 зафиксировано 27 октября в 18:00»*), минимум, среднее значение.
+   * **Сводка за все дни (11 дней):** Общий средний EAQI, абсолютный пик и минимум за весь период.
+   * **Прогноз на 3 дня:** Средний индекс за период, диапазон минимум-максимум и суточная динамика.
+
+### 3.2. Двухэтапный сценарий аналитики (Two-Step Flow)
+Если пользователь просит показать аналитику по городу, в котором карта сейчас не открыта (например: *«покажи полную аналитику по Новосибирску»*):
+1. **Шаг 1:** Бэкенд распознает намерение, возвращает действие перемещения карты `[action:set_location:Новосибирск]` с флагом `followUpAnalytics: true` и реплику подтверждения: *«Секундочку! Перемещаемся в Новосибирск, смотрю свежие замеры воздуха, ня! ✨»*.
+2. **Шаг 2:** Клиент плавно центрирует карту, запрашивает свежие метеорологические данные Open-Meteo для новых координат и автоматически отправляет фоновый запрос с `isFollowUpAnalytics: true` и заполненным объектом `pointAnalytics`. Gemma 4 сразу формирует исчерпывающий разбор со всеми цифрами.
+
+---
+
+## 4. Развертывание и запуск через Docker
+
+### 4.1. Конфигурация `docker-compose.yml`
+LLM запускается в контейнере `llama-server` с полным аппаратным ускорением NVIDIA CUDA:
+
+```yaml
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llama-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models
+    command: >
+      -m /models/gemma-4-E2B-it-Q4_K_M.gguf
+      --host 0.0.0.0
+      --port 8080
+      -ngl 99
+      --ctx-size 8192
+      --repeat-penalty 1.1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+```
+
+### Ключевые параметры:
+* `-ngl 99` — выгрузка всех слоев нейросети в видеопамять (требуется от 3.5 ГБ VRAM).
+* `--ctx-size 8192` — контекстное окно для комфортного размещения 7-дневного архива, прогноза и истории переписки.
+* `--repeat-penalty 1.1` — предотвращение зацикливания шаблонных фраз.
+
+### 4.2. Переменные окружения бэкенда (`server/.env`)
+```env
+LLM_BASE_URL=http://llama-server:8080/v1
+LLM_API_KEY=not-needed
+LLM_MODEL=gemma-4-E2B-it-Q4_K_M
+LLM_MAX_TOKENS=1500
+LLM_TEMPERATURE=0.8
+LLM_TOP_P=0.9
+LLM_REPEAT_PENALTY=1.08
+LLM_FREQUENCY_PENALTY=0.15
+LLM_PRESENCE_PENALTY=0.15
+LLM_TIMEOUT_MS=75000
+LLM_MAX_HISTORY=4
+LLM_MAX_CHAR_LIMIT=1000
+```
+
+---
+
+## 5. Запуск и тестирование
+
+### Запуск контейнера
+```bash
+# Запуск llama-server
+docker compose up -d llama-server
+
+# Проверка готовности сервера
+curl http://localhost:8080/health
+# Ответ: {"status":"ok"}
+```
+
+### Запуск тестов качества ответов LLM
+В проект интегрирован набор тестов E2E Eval, валидирующий тональность, соблюдение роли, отсутствие отсечек знаний и точность метеоаналитики:
+
+```bash
+# Запуск 30 специализированных сценариев Gemma
+npm run test:eval:gemma --prefix server
+
+# Либо прямой запуск скрипта
+node server/ai/tests/evalRunner.js --target=gemma
+
+# Запуск юнит-тестов ИИ-модуля (65 тестов)
+npm test --prefix server -- tests/ai.test.js
+```
+
+---
+
+## 6. Устранение неполадок (Troubleshooting)
+
+* **Модель не отвечает или `Connection refused` на порту 8080:**  
+  Проверьте статус контейнера через `docker ps`. Убедитесь, что файл `models/gemma-4-E2B-it-Q4_K_M.gguf` скачан полностью (размер ~1.8 ГБ) и не поврежден.
+* **Нехватка видеопамяти (CUDA out of memory):**  
+  Если видеокарта имеет менее 4 ГБ VRAM, уменьшите количество слоев на GPU в `docker-compose.yml` (например: `-ngl 24`) или размер контекста (`--ctx-size 4096`).
+* **Работа без дискретной видеокарты (CPU-only):**  
+  Замените образ `ghcr.io/ggml-org/llama.cpp:server-cuda` на `ghcr.io/ggml-org/llama.cpp:server` и удалите блок `deploy.resources`. Модель будет работать на процессоре (генерация займет около 4–7 секунд).
+* **Оффлайн-режим и сбои сети:**  
+  В случае недоступности `llama-server` сервер Express автоматически включает встроенный офлайн-генератор шаблонов (`generatePointAnalyticsReply`, `generateFullAnalyticsReply`), гарантируя бесперебойный пользовательский опыт без зависания интерфейса.
