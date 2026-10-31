@@ -860,11 +860,18 @@ describe('AiChatModal Component', () => {
 
   it('не путает фразы прогноза на 3 дня с названиями городов и включает forecast3Days в pointAnalytics', async () => {
     const handleLocationSelect = vi.fn();
+    const today = new Date();
+    const day1 = new Date(today.getTime() + 86400000);
+    const day2 = new Date(today.getTime() + 2 * 86400000);
+    const t0 = today.toISOString().slice(0, 10) + 'T12:00:00Z';
+    const t1 = day1.toISOString().slice(0, 10) + 'T12:00:00Z';
+    const t2 = day2.toISOString().slice(0, 10) + 'T12:00:00Z';
+
     const mockAirData = {
       latitude: 55.75,
       longitude: 37.61,
       hourly: {
-        time: ['2026-10-29T12:00:00Z', '2026-10-30T12:00:00Z', '2026-10-31T12:00:00Z'],
+        time: [t0, t1, t2],
         european_aqi: [25, 30, 20],
         pm2_5: [12, 14, 9],
         pm10: [18, 20, 15]
