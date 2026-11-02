@@ -1,7 +1,8 @@
 const jevClient = require('./jevClient');
 const jevConfig = require('../config/jevConfig');
 
-const IS_INFORMATIONAL_QUESTION = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем)\b|\?$)/i;
+const IS_INFORMATIONAL_QUESTION_START = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем|откуда|где|когда|чем|в\s+ч[её]м|для\s+чего|сколько|кто)(?![а-яёa-z]))/i;
+const HAS_DIRECT_ACTION_INTENT = /(?:включ|переключ|постав|сделай|верни|выключ|отключ|убер|сним(?:и|ите|ать|аю|аем)|вруб|смени|активир)/i;
 
 // Распознавание явных команд возврата/переключения конкретной подсистемы
 const REVERT_THEME_REGEX = /(?:обратно\s+тем|тем[ауеы]\s+(?:обратно|назад|как\s+было)|переключи\s+(?:\w+\s+)?тем|смени\s+(?:\w+\s+)?тем|сделай\s+обратно\s+тем|верни\s+(?:\w+\s+)?тем)/i;
@@ -14,13 +15,16 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
         return null;
     }
     const cleanText = String(userMessage || '').trim();
-    const isQuestion = IS_INFORMATIONAL_QUESTION.test(cleanText);
+    const isExplicitAction = HAS_DIRECT_ACTION_INTENT.test(cleanText);
+    const isQuestion = IS_INFORMATIONAL_QUESTION_START.test(cleanText) || (/\?$/.test(cleanText) && !isExplicitAction);
     const hasCity = Boolean(appContext.cityQuery);
 
     if (!isQuestion && !hasCity) {
         // Явный возврат темы
-        if (REVERT_THEME_REGEX.test(cleanText)) {
-            const targetTheme = (appContext.theme === 'light') ? 'dark' : 'light';
+        const hasExplicitThemeTarget = /(?:т[её]мн|ночн|светл|дневн)/i.test(cleanText);
+        if (REVERT_THEME_REGEX.test(cleanText) && !hasExplicitThemeTarget) {
+            const currentTheme = appContext.theme || appContext.currentTheme || 'light';
+            const targetTheme = (currentTheme === 'light') ? 'dark' : 'light';
             return {
                 action: { type: 'set_theme', theme: targetTheme },
                 reply: targetTheme === 'dark' 
@@ -134,7 +138,8 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
                 }
             }
 
-            const hasExplicitColorblind = /(?:дальтони|цветов[а-я]*\s+слепот|цветовосприят)/i.test(cleanText);
+            const hasExplicitColorblind = /(?:дальтони|цветов[а-я]*\s+слепот|цветовосприят|палитр[а-я]*\s+для\s+дальтоник)/i.test(cleanText);
+            if (hasExplicitColorblind) { cbProb = Math.max(cbProb, 0.75); }
             const effectiveThemeProb = hasExplicitColorblind ? 0 : themeProb;
             const effectiveLayerProb = hasExplicitColorblind ? 0 : layerProb;
             const maxUiProb = Math.max(effectiveLayerProb, effectiveThemeProb, cbProb);
@@ -190,7 +195,8 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
                             };
                         }
                     }
-                    if (cb.answer === 'disable') {
+                    const hasExplicitOffWord = /(?:выключ|отключ|убер|сброс|сним|верни\s+стандарт|верни\s+обыч)/i.test(cleanText);
+                    if (cb.answer === 'disable' && (appContext.isColorBlind || hasExplicitOffWord)) {
                         return {
                             action: { type: 'set_colorblind', enabled: false },
                             reply: 'Как скажешь! Возвращаю стандартную цветовую гамму, ня! ✨',

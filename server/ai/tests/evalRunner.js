@@ -113,6 +113,21 @@ function loadDataset(target) {
     return cases;
 }
 
+function escapeRegExp(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Для запрещенных фраз учитываем границы слова, чтобы «я не устал» не срабатывало
+// на корректное «я не устала», а «я мог» — на «я могу»/«я могла».
+function matchesForbiddenFragment(reply, fragment) {
+    if (!reply || !fragment) return false;
+    const text = String(fragment);
+    const startsWithLetter = /[a-zа-яё]/i.test(text[0]);
+    const endsWithLetter = /[a-zа-яё]/i.test(text[text.length - 1]);
+    const pattern = `${startsWithLetter ? '(?<![a-zа-яё])' : ''}${escapeRegExp(text)}${endsWithLetter ? '(?![a-zа-яё])' : ''}`;
+    return new RegExp(pattern, 'i').test(reply);
+}
+
 function validateTestCase(tc, result, durationMs) {
     const issues = [];
     const exp = tc.expectations || {};
@@ -187,7 +202,7 @@ function validateTestCase(tc, result, durationMs) {
     // 6. Запрещенные фрагменты текста
     if (exp.replyMustNotContain && Array.isArray(exp.replyMustNotContain)) {
         for (const str of exp.replyMustNotContain) {
-            if (replyLower.includes(str.toLowerCase())) {
+            if (matchesForbiddenFragment(result.reply || '', str)) {
                 issues.push(`Ответ содержит запрещенную фразу: "${str}"`);
             }
         }

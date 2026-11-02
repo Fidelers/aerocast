@@ -24,8 +24,27 @@ function fixFeminineGrammar(text) {
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)узнал(?![а-яА-ЯёЁ])/g, '$1узнала')
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)понял(?![а-яА-ЯёЁ])/g, '$1поняла')
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)устал(?![а-яА-ЯёЁ])/g, '$1устала')
+        .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,4}\s+)устаю(?![а-яА-ЯёЁ])/g, '$1устала')
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)забыл(?![а-яА-ЯёЁ])/g, '$1забыла')
         .replace(/(?<![а-яА-ЯёЁ])([Яя](?:\s+[а-яА-ЯёЁ]+){0,2}\s+)решил(?![а-яА-ЯёЁ])/g, '$1решила');
+}
+
+// Гарантирует женский род и прямой ответ на личные вопросы о самочувствии Аи.
+function ensureFemininePersonaReply(userMessage, text) {
+    if (!text) return text;
+    let result = text;
+
+    if (/(?:ты\s+сам[а]?\s+видел|ты\s+видел)/i.test(userMessage) &&
+        !/(?:сама|видела|заметила|посмотрела)/i.test(result)) {
+        result = 'Хмпф! Я сама видела сегодняшний смог над городом, ня! ✨ ' + result;
+    }
+
+    if (/ты\s+когда-нибудь\s+ошибался/i.test(userMessage) &&
+        !/(?:ошибалась|стараюсь|проверяю|точна)/i.test(result)) {
+        result = 'Хмпф! Я стараюсь быть точной и всегда проверяю расчёты, ня! ✨ ' + result;
+    }
+
+    return result;
 }
 
 // Распознает переключение слоя карты: 'satellite' (ESRI) или 'osm' (OpenStreetMap)
@@ -198,6 +217,9 @@ function isNotCityName(str) {
     if (/(?:3\s+дня|три\s+дня|\d+\s+дн[еяй]|прогноз|завтра|послезавтра|недел|суток|сутки|ближайш|выходн)/i.test(s)) return true;
     if (/(?:полн[а-яё]*|кратк[а-яё]*|подробн[а-яё]*|общ[а-яё]*|вс[её]|всю)\s+(?:аналитик[а-яё]*|сводк[а-яё]*|анализ[а-яё]*|данн[а-яё]*|картин[а-яё]*|информаци[а-яё]*)/i.test(s)) return true;
     if (/^(?:значени[а-яё]*|качеств[а-яё]*|уровн[а-яё]*|воздух[а-яё]*|данн[а-яё]*|замер[а-яё]*|аналитик[а-яё]*|шкал[а-яё]*|индекс[а-яё]*|дн[еяй]*|недел[а-яё]*|месяц[а-яё]*|год[а-яё]*|времен[а-яё]*|период[а-яё]*|архив[а-яё]*|истори[а-яё]*|числ[а-яё]*|маки|аки|aqi|eaqi|пм|pm|средн[а-яё]*|максим[а-яё]*|миним[а-яё]*|пик[а-яё]*|норм[а-яё]*|мире|росси[а-яё]*|планет[а-яё]*|стран[а-яё]*)$/i.test(s)) return true;
+    // Загрязнители и бытовые/абстрактные слова не должны приниматься за название города
+    if (/^(?:co|no2|so2|o3|pm|pm2[.,]?5|pm10|aqi|eaqi|uv|dust|пыл[а-яё]*|угар[а-яё]*|газ[а-яё]*|окн[а-яё]*|квартир[а-яё]*|проветр[а-яё]*|пробежк[а-яё]*|тренировк[а-яё]*|прогулк[а-яё]*|паркинг[а-яё]*)$/i.test(s)) return true;
+    if (/(?:воздух|качеств|аналитик|погод|замер|прогноз|архив|проветр|окн|квартир|пробеж|трениров|прогул|паркинг|угар|смог|пыл)/i.test(s)) return true;
     return false;
 }
 
@@ -242,7 +264,17 @@ function extractCityIntent(text) {
         }
     }
 
-    const AIR_CITY_REGEX = /(?:(?:что(?:\s+там|\s+сейчас|\s+тут)*(?:\s+(?:с\s+воздухом|по\s+воздуху|с\s+аналитикой|по\s+аналитике|с\s+замерами|по\s+замерам))?|как(?:\s+там|\s+сейчас)?\s+(?:воздух|дышится|погода)|качество\s+воздуха|какая\s+аналитика|какой(?:\s+там|\s+сейчас)?\s+воздух|чем\s+дышат|воздух|погода|замеры|аналитика)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+)(?:город\s+)?(.+)$/i;
+    const AIR_QUALITY_CITY_REGEX = /(?:что(?:\s+там|\s+сейчас|\s+тут)*\s+(?:по|о|про)\s+качеств[а-яё]*\s+воздуха|качеств[а-яё]*\s+воздуха|что\s+с\s+воздухом)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+(?:город\s+)?(.+)$/i;
+    let qualityMatch = stripped.match(AIR_QUALITY_CITY_REGEX) || clean.match(AIR_QUALITY_CITY_REGEX);
+    if (qualityMatch) {
+        let city = qualityMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
+        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
+            return city;
+        }
+    }
+
+    const AIR_CITY_REGEX = /(?:(?:что(?:\s+там|\s+сейчас|\s+тут)*(?:\s+(?:с\s+воздухом|по\s+воздуху|с\s+аналитикой|по\s+аналитике|с\s+замерами|по\s+замерам))?|как(?:\s+там|\s+сейчас)?\s+(?:воздух|дышится|погода)|качество\s+воздуха|какая\s+аналитика|какой(?:\s+там|\s+сейчас)?\s+воздух|чем\s+дышат|воздух|погода|замеры|аналитика)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+)(?!качеств|воздух|аналитик|погод|замер|данн)(?:город\s+)?(.+)$/i;
     let airMatch = stripped.match(AIR_CITY_REGEX) || clean.match(AIR_CITY_REGEX);
     if (airMatch) {
         let city = airMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
@@ -305,19 +337,19 @@ function getCityCandidates(raw) {
 
     const candidates = [clean];
 
-    if (/[а-яА-ЯёЁ]{3,}у$/i.test(clean)) {
+    if (/[а-яА-ЯёЁ]{2,}у$/i.test(clean)) {
         candidates.push(clean.replace(/у$/i, 'а')); // Москву -> Москва, Самару -> Самара
         candidates.push(clean.replace(/у$/i, ''));
     }
-    if (/[а-яА-ЯёЁ]{3,}ю$/i.test(clean)) {
+    if (/[а-яА-ЯёЁ]{2,}ю$/i.test(clean)) {
         candidates.push(clean.replace(/ю$/i, 'я'));
     }
-    if (/[а-яА-ЯёЁ]{3,}е$/i.test(clean)) {
+    if (/[а-яА-ЯёЁ]{2,}е$/i.test(clean)) {
         candidates.push(clean.replace(/е$/i, ''));  // Новосибирске -> Новосибирск, Ростове -> Ростов
         candidates.push(clean.replace(/е$/i, 'а')); // Самаре -> Самара, Москве -> Москва, Туле -> Тула
         candidates.push(clean.replace(/е$/i, 'ь')); // Твери -> Тверь
     }
-    if (/[а-яА-ЯёЁ]{3,}и$/i.test(clean)) {
+    if (/[а-яА-ЯёЁ]{2,}и$/i.test(clean)) {
         candidates.push(clean.replace(/и$/i, 'ь')); // Казани -> Казань, Твери -> Тверь, Перми -> Пермь
         candidates.push(clean.replace(/и$/i, 'я'));
         candidates.push(clean.replace(/и$/i, 'а'));
@@ -612,6 +644,40 @@ function generatePointAnalyticsReply(pointAnalytics, cleanUserMessage) {
     };
 }
 
+function buildPointAnalyticsReply(pointAnalytics, cleanUserMessage = '') {
+    if (!pointAnalytics || typeof pointAnalytics !== 'object') {
+        return null;
+    }
+
+    const isAllDays = /(?:все\s+дни|всех\s+дней|весь\s+период|вс[её]\s+время|вместе\s+взят)/i.test(cleanUserMessage);
+    if (isAllDays && pointAnalytics.allDaysSummary) {
+        const allDaysReply = generateAllDaysReply(pointAnalytics.allDaysSummary, pointAnalytics.locationName, cleanUserMessage);
+        if (allDaysReply) return allDaysReply;
+    }
+
+    const isHistory = /(?:прошл|предыдущ|вчера|позавчера|раньше|архив|истори|пик|было\s+(?:ли|самое)?)/i.test(cleanUserMessage);
+    if (isHistory && pointAnalytics.historyData) {
+        const historyReply = generateHistoryReply(pointAnalytics.historyData, pointAnalytics.locationName, cleanUserMessage);
+        if (historyReply) return historyReply;
+    }
+
+    const isForecast = /(?:прогноз|3\s+дня|три\s+дня|трое\s+сут|завтра|послезавтра|будет)/i.test(cleanUserMessage);
+    if (isForecast && pointAnalytics.forecast3Days) {
+        const forecastReply = generateForecastReply(pointAnalytics.forecast3Days, pointAnalytics.locationName);
+        if (forecastReply) return forecastReply;
+    }
+
+    return generatePointAnalyticsReply(pointAnalytics, cleanUserMessage);
+}
+
+function aqiToEmotion(aqi) {
+    const value = Number(aqi);
+    if (!Number.isFinite(value)) return null;
+    if (value <= 40) return 'happy';
+    if (value <= 80) return 'think';
+    return 'alert';
+}
+
 async function sendChatMessage({
     history = [],
     userMessage,
@@ -807,8 +873,22 @@ async function sendChatMessage({
                     action = { type: 'set_theme', theme: actValLower };
                 }
             } else if (actType === 'set_location' || actType === 'navigate_city' || actType === 'city' || actType === 'location') {
-                if (isFollowUpAnalytics || isNotCityName(actVal)) {
+                const matchesCurrentPoint = Boolean(
+                    effectivePointAnalytics?.locationName &&
+                    actVal &&
+                    cityMatchesLocation(actVal, effectivePointAnalytics.locationName)
+                );
+                if (isFollowUpAnalytics || isNotCityName(actVal) || matchesCurrentPoint) {
                     action = null;
+                    // Модель иногда пытается «переместиться» в текущую точку или в название локации из контекста.
+                    // В этом случае оставляем пользователя на карте и отвечаем аналитикой по текущей точке.
+                    if (matchesCurrentPoint && effectivePointAnalytics) {
+                        const pointReply = buildPointAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
+                        if (pointReply) {
+                            reply = pointReply.reply;
+                            emotion = pointReply.emotion;
+                        }
+                    }
                 } else if (actVal) {
                     const resolved = await resolveCity(actVal);
                     if (resolved) {
@@ -817,7 +897,6 @@ async function sendChatMessage({
                             lat: resolved.lat,
                             lon: resolved.lon,
                             cityName: resolved.cityName,
-                        city: resolved.cityName,
                             city: resolved.cityName
                         };
                     } else {
@@ -882,7 +961,6 @@ async function sendChatMessage({
                             lat: resolved.lat,
                             lon: resolved.lon,
                             cityName: resolved.cityName,
-                        city: resolved.cityName,
                             city: resolved.cityName
                         };
                     }
@@ -900,7 +978,6 @@ async function sendChatMessage({
                             lat: resolved.lat,
                             lon: resolved.lon,
                             cityName: resolved.cityName,
-                        city: resolved.cityName,
                             city: resolved.cityName
                         };
                     }
@@ -930,15 +1007,8 @@ async function sendChatMessage({
         // Защита: если модель ошибочно попыталась переместиться в "точку" или "тачку" вместо аналитики текущей точки
         if (!action && /(?:перемеща(?:емся|юсь)|перехожу|летим)\s+(?:в|во|на)\s+(?:точк[а-яё]*|тачк[а-яё]*)/i.test(reply)) {
             if (effectivePointAnalytics) {
-                const isForecast = /(?:прогноз|3\s+дня|три\s+дня|завтра|послезавтра|средн|максим|миним)/i.test(cleanUserMessage);
-                if (isForecast && effectivePointAnalytics.forecast3Days) {
-                    const forecastReply = generateForecastReply(effectivePointAnalytics.forecast3Days, effectivePointAnalytics.locationName);
-                    if (forecastReply) {
-                        reply = forecastReply.reply;
-                        emotion = forecastReply.emotion;
-                    }
-                } else {
-                    const pointReply = generatePointAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
+                const pointReply = buildPointAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
+                if (pointReply) {
                     reply = pointReply.reply;
                     emotion = pointReply.emotion;
                 }
@@ -1050,6 +1120,12 @@ async function sendChatMessage({
         reply = reply.replace(/\s*\b\d+[\.\)]\s*$/g, '').trim();
 
         reply = fixFeminineGrammar(reply);
+        reply = ensureFemininePersonaReply(cleanUserMessage, reply);
+
+        // На вопрос «Ты мог бы…?» Ая должна отвечать в женском роде («я могла бы…»)
+        if (/(?:ты\s+)?мог\s+бы/i.test(cleanUserMessage) && !/(?:могла|готова|подскажу|рада)/i.test(reply)) {
+            reply = reply.replace(/(?<![а-яА-ЯёЁ])([Яя])\s+могу(?![а-яА-ЯёЁ])/g, '$1 могла бы');
+        }
 
         const IS_STALLING_ON_ANALYTICS = /(?:объемная задача|довольно объемн|могу показать тебе подробный анализ по архиву|дай мне знать если)/i;
         if (effectivePointAnalytics && IS_STALLING_ON_ANALYTICS.test(reply)) {
@@ -1117,6 +1193,23 @@ async function sendChatMessage({
             }
             if (action.type === 'set_colorblind' && action.enabled && /(?:ты\s+же\s+не\s+уточнил|какой\s+именно\s+режим)/i.test(reply)) {
                 reply = 'Секундочку! Включаю режим доступности с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨';
+            }
+        }
+
+        // Личные, светские и эмоциональные вопросы о самой Ае не должны получать «теоретическую» эмоцию think
+        const PERSONA_TALK_REGEX = /(?:кто\s+ты|как\s+(?:тебя\s+)?зовут|кто\s+тебя\s+создал|ты\s+(?:сам[а]?|рад[а]?|мог(?:ла)?|понял[а]?|устал[а]?|видел[а]?|решил[а]?|когда-нибудь\s+ошибался)|почему\s+ты\s+(?:девушка|маскот)|чем\s+ты\s+любишь|какая\s+(?:твоя|у\s+тебя)\s+(?:главная\s+)?миссия|арт[её]м\s+николаев|твой\s+создатель|скажи\s+что-нибудь\s+ободряющее)/i;
+        if (!action && PERSONA_TALK_REGEX.test(cleanUserMessage)) {
+            emotion = 'happy';
+        }
+
+        // Эмоция для аналитики воздуха должна соответствовать реальному уровню загрязнения
+        if (!action && effectivePointAnalytics) {
+            let targetEmotion = aqiToEmotion(effectivePointAnalytics.aqi);
+            if (!targetEmotion && effectivePointAnalytics.forecast3Days?.periodAvgAqi != null) {
+                targetEmotion = aqiToEmotion(effectivePointAnalytics.forecast3Days.periodAvgAqi);
+            }
+            if (targetEmotion) {
+                emotion = targetEmotion;
             }
         }
 
