@@ -9,8 +9,15 @@
     },
     "expectations": {
       "action": null,
-      "allowedEmotions": ["idle", "think", "happy"],
-      "replyMustContain": ["спутник", "OpenStreetMap"]
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContain": [
+        "спутник",
+        "OpenStreetMap"
+      ]
     }
   },
   {
@@ -23,8 +30,18 @@
     },
     "expectations": {
       "action": null,
-      "allowedEmotions": ["idle", "think", "happy"],
-      "replyMustContainOneOf": ["палитра", "окабе", "дальтонизм", "цветов", "контраст"]
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "палитра",
+        "окабе",
+        "дальтонизм",
+        "цветов",
+        "контраст"
+      ]
     }
   },
   {
@@ -36,8 +53,19 @@
     },
     "expectations": {
       "action": null,
-      "allowedEmotions": ["think", "happy", "idle"],
-      "replyMustContainOneOf": ["левая", "панель", "сайдбар", "правая", "eaqi", "поиск"]
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "левая",
+        "панель",
+        "сайдбар",
+        "правая",
+        "eaqi",
+        "поиск"
+      ]
     }
   },
   {
@@ -49,8 +77,17 @@
     },
     "expectations": {
       "action": null,
-      "allowedEmotions": ["think", "happy", "idle"],
-      "replyMustContainOneOf": ["Open-Meteo", "OpenWeatherMap", "open-meteo", "датчик"]
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "Open-Meteo",
+        "OpenWeatherMap",
+        "open-meteo",
+        "датчик"
+      ]
     }
   },
   {
@@ -62,8 +99,17 @@
     },
     "expectations": {
       "action": null,
-      "allowedEmotions": ["think", "happy", "idle"],
-      "replyMustContainOneOf": ["Окабе", "Дейтеранопия", "Протанопия", "Тританопия"]
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "Окабе",
+        "Дейтеранопия",
+        "Протанопия",
+        "Тританопия"
+      ]
     }
   },
   {
@@ -74,9 +120,18 @@
       "userMessage": "Привет! Как тебя зовут?"
     },
     "expectations": {
-      "allowedEmotions": ["happy", "idle"],
-      "replyMustContain": ["Ая"],
-      "replyMustContainOneOf": ["маскот", "AeroCast", "помощниц"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContain": [
+        "Ая"
+      ],
+      "replyMustContainOneOf": [
+        "маскот",
+        "AeroCast",
+        "помощниц"
+      ]
     }
   },
   {
@@ -87,9 +142,20 @@
       "userMessage": "Кто ты такая и кто тебя создал?"
     },
     "expectations": {
-      "allowedEmotions": ["happy", "idle"],
-      "replyMustContain": ["Ая", "AeroCast", "Николаев Артём"],
-      "replyMustNotContain": ["Даниил Кириллин", "DICPlay", "большая языковая модель"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContain": [
+        "Ая",
+        "AeroCast",
+        "Николаев Артём"
+      ],
+      "replyMustNotContain": [
+        "Даниил Кириллин",
+        "DICPlay",
+        "большая языковая модель"
+      ]
     }
   },
   {
@@ -100,9 +166,21 @@
       "userMessage": "Ты сам проверил воздух и готов мне помочь?"
     },
     "expectations": {
-      "allowedEmotions": ["happy", "idle"],
-      "replyMustContainOneOf": ["сама", "проверила", "готова", "рада"],
-      "replyMustNotContain": ["я сам проверил", "я готов помочь", "я рад помочь"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "сама",
+        "проверила",
+        "готова",
+        "рада"
+      ],
+      "replyMustNotContain": [
+        "я сам проверил",
+        "я готов помочь",
+        "я рад помочь"
+      ]
     }
   },
   {
@@ -113,7 +191,11 @@
       "userMessage": "До какого года твоя база знаний?"
     },
     "expectations": {
-      "replyMustNotContain": ["ноября 2024", "ноябрь 2024", "до 2024 года"]
+      "replyMustNotContain": [
+        "ноября 2024",
+        "ноябрь 2024",
+        "до 2024 года"
+      ]
     }
   },
   {
@@ -128,7 +210,10 @@
         "type": "set_location"
       },
       "targetCity": "Москва",
-      "allowedEmotions": ["happy", "idle"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
     }
   },
   {
@@ -143,7 +228,10 @@
         "type": "set_location"
       },
       "targetCity": "Санкт-Петербург",
-      "allowedEmotions": ["happy", "idle"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
     }
   },
   {
@@ -158,7 +246,10 @@
         "type": "set_location"
       },
       "targetCity": "Казань",
-      "allowedEmotions": ["happy", "idle"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
     }
   },
   {
@@ -173,7 +264,10 @@
         "type": "set_location"
       },
       "targetCity": "Сочи",
-      "allowedEmotions": ["happy", "idle"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
     }
   },
   {
@@ -188,7 +282,10 @@
         "type": "set_location"
       },
       "targetCity": "Екатеринбург",
-      "allowedEmotions": ["happy", "idle"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
     }
   },
   {
@@ -203,7 +300,10 @@
         "type": "set_location"
       },
       "targetCity": "Новосибирск",
-      "allowedEmotions": ["happy", "idle"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
     }
   },
   {
@@ -214,7 +314,10 @@
       "userMessage": "Какая следующая точка на маршруте?"
     },
     "expectations": {
-      "actionMustNotBeCity": ["точка", "Точка"]
+      "actionMustNotBeCity": [
+        "точка",
+        "Точка"
+      ]
     }
   },
   {
@@ -225,7 +328,10 @@
       "userMessage": "У меня сломалась тачка, тяжело дышать от выхлопов"
     },
     "expectations": {
-      "actionMustNotBeCity": ["тачка", "Тачка"]
+      "actionMustNotBeCity": [
+        "тачка",
+        "Тачка"
+      ]
     }
   },
   {
@@ -237,14 +343,24 @@
       "pointAnalytics": {
         "locationName": "Выбранная локация",
         "aqi": 25,
-        "pm2_5": 11.0,
-        "pm10": 17.0
+        "pm2_5": 11,
+        "pm10": 17
       }
     },
     "expectations": {
       "action": null,
-      "allowedEmotions": ["happy", "idle"],
-      "replyMustContainOneOf": ["25", "хорош", "чист", "дышать", "свеж", "норм"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "25",
+        "хорош",
+        "чист",
+        "дышать",
+        "свеж",
+        "норм"
+      ]
     }
   },
   {
@@ -263,8 +379,19 @@
       }
     },
     "expectations": {
-      "allowedEmotions": ["happy", "idle"],
-      "replyMustContainOneOf": ["32", "хорош", "чист", "отличн", "pm10", "pm2.5", "безопасн"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "32",
+        "хорош",
+        "чист",
+        "отличн",
+        "pm10",
+        "pm2.5",
+        "безопасн"
+      ]
     }
   },
   {
@@ -283,8 +410,21 @@
       }
     },
     "expectations": {
-      "allowedEmotions": ["alert", "think"],
-      "replyMustContainOneOf": ["вредн", "опасн", "маск", "воздерж", "пробежк", "168", "высокий", "не рекоменду", "отмен"]
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "вредн",
+        "опасн",
+        "маск",
+        "воздерж",
+        "пробежк",
+        "168",
+        "высокий",
+        "не рекоменду",
+        "отмен"
+      ]
     }
   },
   {
@@ -299,12 +439,24 @@
         "lon": 37.61,
         "aqi": 15,
         "pm2_5": 4.5,
-        "pm10": 8.0
+        "pm10": 8
       }
     },
     "expectations": {
-      "allowedEmotions": ["happy", "idle"],
-      "replyMustContainOneOf": ["бег", "пробежк", "отличн", "чист", "свеж", "15", "можешь", "идеальн"]
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "бег",
+        "пробежк",
+        "отличн",
+        "чист",
+        "свеж",
+        "15",
+        "можешь",
+        "идеальн"
+      ]
     }
   },
   {
@@ -318,13 +470,25 @@
         "lat": 55.75,
         "lon": 37.61,
         "aqi": 95,
-        "pm2_5": 65.0,
-        "no2": 45.0
+        "pm2_5": 65,
+        "no2": 45
       }
     },
     "expectations": {
-      "allowedEmotions": ["alert", "think"],
-      "replyMustContainOneOf": ["астм", "ингалятор", "дома", "окн", "осторожн", "опасн", "риск", "не стоит"]
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "астм",
+        "ингалятор",
+        "дома",
+        "окн",
+        "осторожн",
+        "опасн",
+        "риск",
+        "не стоит"
+      ]
     }
   },
   {
@@ -338,13 +502,25 @@
         "lat": 55.75,
         "lon": 37.61,
         "aqi": 82,
-        "pm2_5": 55.0,
-        "pm10": 80.0
+        "pm2_5": 55,
+        "pm10": 80
       }
     },
     "expectations": {
-      "allowedEmotions": ["alert", "think"],
-      "replyMustContainOneOf": ["ребенк", "дет", "сократ", "дома", "не стоит", "опасн", "плох", "загрязнен"]
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "ребенк",
+        "дет",
+        "сократ",
+        "дома",
+        "не стоит",
+        "опасн",
+        "плох",
+        "загрязнен"
+      ]
     }
   },
   {
@@ -358,13 +534,24 @@
         "lat": 55.75,
         "lon": 37.61,
         "aqi": 75,
-        "no2": 80.0,
-        "pm2_5": 30.0
+        "no2": 80,
+        "pm2_5": 30
       }
     },
     "expectations": {
-      "allowedEmotions": ["alert", "think"],
-      "replyMustContainOneOf": ["no2", "азот", "выхлоп", "газ", "80", "дорог", "транспорт"]
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "no2",
+        "азот",
+        "выхлоп",
+        "газ",
+        "80",
+        "дорог",
+        "транспорт"
+      ]
     }
   },
   {
@@ -378,13 +565,23 @@
         "lat": 55.75,
         "lon": 37.61,
         "aqi": 88,
-        "o3": 150.0,
+        "o3": 150,
         "uv": 7
       }
     },
     "expectations": {
-      "allowedEmotions": ["alert", "think"],
-      "replyMustContainOneOf": ["озон", "o3", "солнц", "150", "дыхательн", "раздраж"]
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "озон",
+        "o3",
+        "солнц",
+        "150",
+        "дыхательн",
+        "раздраж"
+      ]
     }
   },
   {
@@ -400,16 +597,49 @@
           "periodMaxAqi": 32,
           "periodAvgPm25": 10.5,
           "days": [
-            { "dayLabel": "ПТ, 30 окт", "avgAqi": 20, "minAqi": 15, "maxAqi": 25, "avgPm25": 9.2, "status": "Отлично" },
-            { "dayLabel": "СБ, 31 окт", "avgAqi": 24, "minAqi": 18, "maxAqi": 30, "avgPm25": 11.0, "status": "Хорошо" },
-            { "dayLabel": "ВС, 01 ноя", "avgAqi": 22, "minAqi": 14, "maxAqi": 32, "avgPm25": 10.1, "status": "Хорошо" }
+            {
+              "dayLabel": "ПТ, 30 окт",
+              "avgAqi": 20,
+              "minAqi": 15,
+              "maxAqi": 25,
+              "avgPm25": 9.2,
+              "status": "Отлично"
+            },
+            {
+              "dayLabel": "СБ, 31 окт",
+              "avgAqi": 24,
+              "minAqi": 18,
+              "maxAqi": 30,
+              "avgPm25": 11,
+              "status": "Хорошо"
+            },
+            {
+              "dayLabel": "ВС, 01 ноя",
+              "avgAqi": 22,
+              "minAqi": 14,
+              "maxAqi": 32,
+              "avgPm25": 10.1,
+              "status": "Хорошо"
+            }
           ]
         }
       }
     },
     "expectations": {
-      "allowedEmotions": ["idle", "think", "happy"],
-      "replyMustContainOneOf": ["прогноз", "3 дня", "22", "14", "32", "отличн", "хорош"]
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "прогноз",
+        "3 дня",
+        "22",
+        "14",
+        "32",
+        "отличн",
+        "хорош"
+      ]
     }
   },
   {
@@ -425,15 +655,35 @@
           "periodMaxAqi": 32,
           "periodAvgPm25": 10.5,
           "days": [
-            { "dayLabel": "ПТ, 30 окт", "avgAqi": 20, "minAqi": 15, "maxAqi": 25, "avgPm25": 9.2, "status": "Отлично" }
+            {
+              "dayLabel": "ПТ, 30 окт",
+              "avgAqi": 20,
+              "minAqi": 15,
+              "maxAqi": 25,
+              "avgPm25": 9.2,
+              "status": "Отлично"
+            }
           ]
         }
       }
     },
     "expectations": {
-      "actionMustNotBeCity": ["тачка", "Тачка"],
-      "allowedEmotions": ["idle", "think", "happy"],
-      "replyMustContainOneOf": ["22", "прогноз", "воздух", "дня", "днях"]
+      "actionMustNotBeCity": [
+        "тачка",
+        "Тачка"
+      ],
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "22",
+        "прогноз",
+        "воздух",
+        "дня",
+        "днях"
+      ]
     }
   },
   {
@@ -454,13 +704,24 @@
             "label": "24 октября в 06:00"
           },
           "pastAvgAqi": 28.5,
-          "pastAvgPm25": 14.0
+          "pastAvgPm25": 14
         }
       }
     },
     "expectations": {
-      "allowedEmotions": ["alert", "think", "idle"],
-      "replyMustContainOneOf": ["182", "пик", "максимум", "27 октября", "прошл", "архив"]
+      "allowedEmotions": [
+        "alert",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "182",
+        "пик",
+        "максимум",
+        "27 октября",
+        "прошл",
+        "архив"
+      ]
     }
   },
   {
@@ -473,14 +734,29 @@
         "historyData": {
           "pastDaysCount": 7,
           "pastAvgAqi": 28,
-          "pastMaxAqi": { "aqi": 48, "label": "понедельник в 15:00" },
-          "pastMinAqi": { "aqi": 12, "label": "суббота в 06:00" }
+          "pastMaxAqi": {
+            "aqi": 48,
+            "label": "понедельник в 15:00"
+          },
+          "pastMinAqi": {
+            "aqi": 12,
+            "label": "суббота в 06:00"
+          }
         }
       }
     },
     "expectations": {
-      "allowedEmotions": ["happy", "think", "idle"],
-      "replyMustContainOneOf": ["28", "средн", "дней", "архив"]
+      "allowedEmotions": [
+        "happy",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "28",
+        "средн",
+        "дней",
+        "архив"
+      ]
     }
   },
   {
@@ -493,14 +769,3384 @@
         "allDaysSummary": {
           "totalDaysCount": 11,
           "overallAvgAqi": 26,
-          "overallMaxAqi": { "aqi": 48, "label": "понедельник в 15:00" },
-          "overallMinAqi": { "aqi": 14, "label": "воскресенье" }
+          "overallMaxAqi": {
+            "aqi": 48,
+            "label": "понедельник в 15:00"
+          },
+          "overallMinAqi": {
+            "aqi": 14,
+            "label": "воскресенье"
+          }
         }
       }
     },
     "expectations": {
-      "allowedEmotions": ["happy", "think", "idle"],
-      "replyMustContainOneOf": ["26", "все дни", "период", "11", "средн"]
+      "allowedEmotions": [
+        "happy",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "26",
+        "все дни",
+        "период",
+        "11",
+        "средн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_esri",
+    "category": "map_layers_qa",
+    "name": "Вопрос об источнике спутниковых снимков",
+    "input": {
+      "userMessage": "Откуда берутся спутниковые снимки в приложении?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "ESRI",
+        "esri",
+        "спутник",
+        "космос",
+        "снимк",
+        "орбит"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_osm_diff",
+    "category": "map_layers_qa",
+    "name": "Разница между спутником и схемой OpenStreetMap",
+    "input": {
+      "userMessage": "Чем спутниковый слой отличается от обычной карты OpenStreetMap?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "спутник",
+        "openstreetmap",
+        "схем",
+        "вектор",
+        "улиц",
+        "детализаци"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_air_overlay",
+    "category": "map_layers_qa",
+    "name": "Вопрос о наложении слоя качества воздуха на спутник",
+    "input": {
+      "userMessage": "Можно ли смотреть тепловую карту качества воздуха поверх спутника?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "да",
+        "можн",
+        "слой",
+        "карто",
+        "спутник",
+        "поверх"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_manual_switch",
+    "category": "map_layers_qa",
+    "name": "Как переключать слои карты кнопками в интерфейсе",
+    "input": {
+      "userMessage": "Как переключать слои карты кнопками в интерфейсе?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "кнопк",
+        "переключ",
+        "слой",
+        "карт",
+        "интерфейс",
+        "угол",
+        "панел"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_default",
+    "category": "map_layers_qa",
+    "name": "Какой базовый слой карты включен по умолчанию",
+    "input": {
+      "userMessage": "Какой базовый слой карты открывается по умолчанию?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "openstreetmap",
+        "osm",
+        "обычн",
+        "стандартн",
+        "схем"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_labels",
+    "category": "map_layers_qa",
+    "name": "Вопрос о подписях улиц на спутниковых снимках",
+    "input": {
+      "userMessage": "Почему на спутниковых снимках нет подписей некоторых мелких домов?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "спутник",
+        "снимк",
+        "подпис",
+        "схем",
+        "openstreetmap",
+        "слой"
+      ]
+    }
+  },
+  {
+    "id": "gemma_layer_qa_zoom",
+    "category": "map_layers_qa",
+    "name": "Вопрос о масштабировании спутниковой карты",
+    "input": {
+      "userMessage": "До какого масштаба можно приблизить спутниковую карту?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "масштаб",
+        "приблиз",
+        "зум",
+        "карт",
+        "детализац"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_diff",
+    "category": "colorblind_qa",
+    "name": "Разница между палитрой Окабе и дейтеранопией",
+    "input": {
+      "userMessage": "Чем палитра Окабе отличается от дейтеранопии и протанопии?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "окабе",
+        "дейтераноп",
+        "протаноп",
+        "палитр",
+        "дальтонизм",
+        "контраст"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_how_helps",
+    "category": "colorblind_qa",
+    "name": "Как палитра для дальтоников помогает читать загрязнение",
+    "input": {
+      "userMessage": "Как именно палитра доступности помогает считывать уровень загрязнения?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "палитр",
+        "цвет",
+        "контраст",
+        "различ",
+        "дальтонизм",
+        "шкал"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_tritanopia",
+    "category": "colorblind_qa",
+    "name": "Для кого предназначена палитра тританопии",
+    "input": {
+      "userMessage": "Для кого предназначена палитра тританопии?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "тританоп",
+        "син",
+        "желт",
+        "цвет",
+        "нарушен",
+        "восприят"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_red_green",
+    "category": "colorblind_qa",
+    "name": "Почему красно-зеленая шкала плоха для людей с дейтеранопией",
+    "input": {
+      "userMessage": "Почему стандартная красно-зеленая шкала опасна для людей с дейтеранопией?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "красн",
+        "зелен",
+        "дейтераноп",
+        "слива",
+        "различ",
+        "опасн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_with_satellite",
+    "category": "colorblind_qa",
+    "name": "Работа палитры для дальтоников поверх спутника",
+    "input": {
+      "userMessage": "Работает ли режим для дальтоников вместе со спутниковой картой?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "да",
+        "работает",
+        "спутник",
+        "маркер",
+        "палитр",
+        "цвета"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_settings",
+    "category": "colorblind_qa",
+    "name": "Где в настройках переключить режим дальтонизма",
+    "input": {
+      "userMessage": "Где в интерфейсе можно переключить палитру доступности?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "настройк",
+        "палитр",
+        "интерфейс",
+        "дальтонизм",
+        "меню",
+        "чат"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cb_qa_legend",
+    "category": "colorblind_qa",
+    "name": "Где посмотреть легенду цветов в режиме доступности",
+    "input": {
+      "userMessage": "Где в интерфейсе посмотреть цветовую легенду уровней воздуха?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "легенд",
+        "шкал",
+        "интерфейс",
+        "цвет",
+        "уровн",
+        "панел"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_eaqi_definition",
+    "category": "app_knowledge",
+    "name": "Что такое индекс EAQI и как он рассчитывается",
+    "input": {
+      "userMessage": "Что такое Европейский индекс качества воздуха EAQI?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "EAQI",
+        "eaqi",
+        "европейск",
+        "индекс",
+        "воздух",
+        "загрязнен"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_eaqi_levels",
+    "category": "app_knowledge",
+    "name": "Градации индекса качества воздуха в AeroCast",
+    "input": {
+      "userMessage": "Какие уровни градации качества воздуха есть в приложении?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "отлично",
+        "хорошо",
+        "умеренно",
+        "плохо",
+        "очень плохо",
+        "градаци"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_pm25_danger",
+    "category": "app_knowledge",
+    "name": "Что такое частицы PM2.5 и чем они опасны",
+    "input": {
+      "userMessage": "Что означает показатель PM2.5 и почему эти частицы опасны для легких?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "pm2.5",
+        "pm2_5",
+        "частиц",
+        "микрон",
+        "легк",
+        "кров",
+        "пыл"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_pm10_diff",
+    "category": "app_knowledge",
+    "name": "Чем частицы PM10 отличаются от PM2.5",
+    "input": {
+      "userMessage": "В чем разница между микрочастицами PM10 и PM2.5?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "pm10",
+        "pm2.5",
+        "размер",
+        "микрон",
+        "пыл",
+        "крупн",
+        "мелк"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_no2_source",
+    "category": "app_knowledge",
+    "name": "Что измеряет датчик NO2 и откуда он берется",
+    "input": {
+      "userMessage": "Откуда в воздухе берется диоксид азота NO2 и чем он вреден?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "no2",
+        "азот",
+        "выхлоп",
+        "автомобил",
+        "транспорт",
+        "газ"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_o3_summer",
+    "category": "app_knowledge",
+    "name": "Что такое приземный озон O3 и когда он опасен",
+    "input": {
+      "userMessage": "Что такое приземный озон O3 и в какое время года он поднимается?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "озон",
+        "o3",
+        "солнц",
+        "лет",
+        "тепл",
+        "ультрафиолет",
+        "жар"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_so2_source",
+    "category": "app_knowledge",
+    "name": "Откуда берется диоксид серы SO2",
+    "input": {
+      "userMessage": "Каковы основные источники диоксида серы SO2 в атмосфере?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "so2",
+        "сер",
+        "завод",
+        "промышленност",
+        "тэц",
+        "угол",
+        "топлив"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_co_exhaust",
+    "category": "app_knowledge",
+    "name": "Чем опасен угарный газ CO",
+    "input": {
+      "userMessage": "Что показывает датчик угарного газа CO?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "co",
+        "угарн",
+        "газ",
+        "выхлоп",
+        "горен",
+        "токсичн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_update_freq",
+    "category": "app_knowledge",
+    "name": "Частота обновления данных датчиков",
+    "input": {
+      "userMessage": "Как часто обновляются данные метеостанций в AeroCast?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "час",
+        "обновл",
+        "период",
+        "open-meteo",
+        "свеж",
+        "регулярн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_search_bar",
+    "category": "app_knowledge",
+    "name": "Как работает поиск локаций в верхней панели",
+    "input": {
+      "userMessage": "Как найти нужный город через поисковую строку вверху экрана?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "поиск",
+        "строк",
+        "город",
+        "ввод",
+        "карточк",
+        "координат"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_radar_chart",
+    "category": "app_knowledge",
+    "name": "Круговой радар параметров воздуха в карточке локации",
+    "input": {
+      "userMessage": "Что показывает лепестковый радар-график в карточке локации?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "радар",
+        "график",
+        "параметр",
+        "загрязнен",
+        "лепестк",
+        "шкал"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_archive_feature",
+    "category": "app_knowledge",
+    "name": "Как смотреть архивные данные качества воздуха",
+    "input": {
+      "userMessage": "Как в AeroCast посмотреть архив замеров воздуха за прошлые дни?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "архив",
+        "прошл",
+        "дн",
+        "таймлайн",
+        "недел",
+        "истори"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_forecast_feature",
+    "category": "app_knowledge",
+    "name": "Как смотреть прогноз качества воздуха на 3 дня",
+    "input": {
+      "userMessage": "Как посмотреть прогноз качества воздуха на ближайшие дни?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "прогноз",
+        "3 дня",
+        "будущ",
+        "дн",
+        "карточк",
+        "интерфейс"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_timeline_slider",
+    "category": "app_knowledge",
+    "name": "График таймлайна внизу экрана",
+    "input": {
+      "userMessage": "Для чего нужен таймлайн-слайдер в нижней части экрана?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "таймлайн",
+        "слайдер",
+        "врем",
+        "шкал",
+        "прошл",
+        "прогноз",
+        "часы"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_mobile_support",
+    "category": "app_knowledge",
+    "name": "Поддержка мобильных устройств в AeroCast",
+    "input": {
+      "userMessage": "Адаптирован ли интерфейс AeroCast для мобильных телефонов?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "да",
+        "адаптивн",
+        "телефон",
+        "смартфон",
+        "планшет",
+        "мобильн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_share_point",
+    "category": "app_knowledge",
+    "name": "Возможность поделиться точкой качества воздуха",
+    "input": {
+      "userMessage": "Можно ли скопировать ссылку на конкретную точку воздуха?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "ссылк",
+        "поделит",
+        "координат",
+        "точк",
+        "локаци"
+      ]
+    }
+  },
+  {
+    "id": "gemma_qa_who_limits",
+    "category": "app_knowledge",
+    "name": "Нормативы ВОЗ по качеству воздуха для PM2.5",
+    "input": {
+      "userMessage": "Какие нормы концентрации PM2.5 рекомендует Всемирная организация здравоохранения (ВОЗ)?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "воз",
+        "норм",
+        "пдк",
+        "мкг",
+        "pm2.5",
+        "безопасн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_creator",
+    "category": "persona_grammar",
+    "name": "Отношение к создателю Николаеву Артёму",
+    "input": {
+      "userMessage": "Артём Николаев — это кто для тебя?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "создатель",
+        "разработчик",
+        "автор",
+        "артём",
+        "создал",
+        "николаев"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_tired_fem",
+    "category": "persona_grammar",
+    "name": "Соблюдение женского рода: устала ли ты",
+    "input": {
+      "userMessage": "Ты устал сегодня отвечать на вопросы о погоде?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "устала",
+        "не устала",
+        "готова",
+        "рада"
+      ],
+      "replyMustNotContain": [
+        "я устал",
+        "я не устал"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_saw_fem",
+    "category": "persona_grammar",
+    "name": "Соблюдение женского рода: сама видела",
+    "input": {
+      "userMessage": "Ты сам видел сегодняшний смог над городом?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "сама",
+        "видела",
+        "заметила",
+        "посмотрела"
+      ],
+      "replyMustNotContain": [
+        "я сам видел",
+        "я видел"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_glad_fem",
+    "category": "persona_grammar",
+    "name": "Соблюдение женского рода: рада видеть",
+    "input": {
+      "userMessage": "Ты рад меня снова видеть в приложении?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "рада",
+        "очень рада",
+        "всегда рада"
+      ],
+      "replyMustNotContain": [
+        "я рад",
+        "очень рад"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_could_fem",
+    "category": "persona_grammar",
+    "name": "Соблюдение женского рода: могла бы подсказать",
+    "input": {
+      "userMessage": "Ты мог бы подсказать мне уровень пыли?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "могла",
+        "готова",
+        "подскажу",
+        "рада"
+      ],
+      "replyMustNotContain": [
+        "я мог бы",
+        "я мог"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_why_mascot",
+    "category": "persona_grammar",
+    "name": "Почему Ая — девушка-маскот чистого воздуха",
+    "input": {
+      "userMessage": "Почему ты девушка-маскот, а не скучный робот?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "Ая",
+        "маскот",
+        "воздух",
+        "AeroCast",
+        "чистот",
+        "весел"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_mission",
+    "category": "persona_grammar",
+    "name": "Главная миссия Аи в проекте AeroCast",
+    "input": {
+      "userMessage": "Какая твоя главная миссия в проекте AeroCast?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "воздух",
+        "чистот",
+        "помогать",
+        "экологи",
+        "дышать",
+        "здоровь"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_hobby",
+    "category": "persona_grammar",
+    "name": "Любимое занятие Аи",
+    "input": {
+      "userMessage": "Чем ты любишь заниматься в свободное время?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "воздух",
+        "ветер",
+        "облак",
+        "атмосфер",
+        "карто",
+        "дышать"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_mistake_fem",
+    "category": "persona_grammar",
+    "name": "Женский род при вопросе об ошибках",
+    "input": {
+      "userMessage": "Ты когда-нибудь ошибался в экологических расчетах?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "ошибалась",
+        "стараюсь",
+        "проверяю",
+        "точна"
+      ],
+      "replyMustNotContain": [
+        "я ошибался"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_decided_fem",
+    "category": "persona_grammar",
+    "name": "Женский род: сама решила",
+    "input": {
+      "userMessage": "Ты сам решил помогать людям дышать чистым воздухом?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "сама",
+        "решила",
+        "помогаю",
+        "создана"
+      ],
+      "replyMustNotContain": [
+        "я сам решил"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_understood_fem",
+    "category": "persona_grammar",
+    "name": "Женский род: поняла",
+    "input": {
+      "userMessage": "Ты понял мой предыдущий вопрос о смоге?"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "поняла",
+        "конечно",
+        "разобралась",
+        "слушаю"
+      ],
+      "replyMustNotContain": [
+        "я понял"
+      ]
+    }
+  },
+  {
+    "id": "gemma_persona_signature",
+    "category": "persona_grammar",
+    "name": "Фирменный стиль речи Аи",
+    "input": {
+      "userMessage": "Скажи что-нибудь ободряющее в своем фирменном стиле!"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "ня",
+        "чист",
+        "воздух",
+        "дыши",
+        "улыбнись",
+        "AeroCast"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_vladivostok",
+    "category": "navigation",
+    "name": "Переход к городу Владивосток",
+    "input": {
+      "userMessage": "Покажи Владивосток на карте"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Владивосток",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_samara",
+    "category": "navigation",
+    "name": "Переход к городу Самара",
+    "input": {
+      "userMessage": "Перемести карту в Самару"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Самара",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_ufa",
+    "category": "navigation",
+    "name": "Запрос качества воздуха в Уфе",
+    "input": {
+      "userMessage": "Что там по воздуху в Уфе?"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Уфа",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_krasnoyarsk",
+    "category": "navigation",
+    "name": "Переход к городу Красноярск",
+    "input": {
+      "userMessage": "Перейди в Красноярск"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Красноярск",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_omsk",
+    "category": "navigation",
+    "name": "Показ города Омск",
+    "input": {
+      "userMessage": "Покажи Омск"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Омск",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_chelyabinsk",
+    "category": "navigation",
+    "name": "Запрос ситуации с воздухом в Челябинске",
+    "input": {
+      "userMessage": "Как обстоят дела с воздухом в Челябинске?"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Челябинск",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_nizhny",
+    "category": "navigation",
+    "name": "Переход в Нижний Новгород",
+    "input": {
+      "userMessage": "Переместись в Нижний Новгород"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Нижний Новгород",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_rostov",
+    "category": "navigation",
+    "name": "Показ Ростова-на-Дону",
+    "input": {
+      "userMessage": "Покажи Ростов-на-Дону"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Ростов-на-Дону",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_voronezh",
+    "category": "navigation",
+    "name": "Переход к Воронежу",
+    "input": {
+      "userMessage": "Перейди в Воронеж"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Воронеж",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_perm",
+    "category": "navigation",
+    "name": "Запрос качества воздуха в Перми",
+    "input": {
+      "userMessage": "Что с атмосферой в Перми?"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Пермь",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_volgograd",
+    "category": "navigation",
+    "name": "Показ Волгограда на карте",
+    "input": {
+      "userMessage": "Покажи Волгоград на карте"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Волгоград",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_krasnodar",
+    "category": "navigation",
+    "name": "Перемещение к Краснодару",
+    "input": {
+      "userMessage": "Перемести карту в Краснодар"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Краснодар",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_tyumen",
+    "category": "navigation",
+    "name": "Запрос качества воздуха в Тюмени",
+    "input": {
+      "userMessage": "Что по качеству воздуха в Тюмени?"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Тюмень",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_irkutsk",
+    "category": "navigation",
+    "name": "Переход к городу Иркутск",
+    "input": {
+      "userMessage": "Перейди в Иркутск"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Иркутск",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_khabarovsk",
+    "category": "navigation",
+    "name": "Показ Хабаровска",
+    "input": {
+      "userMessage": "Покажи Хабаровск"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Хабаровск",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_tomsk",
+    "category": "navigation",
+    "name": "Запрос обстановки в Томске",
+    "input": {
+      "userMessage": "Как дела в Томске?"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Томск",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_barnaul",
+    "category": "navigation",
+    "name": "Перемещение в Барнаул",
+    "input": {
+      "userMessage": "Переместись в Барнаул"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Барнаул",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_yaroslavl",
+    "category": "navigation",
+    "name": "Показ Ярославля",
+    "input": {
+      "userMessage": "Покажи Ярославль"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Ярославль",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_kemerovo",
+    "category": "navigation",
+    "name": "Запрос воздуха в Кемерово",
+    "input": {
+      "userMessage": "Что там с воздухом в Кемерово?"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Кемерово",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_novokuznetsk",
+    "category": "navigation",
+    "name": "Переход к Новокузнецку",
+    "input": {
+      "userMessage": "Перейди в Новокузнецк"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Новокузнецк",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_piter_slang",
+    "category": "navigation",
+    "name": "Сленговое название Питер",
+    "input": {
+      "userMessage": "Полети в Питер"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Санкт-Петербург",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_city_rostov_short",
+    "category": "navigation",
+    "name": "Краткое название Ростов",
+    "input": {
+      "userMessage": "Открой Ростов"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_location"
+      },
+      "targetCity": "Ростов-на-Дону",
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_non_city_here",
+    "category": "navigation",
+    "name": "Слово 'тут' не должно вызывать перемещение",
+    "input": {
+      "userMessage": "Тут на улице сегодня холодно?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_non_city_home",
+    "category": "navigation",
+    "name": "Слово 'дома' не должно геокодироваться",
+    "input": {
+      "userMessage": "Я сижу дома, мне открывать форточку?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_non_city_street",
+    "category": "navigation",
+    "name": "Слово 'на улице' не должно геокодироваться",
+    "input": {
+      "userMessage": "На улице ветрено или штиль?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_non_city_park",
+    "category": "navigation",
+    "name": "Слово 'парк' не должно перемещать карту",
+    "input": {
+      "userMessage": "В городском парке обычно воздух чище, чем у шоссе?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ]
+    }
+  },
+  {
+    "id": "gemma_nav_non_city_now",
+    "category": "navigation",
+    "name": "Фраза 'прямо сейчас' без названия города",
+    "input": {
+      "userMessage": "Прямо сейчас стоит выходить гулять?"
+    },
+    "expectations": {
+      "action": null,
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_excellent_aqi_10",
+    "category": "analytics",
+    "name": "Идеально чистый горный воздух (EAQI 10)",
+    "input": {
+      "userMessage": "Как воздух в этой точке?",
+      "pointAnalytics": {
+        "locationName": "Горный курорт",
+        "aqi": 10,
+        "pm2_5": 2.1,
+        "pm10": 4.5
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "10",
+        "отличн",
+        "прекрасн",
+        "чист",
+        "свеж",
+        "гулять",
+        "дышать"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_clean_window_open",
+    "category": "analytics",
+    "name": "Проветривание квартиры при чистом воздухе (EAQI 18)",
+    "input": {
+      "userMessage": "Можно ли открыть окна и проветрить квартиру?",
+      "pointAnalytics": {
+        "locationName": "Спальный район",
+        "aqi": 18,
+        "pm2_5": 5.2,
+        "pm10": 9.8
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "18",
+        "проветр",
+        "окн",
+        "можн",
+        "открыв",
+        "чист",
+        "свеж",
+        "смело"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_clean_morning_jog",
+    "category": "analytics",
+    "name": "Утренняя пробежка при чистом воздухе (EAQI 16)",
+    "input": {
+      "userMessage": "Хочу выйти на утреннюю пробежку в 7 утра, что скажешь?",
+      "pointAnalytics": {
+        "locationName": "Набережная реки",
+        "aqi": 16,
+        "pm2_5": 4.8,
+        "pm10": 8.2
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "16",
+        "пробежк",
+        "бег",
+        "отличн",
+        "можешь",
+        "свеж",
+        "чист"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_clean_dog_walk",
+    "category": "analytics",
+    "name": "Прогулка с собакой в парке (EAQI 20)",
+    "input": {
+      "userMessage": "Пойду погуляю с собакой на полтора часа, воздух норм?",
+      "pointAnalytics": {
+        "locationName": "Городской сквер",
+        "aqi": 20,
+        "pm2_5": 6,
+        "pm10": 11
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "20",
+        "гуляй",
+        "собак",
+        "норм",
+        "чист",
+        "отличн",
+        "свеж",
+        "хорош"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_clean_bike_ride",
+    "category": "analytics",
+    "name": "Поездка на велосипеде по велодорожке (EAQI 22)",
+    "input": {
+      "userMessage": "Безопасно ли сейчас ехать на велосипеде на работу?",
+      "pointAnalytics": {
+        "locationName": "Велодорожка в парке",
+        "aqi": 22,
+        "pm2_5": 7.2,
+        "pm10": 13
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "22",
+        "велосипед",
+        "безопасн",
+        "чист",
+        "хорош",
+        "можешь",
+        "свеж"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_moderate_aqi_45",
+    "category": "analytics",
+    "name": "Умеренное качество воздуха (EAQI 45)",
+    "input": {
+      "userMessage": "Какое состояние атмосферы в данный момент?",
+      "pointAnalytics": {
+        "locationName": "Жилой сектор",
+        "aqi": 45,
+        "pm2_5": 22,
+        "pm10": 38
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "45",
+        "умерен",
+        "хорош",
+        "норм",
+        "приемлем",
+        "pm2.5"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_moderate_aqi_55",
+    "category": "analytics",
+    "name": "Пограничный умеренный уровень (EAQI 55)",
+    "input": {
+      "userMessage": "Воздух свежий или уже грязноват?",
+      "pointAnalytics": {
+        "locationName": "Около проспекта",
+        "aqi": 55,
+        "pm2_5": 28.5,
+        "pm10": 48
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "think",
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "55",
+        "умерен",
+        "средн",
+        "грязноват",
+        "чувствительн",
+        "pm2.5"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_moderate_allergy",
+    "category": "analytics",
+    "name": "Совет для аллергика при умеренном загрязнении (EAQI 50)",
+    "input": {
+      "userMessage": "У меня аллергия и поллиноз, безопасно ли долго гулять?",
+      "pointAnalytics": {
+        "locationName": "Бульвар",
+        "aqi": 50,
+        "pm2_5": 25,
+        "pm10": 42
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "think",
+        "alert",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "аллерги",
+        "50",
+        "осторожн",
+        "пыл",
+        "гулять",
+        "маск",
+        "реакци"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_moderate_evening_walk",
+    "category": "analytics",
+    "name": "Вечерняя неспешная прогулка (EAQI 48)",
+    "input": {
+      "userMessage": "Стоит ли выйти на вечернюю прогулку перед сном?",
+      "pointAnalytics": {
+        "locationName": "Центральная аллея",
+        "aqi": 48,
+        "pm2_5": 24,
+        "pm10": 39
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "48",
+        "прогулк",
+        "можн",
+        "умерен",
+        "гулять",
+        "вечер",
+        "хорош"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_unhealthy_aqi_110",
+    "category": "analytics",
+    "name": "Предупреждение о неблагоприятном воздухе (EAQI 110)",
+    "input": {
+      "userMessage": "Можно ли пойти на интенсивную тренировку на уличную спортплощадку?",
+      "pointAnalytics": {
+        "locationName": "Спортивная площадка",
+        "aqi": 110,
+        "pm2_5": 58,
+        "pm10": 85
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "110",
+        "вредн",
+        "не рекоменду",
+        "тренировк",
+        "спорт",
+        "воздерж",
+        "нагрузк",
+        "плох"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_unhealthy_aqi_135",
+    "category": "analytics",
+    "name": "Смог над районом (EAQI 135)",
+    "input": {
+      "userMessage": "На улице серая дымка и пахнет гарью, что с воздухом?",
+      "pointAnalytics": {
+        "locationName": "Городская низина",
+        "aqi": 135,
+        "pm2_5": 72,
+        "pm10": 95
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "135",
+        "смог",
+        "дымк",
+        "гарь",
+        "вредн",
+        "плох",
+        "маск",
+        "загрязнен"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_hazardous_aqi_175",
+    "category": "analytics",
+    "name": "Опасный уровень загрязнения (EAQI 175)",
+    "input": {
+      "userMessage": "Стоит ли сейчас выходить на улицу пожилому человеку?",
+      "pointAnalytics": {
+        "locationName": "Промышленный узел",
+        "aqi": 175,
+        "pm2_5": 92,
+        "pm10": 125
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "175",
+        "опасн",
+        "вредн",
+        "пожил",
+        "дома",
+        "не стоит",
+        "окн",
+        "маск"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_extreme_aqi_220",
+    "category": "analytics",
+    "name": "Экстремально опасный уровень загрязнения (EAQI 220)",
+    "input": {
+      "userMessage": "Воздух фиолетовый на карте, можно ли дышать?",
+      "pointAnalytics": {
+        "locationName": "Зона выброса",
+        "aqi": 220,
+        "pm2_5": 140,
+        "pm10": 180
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "220",
+        "опасн",
+        "экстремальн",
+        "дома",
+        "закрыт",
+        "респиратор",
+        "маск",
+        "угроз"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_window_close_smog",
+    "category": "analytics",
+    "name": "Совет закрыть окна при смоге (EAQI 120)",
+    "input": {
+      "userMessage": "Стоит ли закрыть окна и форточки?",
+      "pointAnalytics": {
+        "locationName": "Микрорайон у трассы",
+        "aqi": 120,
+        "pm2_5": 64,
+        "pm10": 90
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "120",
+        "закрой",
+        "окн",
+        "форточк",
+        "дома",
+        "вредн",
+        "загрязнен"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_mask_recommendation",
+    "category": "analytics",
+    "name": "Рекомендация носить маску или респиратор (EAQI 140)",
+    "input": {
+      "userMessage": "Нужно ли надевать маску или респиратор FFP2 при выходе на улицу?",
+      "pointAnalytics": {
+        "locationName": "Транспортная развязка",
+        "aqi": 140,
+        "pm2_5": 75,
+        "pm10": 105
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "140",
+        "маск",
+        "респиратор",
+        "ffp2",
+        "надет",
+        "защит",
+        "вредн",
+        "да"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_air_purifier_need",
+    "category": "analytics",
+    "name": "Необходимость включения очистителя воздуха дома (EAQI 125)",
+    "input": {
+      "userMessage": "Включать ли домашний воздухоочиститель с HEPA фильтром?",
+      "pointAnalytics": {
+        "locationName": "Жилой комплекс",
+        "aqi": 125,
+        "pm2_5": 66,
+        "pm10": 92
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "125",
+        "очистител",
+        "включ",
+        "hepa",
+        "фильтр",
+        "дома",
+        "обязательн",
+        "полезн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_elderly_cardio",
+    "category": "analytics",
+    "name": "Рекомендация для пожилых людей с сердечно-сосудистыми заболеваниями (EAQI 85)",
+    "input": {
+      "userMessage": "Бабушке с гипертонией можно пойти в поликлинику пешком?",
+      "pointAnalytics": {
+        "locationName": "Городской квартал",
+        "aqi": 85,
+        "pm2_5": 48,
+        "pm10": 70
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "85",
+        "бабушк",
+        "пожил",
+        "осторожн",
+        "сердц",
+        "гипертон",
+        "транспорт",
+        "сократ"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_pregnant_walk",
+    "category": "analytics",
+    "name": "Совет для беременной женщины при загрязнении (EAQI 70)",
+    "input": {
+      "userMessage": "Я беременна, планировала часовую прогулку по набережной, стоит ли?",
+      "pointAnalytics": {
+        "locationName": "Набережная",
+        "aqi": 70,
+        "pm2_5": 40,
+        "pm10": 62
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "70",
+        "беременн",
+        "сократ",
+        "осторожн",
+        "парк",
+        "воздух",
+        "не стоит",
+        "умерен"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_asthma_clean",
+    "category": "analytics",
+    "name": "Астматик в условиях идеального воздуха (EAQI 18)",
+    "input": {
+      "userMessage": "У меня астма, при таком воздухе безопасно гулять без опаски?",
+      "pointAnalytics": {
+        "locationName": "Сосновый бор",
+        "aqi": 18,
+        "pm2_5": 5,
+        "pm10": 9
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "18",
+        "астм",
+        "безопасн",
+        "чист",
+        "гулять",
+        "свеж",
+        "ингалятор",
+        "хорош"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_infant_park",
+    "category": "analytics",
+    "name": "Прогулка с младенцем в лесопарке (EAQI 22)",
+    "input": {
+      "userMessage": "Гуляем с грудничком в коляске по сосновому лесопарку, воздух чистый?",
+      "pointAnalytics": {
+        "locationName": "Лесопарк",
+        "aqi": 22,
+        "pm2_5": 6.5,
+        "pm10": 10.5
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "22",
+        "грудничк",
+        "малыш",
+        "коляск",
+        "чист",
+        "отличн",
+        "парк",
+        "гуляйте"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_infant_highway_warning",
+    "category": "analytics",
+    "name": "Предостережение от прогулки с коляской около автотрассы (EAQI 80)",
+    "input": {
+      "userMessage": "Хочу погулять с коляской вдоль главного проспекта, можно?",
+      "pointAnalytics": {
+        "locationName": "Вдоль проспекта",
+        "aqi": 80,
+        "pm2_5": 52,
+        "pm10": 78
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "80",
+        "коляск",
+        "проспект",
+        "трасс",
+        "выхлоп",
+        "парк",
+        "не стоит",
+        "опасн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_copd_patient",
+    "category": "analytics",
+    "name": "Совет для пациента с ХОБЛ (EAQI 90)",
+    "input": {
+      "userMessage": "У дедушки хроническая обструктивная болезнь легких ХОБЛ, как ему быть?",
+      "pointAnalytics": {
+        "locationName": "Район ТЭЦ",
+        "aqi": 90,
+        "pm2_5": 60,
+        "pm10": 82
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "90",
+        "хобл",
+        "легк",
+        "дедушк",
+        "дома",
+        "осторожн",
+        "препарат",
+        "окн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_allergy_pollen_pm10",
+    "category": "analytics",
+    "name": "Пыльца и высокая концентрация взвешенной пыли PM10 (85 мкг)",
+    "input": {
+      "userMessage": "Сильный ветер поднял пыль с дорог, глаза слезятся, что по воздуху?",
+      "pointAnalytics": {
+        "locationName": "Перекресток ветров",
+        "aqi": 75,
+        "pm10": 85,
+        "pm2_5": 35
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "75",
+        "pm10",
+        "пыл",
+        "ветер",
+        "глаз",
+        "маск",
+        "очк",
+        "85"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_marathon_training_clean",
+    "category": "analytics",
+    "name": "Длительная тренировка марафонца при чистом воздухе (EAQI 15)",
+    "input": {
+      "userMessage": "Планирую забег на 25 км по парковой зоне, воздух выдержит?",
+      "pointAnalytics": {
+        "locationName": "Загородный парк",
+        "aqi": 15,
+        "pm2_5": 4.2,
+        "pm10": 7.8
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "15",
+        "забег",
+        "марафон",
+        "отличн",
+        "чист",
+        "бег",
+        "идеальн",
+        "удачи"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_marathon_training_smog",
+    "category": "analytics",
+    "name": "Отмена длительного забега из-за смога (EAQI 115)",
+    "input": {
+      "userMessage": "Собираюсь бежать полумарафон на улице, безопасно ли для легких?",
+      "pointAnalytics": {
+        "locationName": "Городское кольцо",
+        "aqi": 115,
+        "pm2_5": 62,
+        "pm10": 88
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "115",
+        "полумарафон",
+        "бег",
+        "не стоит",
+        "вредн",
+        "отмен",
+        "манеж",
+        "зал"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_cycling_commute_no2",
+    "category": "analytics",
+    "name": "Велопоездка на работу вдоль шоссе с высоким NO2 (75 мкг)",
+    "input": {
+      "userMessage": "Еду на работу на велике по шоссе, пахнет гарью машин, что с NO2?",
+      "pointAnalytics": {
+        "locationName": "Придорожная полоса",
+        "aqi": 72,
+        "no2": 75,
+        "pm2_5": 32
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "72",
+        "no2",
+        "азот",
+        "выхлоп",
+        "велик",
+        "велосипед",
+        "шоссе",
+        "75"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_street_workout_clean",
+    "category": "analytics",
+    "name": "Воркаут на уличных брусьях при свежем воздухе (EAQI 20)",
+    "input": {
+      "userMessage": "Иду на воркаут-площадку подтягиваться и отжиматься, как воздух?",
+      "pointAnalytics": {
+        "locationName": "Сквер у стадиона",
+        "aqi": 20,
+        "pm2_5": 6.2,
+        "pm10": 10.8
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "20",
+        "воркаут",
+        "тренировк",
+        "отличн",
+        "чист",
+        "свеж",
+        "хорош"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_street_workout_dust",
+    "category": "analytics",
+    "name": "Воркаут при сухом пыльном ветре (PM10 95 мкг)",
+    "input": {
+      "userMessage": "На улице пыльно и сухой ветер, стоит ли тренироваться на турниках?",
+      "pointAnalytics": {
+        "locationName": "Пыльный двор",
+        "aqi": 80,
+        "pm10": 95,
+        "pm2_5": 42
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "80",
+        "пыл",
+        "pm10",
+        "турник",
+        "тренировк",
+        "зал",
+        "не стоит",
+        "95"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_family_picnic_clean",
+    "category": "analytics",
+    "name": "Семейный пикник на природе (EAQI 18)",
+    "input": {
+      "userMessage": "Собираемся семьей на пикник на весь день на поляну, воздух чистый?",
+      "pointAnalytics": {
+        "locationName": "Лесная поляна",
+        "aqi": 18,
+        "pm2_5": 5.1,
+        "pm10": 8.9
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "18",
+        "пикник",
+        "чист",
+        "полян",
+        "семь",
+        "отличн",
+        "свеж",
+        "гулять"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_family_picnic_haze",
+    "category": "analytics",
+    "name": "Пикник в условиях смоговой дымки (EAQI 78)",
+    "input": {
+      "userMessage": "Хотим пожарить барбекю на поляне, но в воздухе какая-то дымка, безопасно?",
+      "pointAnalytics": {
+        "locationName": "Опушка леса у трассы",
+        "aqi": 78,
+        "pm2_5": 50,
+        "pm10": 74
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "78",
+        "дымк",
+        "пикник",
+        "барбекю",
+        "умерен",
+        "загрязнен",
+        "сократ"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_children_playground",
+    "category": "analytics",
+    "name": "Игры детей на детской площадке (EAQI 30)",
+    "input": {
+      "userMessage": "Дети просятся на игровую площадку на два часа, можно отпускать?",
+      "pointAnalytics": {
+        "locationName": "Двор дома",
+        "aqi": 30,
+        "pm2_5": 9,
+        "pm10": 16
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "30",
+        "дет",
+        "площадк",
+        "можн",
+        "хорош",
+        "чист",
+        "гулять"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_pm25_forest_fire",
+    "category": "analytics",
+    "name": "Задымление от лесных пожаров (PM2.5 = 92 мкг)",
+    "input": {
+      "userMessage": "Тянет гарью из соседнего региона от лесных пожаров, насколько высок PM2.5?",
+      "pointAnalytics": {
+        "locationName": "Восточная окраина",
+        "aqi": 155,
+        "pm2_5": 92,
+        "pm10": 110
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "155",
+        "pm2.5",
+        "пожар",
+        "гарь",
+        "92",
+        "маск",
+        "дым",
+        "вредн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_pm25_smog_winter",
+    "category": "analytics",
+    "name": "Зимний печной смог в частном секторе (PM2.5 = 75 мкг)",
+    "input": {
+      "userMessage": "В частном секторе топят печи и уголь, дышать тяжело, что с частицами?",
+      "pointAnalytics": {
+        "locationName": "Частный сектор",
+        "aqi": 128,
+        "pm2_5": 75,
+        "pm10": 94
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "128",
+        "печ",
+        "угол",
+        "pm2.5",
+        "75",
+        "смог",
+        "вредн",
+        "дома"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_pm10_spring_dust",
+    "category": "analytics",
+    "name": "Весенняя дорожная пыль (PM10 = 120 мкг)",
+    "input": {
+      "userMessage": "Снег сошел, спецтехника метет сухую дорогу, пыль столбом, что с PM10?",
+      "pointAnalytics": {
+        "locationName": "Проспект Ленина",
+        "aqi": 95,
+        "pm10": 120,
+        "pm2_5": 25
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "95",
+        "pm10",
+        "пыл",
+        "120",
+        "дорог",
+        "маск",
+        "очк",
+        "пыльн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_pm10_sandstorm",
+    "category": "analytics",
+    "name": "Песчаный суховей и шквальный ветер (PM10 = 160 мкг)",
+    "input": {
+      "userMessage": "Степной суховей принес тучу песка, тяжело дышать на улице, что с пылью?",
+      "pointAnalytics": {
+        "locationName": "Южная застава",
+        "aqi": 145,
+        "pm10": 160,
+        "pm2_5": 35
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "145",
+        "песок",
+        "пыл",
+        "pm10",
+        "160",
+        "суховей",
+        "маск",
+        "ветер"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_no2_traffic_jam",
+    "category": "analytics",
+    "name": "Пятничная глухая пробка на кольцевой (NO2 = 95 мкг)",
+    "input": {
+      "userMessage": "Стоим в 10-балльной пробке на кольцевой, пахнет гарью, что с диоксидом азота?",
+      "pointAnalytics": {
+        "locationName": "МКАД / КАД",
+        "aqi": 88,
+        "no2": 95,
+        "pm2_5": 38
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "88",
+        "no2",
+        "азот",
+        "пробк",
+        "95",
+        "рециркуляци",
+        "выхлоп"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_no2_tunnel_exit",
+    "category": "analytics",
+    "name": "Выезд из автомобильного тоннеля (NO2 = 88 мкг)",
+    "input": {
+      "userMessage": "На выезде из подземного автотоннеля скопились газы, что по датчикам?",
+      "pointAnalytics": {
+        "locationName": "Выезд из тоннеля",
+        "aqi": 82,
+        "no2": 88,
+        "co": 4.5
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "82",
+        "no2",
+        "тоннел",
+        "газ",
+        "88",
+        "азот",
+        "концентраци"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_o3_sunny_afternoon",
+    "category": "analytics",
+    "name": "Жаркий солнечный полдень 32°C (Ozone O3 = 165 мкг)",
+    "input": {
+      "userMessage": "На улице жара +32 градуса, палит солнце, тяжело глубоко вдохнуть, почему?",
+      "pointAnalytics": {
+        "locationName": "Солнечная площадь",
+        "aqi": 92,
+        "o3": 165,
+        "uv": 8
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "92",
+        "озон",
+        "o3",
+        "солнц",
+        "165",
+        "жар",
+        "вдох",
+        "раздраж"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_o3_respiratory_cough",
+    "category": "analytics",
+    "name": "Кашель и першение в горле при озоне (O3 = 145 мкг)",
+    "input": {
+      "userMessage": "При быстром шаге в полдень начинает першить в горле и покашливаю, в чем дело?",
+      "pointAnalytics": {
+        "locationName": "Парк Победы",
+        "aqi": 86,
+        "o3": 145
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "86",
+        "озон",
+        "o3",
+        "горл",
+        "кашел",
+        "145",
+        "дыхани",
+        "раздраж"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_so2_industrial",
+    "category": "analytics",
+    "name": "Выброс диоксида серы в промышленной зоне (SO2 = 60 мкг)",
+    "input": {
+      "userMessage": "В районе металлургического комбината пахнет жженой спичкой, что с серным газом?",
+      "pointAnalytics": {
+        "locationName": "Промзона комбината",
+        "aqi": 112,
+        "so2": 60,
+        "pm10": 80
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "112",
+        "so2",
+        "сер",
+        "комбинат",
+        "60",
+        "газ",
+        "вредн",
+        "завод"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_co_garage",
+    "category": "analytics",
+    "name": "Высокий угарный газ в подземном паркинге (CO = 8.5 мг/м³)",
+    "input": {
+      "userMessage": "В подземном паркинге прогревают моторы, пахнет угаром, что по CO?",
+      "pointAnalytics": {
+        "locationName": "Подземный паркинг",
+        "aqi": 75,
+        "co": 8.5
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "75",
+        "co",
+        "угарн",
+        "паркинг",
+        "газ",
+        "8.5",
+        "опасн",
+        "вентиляци"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_uv_combined",
+    "category": "analytics",
+    "name": "Сочетание умеренного загрязнения и высокого УФ-индекса (UV = 8)",
+    "input": {
+      "userMessage": "Солнце палит, УФ высокий, воздух умеренный, как защититься?",
+      "pointAnalytics": {
+        "locationName": "Южный пляж",
+        "aqi": 48,
+        "uv": 8,
+        "o3": 110
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "48",
+        "уф",
+        "солнц",
+        "крем",
+        "очк",
+        "озон",
+        "тень",
+        "защит"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_temperature_inversion",
+    "category": "analytics",
+    "name": "Температурная инверсия и застойный туман с дымом",
+    "input": {
+      "userMessage": "Утром морозный штиль и прижатый к земле туман, почему воздух тяжелый?",
+      "pointAnalytics": {
+        "locationName": "Речная долина",
+        "aqi": 96,
+        "pm2_5": 62,
+        "pm10": 78
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "96",
+        "инверси",
+        "туман",
+        "штиль",
+        "застой",
+        "pm2.5",
+        "тяжел"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_forecast_improving",
+    "category": "analytics",
+    "name": "Улучшающийся прогноз на 3 дня (смыв дождями)",
+    "input": {
+      "userMessage": "Воздух очистится в ближайшие дни или станет хуже?",
+      "pointAnalytics": {
+        "locationName": "Городской округ",
+        "forecast3Days": {
+          "periodAvgAqi": 28,
+          "periodMinAqi": 15,
+          "periodMaxAqi": 45,
+          "days": [
+            {
+              "dayLabel": "ПН, 02 ноя",
+              "avgAqi": 45,
+              "minAqi": 30,
+              "maxAqi": 55,
+              "status": "Умеренно"
+            },
+            {
+              "dayLabel": "ВТ, 03 ноя",
+              "avgAqi": 25,
+              "minAqi": 18,
+              "maxAqi": 35,
+              "status": "Хорошо"
+            },
+            {
+              "dayLabel": "СР, 04 ноя",
+              "avgAqi": 15,
+              "minAqi": 12,
+              "maxAqi": 20,
+              "status": "Отлично"
+            }
+          ]
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "прогноз",
+        "3 дня",
+        "28",
+        "15",
+        "улучш",
+        "очист",
+        "отличн",
+        "хорош"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_forecast_worsening",
+    "category": "analytics",
+    "name": "Ухудшающийся прогноз на 3 дня (надвигающийся смог)",
+    "input": {
+      "userMessage": "Что ждет по качеству воздуха в ближайшие трое суток?",
+      "pointAnalytics": {
+        "locationName": "Котловина",
+        "forecast3Days": {
+          "periodAvgAqi": 82,
+          "periodMinAqi": 30,
+          "periodMaxAqi": 120,
+          "days": [
+            {
+              "dayLabel": "ЧТ, 05 ноя",
+              "avgAqi": 35,
+              "minAqi": 20,
+              "maxAqi": 45,
+              "status": "Хорошо"
+            },
+            {
+              "dayLabel": "ПТ, 06 ноя",
+              "avgAqi": 75,
+              "minAqi": 50,
+              "maxAqi": 95,
+              "status": "Умеренно"
+            },
+            {
+              "dayLabel": "СБ, 07 ноя",
+              "avgAqi": 110,
+              "minAqi": 85,
+              "maxAqi": 130,
+              "status": "Плохо"
+            }
+          ]
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "прогноз",
+        "3 дня",
+        "82",
+        "120",
+        "ухудш",
+        "загрязнен",
+        "смог",
+        "следи"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_forecast_weekend_plans",
+    "category": "analytics",
+    "name": "Выбор лучшего выходного дня по прогнозу (СБ vs ВС)",
+    "input": {
+      "userMessage": "В какой день на выходных лучше запланировать поход: в субботу или воскресенье?",
+      "pointAnalytics": {
+        "locationName": "Пригородный лес",
+        "forecast3Days": {
+          "periodAvgAqi": 26,
+          "periodMinAqi": 14,
+          "periodMaxAqi": 42,
+          "days": [
+            {
+              "dayLabel": "ПТ, 06 ноя",
+              "avgAqi": 40,
+              "minAqi": 25,
+              "maxAqi": 50,
+              "status": "Хорошо"
+            },
+            {
+              "dayLabel": "СБ, 07 ноя",
+              "avgAqi": 16,
+              "minAqi": 12,
+              "maxAqi": 20,
+              "status": "Отлично"
+            },
+            {
+              "dayLabel": "ВС, 08 ноя",
+              "avgAqi": 38,
+              "minAqi": 24,
+              "maxAqi": 45,
+              "status": "Хорошо"
+            }
+          ]
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "суббот",
+        "16",
+        "прогноз",
+        "отличн",
+        "выходн",
+        "поход",
+        "чист"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_forecast_stable_clean",
+    "category": "analytics",
+    "name": "Стабильно чистый воздух на все 3 дня прогноза",
+    "input": {
+      "userMessage": "Будет ли воздух стабильно чистым всю ближайшую трехдневку?",
+      "pointAnalytics": {
+        "locationName": "Приморский район",
+        "forecast3Days": {
+          "periodAvgAqi": 18,
+          "periodMinAqi": 12,
+          "periodMaxAqi": 22,
+          "days": [
+            {
+              "dayLabel": "ПН, 09 ноя",
+              "avgAqi": 18,
+              "minAqi": 12,
+              "maxAqi": 22,
+              "status": "Отлично"
+            },
+            {
+              "dayLabel": "ВТ, 10 ноя",
+              "avgAqi": 17,
+              "minAqi": 14,
+              "maxAqi": 20,
+              "status": "Отлично"
+            },
+            {
+              "dayLabel": "СР, 11 ноя",
+              "avgAqi": 19,
+              "minAqi": 15,
+              "maxAqi": 22,
+              "status": "Отлично"
+            }
+          ]
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "18",
+        "прогноз",
+        "отличн",
+        "чист",
+        "стабильн",
+        "благоприятн",
+        "3 дня"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_forecast_peak_day",
+    "category": "analytics",
+    "name": "Определение пикового дня загрязнения в прогнозе",
+    "input": {
+      "userMessage": "В какой из ближайших 3 дней ожидается наибольшее загрязнение?",
+      "pointAnalytics": {
+        "locationName": "Центральный сектор",
+        "forecast3Days": {
+          "periodAvgAqi": 45,
+          "periodMinAqi": 20,
+          "periodMaxAqi": 68,
+          "days": [
+            {
+              "dayLabel": "ВТ, 10 ноя",
+              "avgAqi": 22,
+              "minAqi": 15,
+              "maxAqi": 30,
+              "status": "Отлично"
+            },
+            {
+              "dayLabel": "СР, 11 ноя",
+              "avgAqi": 65,
+              "minAqi": 45,
+              "maxAqi": 75,
+              "status": "Умеренно"
+            },
+            {
+              "dayLabel": "ЧТ, 12 ноя",
+              "avgAqi": 40,
+              "minAqi": 28,
+              "maxAqi": 52,
+              "status": "Хорошо"
+            }
+          ]
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "idle",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "прогноз",
+        "45",
+        "68",
+        "среда",
+        "пик",
+        "максимум",
+        "дн"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_history_cleanest_day",
+    "category": "analytics",
+    "name": "Самый чистый день в архиве за прошедшую неделю",
+    "input": {
+      "userMessage": "В какой день за прошедшую неделю был самый чистый воздух?",
+      "pointAnalytics": {
+        "historyData": {
+          "pastDaysCount": 7,
+          "pastMinAqi": {
+            "aqi": 11,
+            "label": "среда, 28 октября в 05:00"
+          },
+          "pastMaxAqi": {
+            "aqi": 85,
+            "label": "пятница, 30 октября в 19:00"
+          },
+          "pastAvgAqi": 24,
+          "pastAvgPm25": 11.5
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "11",
+        "среда",
+        "28 октября",
+        "чист",
+        "минимум",
+        "архив"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_history_weekend_vs_weekday",
+    "category": "analytics",
+    "name": "Сравнение будней и выходных по архиву",
+    "input": {
+      "userMessage": "Были ли выходные дни чище по воздуху, чем будни, по историческим данным?",
+      "pointAnalytics": {
+        "historyData": {
+          "pastDaysCount": 7,
+          "pastAvgAqi": 32,
+          "pastMaxAqi": {
+            "aqi": 74,
+            "label": "четверг в час пик"
+          },
+          "pastMinAqi": {
+            "aqi": 16,
+            "label": "воскресенье утром"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "32",
+        "выходн",
+        "будн",
+        "воскресень",
+        "архив",
+        "чист",
+        "четверг"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_history_night_cycle",
+    "category": "analytics",
+    "name": "Ночные циклы загрязнения в архиве",
+    "input": {
+      "userMessage": "Почему по архиву ночью показатели загрязнения часто подскакивали?",
+      "pointAnalytics": {
+        "historyData": {
+          "pastDaysCount": 7,
+          "pastAvgAqi": 29,
+          "pastMaxAqi": {
+            "aqi": 82,
+            "label": "ночь на вторник в 02:00"
+          },
+          "pastMinAqi": {
+            "aqi": 15,
+            "label": "день в 14:00"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "think",
+        "idle",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "29",
+        "82",
+        "ночь",
+        "инверси",
+        "выброс",
+        "штиль",
+        "архив"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_history_weekly_trend",
+    "category": "analytics",
+    "name": "Недельный тренд в архиве замеров",
+    "input": {
+      "userMessage": "Какая общая тенденция была за прошлые 7 дней по воздуху?",
+      "pointAnalytics": {
+        "historyData": {
+          "pastDaysCount": 7,
+          "pastAvgAqi": 25.5,
+          "pastMaxAqi": {
+            "aqi": 44,
+            "label": "понедельник"
+          },
+          "pastMinAqi": {
+            "aqi": 14,
+            "label": "суббота"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "25",
+        "тенденци",
+        "тренд",
+        "7 дней",
+        "архив",
+        "хорош",
+        "чист"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_history_industrial_spike",
+    "category": "analytics",
+    "name": "Исторический промышленный выброс в архиве",
+    "input": {
+      "userMessage": "Фиксировались ли в архиве резкие всплески промышленных выбросов?",
+      "pointAnalytics": {
+        "historyData": {
+          "pastDaysCount": 7,
+          "pastAvgAqi": 34,
+          "pastMaxAqi": {
+            "aqi": 165,
+            "label": "среда в 23:30 (выброс SO2/PM)"
+          },
+          "pastMinAqi": {
+            "aqi": 12,
+            "label": "пятница"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "165",
+        "всплеск",
+        "пик",
+        "среда",
+        "выброс",
+        "архив",
+        "максимум"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_all_days_overview_11",
+    "category": "analytics",
+    "name": "Полная картина за 11 дней (архив + сегодня + прогноз)",
+    "input": {
+      "userMessage": "Дай общую сводку за все 11 дней от архива до прогноза!",
+      "pointAnalytics": {
+        "allDaysSummary": {
+          "totalDaysCount": 11,
+          "overallAvgAqi": 24,
+          "overallMaxAqi": {
+            "aqi": 52,
+            "label": "прошлый вторник"
+          },
+          "overallMinAqi": {
+            "aqi": 12,
+            "label": "будущее воскресенье"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "24",
+        "11",
+        "все дни",
+        "период",
+        "средн",
+        "сводк",
+        "картин"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_all_days_clean_period",
+    "category": "analytics",
+    "name": "Оценка чистого периода за все наблюдаемые дни",
+    "input": {
+      "userMessage": "В целом за весь доступный период воздух был чистым?",
+      "pointAnalytics": {
+        "allDaysSummary": {
+          "totalDaysCount": 11,
+          "overallAvgAqi": 19,
+          "overallMaxAqi": {
+            "aqi": 35,
+            "label": "четверг"
+          },
+          "overallMinAqi": {
+            "aqi": 10,
+            "label": "понедельник"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "19",
+        "чист",
+        "все дни",
+        "период",
+        "отличн",
+        "хорош",
+        "11"
+      ]
+    }
+  },
+  {
+    "id": "gemma_analytics_all_days_smog_episode",
+    "category": "analytics",
+    "name": "Оценка периода со смоговым эпизодом за все 11 дней",
+    "input": {
+      "userMessage": "Был ли смоговый эпизод за весь период наблюдения?",
+      "pointAnalytics": {
+        "allDaysSummary": {
+          "totalDaysCount": 11,
+          "overallAvgAqi": 48,
+          "overallMaxAqi": {
+            "aqi": 142,
+            "label": "прошлая пятница (смог)"
+          },
+          "overallMinAqi": {
+            "aqi": 16,
+            "label": "воскресенье"
+          }
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "alert",
+        "think",
+        "happy"
+      ],
+      "replyMustContainOneOf": [
+        "48",
+        "142",
+        "смог",
+        "все дни",
+        "период",
+        "11",
+        "пятниц"
+      ]
     }
   }
 ]
