@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+// useState
+import React, { useState, useEffect } from 'react';
 import DynamicsChart from './DynamicsChart';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/PollutionDynamicsModal.css';
@@ -11,6 +12,17 @@ const POLLUTANTS_CONFIG = [
   { key: 'ozone', label: 'O3', color: '#ec4899' },
   { key: 'carbon_monoxide', label: 'CO', color: '#6366f1' },
 ];
+
+// Метаданные для всех показателей (AQI + 6 загрязнителей)
+const METRICS_METADATA = {
+  aqi: { key: 'aqi', label: 'AQI', title: 'Общий индекс качества воздуха (EAQI)', unit: 'EAQI', color: '#3b82f6' },
+  pm2_5: { key: 'pm2_5', label: 'PM2.5', title: 'Суточная динамика PM2.5 (мкг/м³)', unit: 'мкг/м³', color: '#3b82f6' },
+  pm10: { key: 'pm10', label: 'PM10', title: 'Суточная динамика PM10 (мкг/м³)', unit: 'мкг/м³', color: '#10b981' },
+  nitrogen_dioxide: { key: 'nitrogen_dioxide', label: 'NO2', title: 'Суточная динамика NO2 (мкг/м³)', unit: 'мкг/м³', color: '#f59e0b' },
+  sulphur_dioxide: { key: 'sulphur_dioxide', label: 'SO2', title: 'Суточная динамика SO2 (мкг/м³)', unit: 'мкг/м³', color: '#8b5cf6' },
+  ozone: { key: 'ozone', label: 'O3', title: 'Суточная динамика O3 (мкг/м³)', unit: 'мкг/м³', color: '#ec4899' },
+  carbon_monoxide: { key: 'carbon_monoxide', label: 'CO', title: 'Суточная динамика CO (мкг/м³)', unit: 'мкг/м³', color: '#6366f1' },
+};
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -52,6 +64,9 @@ export default function PollutionDynamicsModal({
   isColorBlind = false,
   colorBlindType = 'okabe',
 }) {
+  // Реактивное состояние активного показателя на главном графике
+  const [activeMetricKey, setActiveMetricKey] = useState('aqi');
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -116,6 +131,9 @@ export default function PollutionDynamicsModal({
   const latStr = latVal != null ? Number(latVal).toFixed(4) : '';
   const lonStr = lonVal != null ? Number(lonVal).toFixed(4) : '';
 
+  //Выбор метаданных для текущего главного графика
+  const activeMetric = METRICS_METADATA[activeMetricKey] || METRICS_METADATA.aqi;
+
   return (
     <div
       className="dynamics-modal-overlay"
@@ -131,48 +149,61 @@ export default function PollutionDynamicsModal({
       >
         <div className="dynamics-modal-header">
           <div className="dynamics-modal-header-content">
-          <h2>Суточная динамика качества воздуха</h2>
-          <div className="dynamics-modal-meta">
-            <span>Дата: {formatDate(selectedDateStr)}</span>
-            {latStr && lonStr && <span>Координаты: {latStr}, {lonStr}</span>}
+            <h2>Суточная динамика качества воздуха</h2>
+            <div className="dynamics-modal-meta">
+              <span>Дата: {formatDate(selectedDateStr)}</span>
+              {latStr && lonStr && <span>Координаты: {latStr}, {lonStr}</span>}
+            </div>
           </div>
-        </div>
-        <button
-          type="button"
-          className="dynamics-modal-close"
-          onClick={onClose}
-          aria-label="Закрыть окно"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div className="dynamics-modal-scroll-area">
-        <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
-          <h3>Общий индекс качества воздуха (EAQI)</h3>
-          <DynamicsChart
-            mode="aqi"
-            data={finalDayData}
-            valueKey="aqi"
-            unit="EAQI"
-            activeIndex={activeHourInDay}
-            isColorBlind={isColorBlind}
-            colorBlindType={colorBlindType}
-            height={220}
-          />
+          <button
+            type="button"
+            className="dynamics-modal-close"
+            onClick={onClose}
+            aria-label="Закрыть окно"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        <div className="dynamics-modal-pollutants-grid">
-          {POLLUTANTS_CONFIG.map((p) => {
-            const vals = finalDayData
-              .map((d) => d[p.key])
-              .filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v)));
+        <div className="dynamics-modal-scroll-area">
+          <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
+            <div className="dynamics-modal-main-chart__header">
+              <h3>{activeMetric.title}</h3>
+              {activeMetricKey !== 'aqi' && (
+                <button
+                  type="button"
+                  className="dynamics-modal-reset-btn"
+                  data-testid="reset-to-aqi-btn"
+                  onClick={() => setActiveMetricKey('aqi')}
+                >
+                  Вернуть общий индекс AQI
+                </button>
+              )}
+            </div>
+            <DynamicsChart
+              mode={activeMetricKey === 'aqi' ? 'aqi' : 'pollutant'}
+              data={finalDayData}
+              valueKey={activeMetric.key}
+              unit={activeMetric.unit}
+              color={activeMetric.color}
+              activeIndex={activeHourInDay}
+              isColorBlind={isColorBlind}
+              colorBlindType={colorBlindType}
+              height={220}
+            />
+          </div>
+
+          <div className="dynamics-modal-pollutants-grid">
+            {POLLUTANTS_CONFIG.map((p) => {
+              const vals = finalDayData
+                .map((d) => d[p.key])
+                .filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v)));
               
-              const min = vals.length > 0 ? Math.min(...vals) : 0;
-              const max = vals.length > 0 ? Math.max(...vals) : 0;
+              const min = vals.length > 0 ? Math.min(...vals) : null;
+              const max = vals.length > 0 ? Math.max(...vals) : null;
 
               const currentVal = finalDayData[activeHourInDay]?.[p.key];
               const displayCurrent =
@@ -180,14 +211,32 @@ export default function PollutionDynamicsModal({
                   ? Number(currentVal).toFixed(1)
                   : '—';
 
+              //Проверка активности карточки
+              const isCardActive = activeMetricKey === p.key;
+
               return (
                 <div
                   key={p.key}
-                  className="pollutant-chart-card"
+                  className={
+                    'pollutant-chart-card pollutant-chart-card--interactive' +
+                    (isCardActive ? ' pollutant-chart-card--active' : '')
+                  }
+                  style={{ '--metric-color': p.color }}
                   data-testid={`pollutant-card-${p.key}`}
+                  role="button"
+                  tabIndex={0}
+                  title="Показать на главном графике"
+                  onClick={() => setActiveMetricKey(p.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveMetricKey(p.key);
+                    }
+                  }}
                 >
                   <div className="pollutant-card-header">
                     <strong>{p.label}</strong>
+                    {isCardActive && <span className="pollutant-card-active-badge">Активен</span>}
                     <span className="pollutant-card-unit">{displayCurrent} мкг/м³</span>
                   </div>
                   <div className="pollutant-card-stats">
