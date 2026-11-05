@@ -136,13 +136,11 @@ export default function PollutionDynamicsModal({
     }
   };
 
-  let activeHour = 0;
+  let activeHour = activeHourInDay;
   const currentGlobalTime = airData.hourly.time[localActiveIndex];
   const matchInFinal = finalDayData.findIndex(d => d.time === currentGlobalTime);
   if (matchInFinal !== -1) {
     activeHour = matchInFinal;
-  } else {
-    activeHour = 0; 
   }
 
   // Вспомогательная функция для расчета статистики
