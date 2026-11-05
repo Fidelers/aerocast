@@ -394,6 +394,8 @@ export default function RightAirPanel({
           role="button"
           tabIndex={0}
           title="Нажмите, чтобы открыть график динамики за выбранный день"
+          aria-label={`Индекс качества воздуха: ${aqi !== null ? aqi : '—'} (${aqiInfo.label}). Нажмите, чтобы открыть график динамики`}
+          aria-haspopup="dialog"
           onClick={() => {
             if (!didDragRef.current && typeof onOpenDynamicsModal === 'function') {
               onOpenDynamicsModal();
