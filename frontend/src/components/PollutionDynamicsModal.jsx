@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import DynamicsChart from './DynamicsChart';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/PollutionDynamicsModal.css';
@@ -51,7 +51,15 @@ export default function PollutionDynamicsModal({
   coords,
   isColorBlind = false,
   colorBlindType = 'okabe',
+  onSelectTime,
 }) {
+
+  const [localActiveIndex, setLocalActiveIndex] = useState(selectedTimeIndex);
+
+  useEffect(() => {
+      setLocalActiveIndex(selectedTimeIndex);
+    }, [selectedTimeIndex]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -116,6 +124,27 @@ export default function PollutionDynamicsModal({
   const latStr = latVal != null ? Number(latVal).toFixed(4) : '';
   const lonStr = lonVal != null ? Number(lonVal).toFixed(4) : '';
 
+  const handleChartPointClick = (localIdx) => {
+    const targetRecord = finalDayData[localIdx];
+    if (!targetRecord) return;
+
+    const globalIndex = airData.hourly.time.indexOf(targetRecord.time);
+    
+    if (globalIndex !== -1) {
+      setLocalActiveIndex(globalIndex);
+      onSelectTime?.(globalIndex);
+    }
+  };
+
+  let activeHour = 0;
+  const currentGlobalTime = airData.hourly.time[localActiveIndex];
+  const matchInFinal = finalDayData.findIndex(d => d.time === currentGlobalTime);
+  if (matchInFinal !== -1) {
+    activeHour = matchInFinal;
+  } else {
+    activeHour = 0; 
+  }
+
   return (
     <div
       className="dynamics-modal-overlay"
@@ -162,6 +191,7 @@ export default function PollutionDynamicsModal({
             isColorBlind={isColorBlind}
             colorBlindType={colorBlindType}
             height={220}
+            onPointClick={handleChartPointClick}
           />
         </div>
 
@@ -204,6 +234,7 @@ export default function PollutionDynamicsModal({
                     isColorBlind={isColorBlind}
                     colorBlindType={colorBlindType}
                     height={90}
+                    onPointClick={handleChartPointClick}
                   />
                 </div>
               );

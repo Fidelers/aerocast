@@ -477,6 +477,7 @@ function App({ referenceDate } = {}) {
                 coords={coords}
                 isColorBlind={isColorBlind}
                 colorBlindType={colorBlindType}
+                onSelectTime={handleSelectTime}
             />
             {!isRightPanelOpen && (
                 <button

@@ -40,6 +40,7 @@ export default function DynamicsChart({
   isColorBlind = false,
   colorBlindType = 'okabe',
   height,
+  onPointClick,
 }) {
   const chartHeight = height || (mode === 'aqi' ? 220 : 90);
   const width = mode === 'aqi' ? 720 : 320;
@@ -103,6 +104,13 @@ export default function DynamicsChart({
   const safeActiveIdx = activeIndex >= 0 && activeIndex < points.length ? activeIndex : 0;
   const activePoint = points[safeActiveIdx] || null;
 
+  // Обработчик взаимодействия с точкой
+  const handleInteraction = (idx) => {
+    if (onPointClick && idx >= 0 && idx < data.length) {
+      onPointClick(idx);
+    }
+  };
+
   return (
     <div className={`dynamics-chart dynamics-chart--${mode}`} data-colorblind={isColorBlind ? 'true' : 'false'}>
       <svg viewBox={`0 0 ${width} ${chartHeight}`} width="100%" height={chartHeight} role="img" aria-label={`График ${valueKey}`}>
@@ -143,6 +151,35 @@ export default function DynamicsChart({
             <text key={hourIdx} x={hourIdx * stepX} y={chartHeight - 2} textAnchor="middle" fontSize="10" fill="#6b7280">
               {TIME_LABELS[idx]}
             </text>
+          );
+        })}
+
+        {/* Интерактивный слой */}
+        {onPointClick && points.map((point, idx) => {
+          const rectWidth = stepX; 
+          const rectX = point.x - rectWidth / 2;
+          const timeLabel = point.idx !== undefined ? (data[point.idx]?.hourLabel || `Точка ${idx}`) : `Точка ${idx}`;
+          
+          return (
+            <rect
+              key={`interactive-${idx}`}
+              x={Math.max(0, rectX)}
+              y={0}
+              width={rectWidth}
+              height={chartHeight}
+              fill="transparent"
+              style={{ cursor: 'pointer', outline: 'none' }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Выбрать время: ${timeLabel}, значение: ${point.val ?? 'нет данных'} ${unit}`}
+              onClick={() => handleInteraction(point.idx ?? idx)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleInteraction(point.idx ?? idx);
+                }
+              }}
+            />
           );
         })}
       </svg>
