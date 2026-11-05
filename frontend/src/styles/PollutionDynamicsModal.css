@@ -174,8 +174,60 @@
 .pollutant-card-stats {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   color: var(--text-muted, #6b7280);
   margin-bottom: 8px;
   font-family: var(--mono, ui-monospace);
+  white-space: nowrap;
+}
+
+.pollutant-card-stats--main {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+  font-size: 0.8rem;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: var(--text-h, #08060d);
+}
+
+@media (max-width: 480px) {
+  .stat-label {
+    font-size: 0; 
+    line-height: 0;
+  }
+  
+  .stat-label::after {
+    content: attr(data-short);
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .pollutant-card-stats {
+    gap: 4px;
+  }
+  
+  .pollutant-card-stats--main {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .stat-label::after {
+    content: attr(data-short);
+    font-size: 0.6rem;
+  }
+  
+  .stat-value {
+    font-size: 0.65rem;
+  }
 }

@@ -145,6 +145,22 @@ export default function PollutionDynamicsModal({
     activeHour = 0; 
   }
 
+  // Вспомогательная функция для расчета статистики
+  const getStats = (values) => {
+    const valid = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v)));
+    if (valid.length === 0) return { min: null, max: null, avg: null };
+    
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
+    const avg = valid.reduce((sum, v) => sum + v, 0) / valid.length;
+    
+    return { min, max, avg };
+  };
+
+  // Расчет статистики для главного графика EAQI
+  const aqiValues = finalDayData.map((d) => d.aqi);
+  const aqiStats = getStats(aqiValues);
+
   return (
     <div
       className="dynamics-modal-overlay"
@@ -182,6 +198,22 @@ export default function PollutionDynamicsModal({
       <div className="dynamics-modal-scroll-area">
         <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
           <h3>Общий индекс качества воздуха (EAQI)</h3>
+
+          <div className="pollutant-card-stats pollutant-card-stats--main">
+            <span className="stat-item">
+              <span className="stat-label" data-full="Минимум" data-short="Мин">Минимум</span>:&nbsp;
+              <span className="stat-value">{aqiStats.min !== null ? aqiStats.min.toFixed(0) : '—'}</span>
+            </span>
+            <span className="stat-item">
+              <span className="stat-label" data-full="Среднее" data-short="Ср">Среднее</span>:&nbsp;
+              <span className="stat-value">{aqiStats.avg !== null ? aqiStats.avg.toFixed(0) : '—'}</span>
+            </span>
+            <span className="stat-item">
+              <span className="stat-label" data-full="Максимум" data-short="Макс">Максимум</span>:&nbsp;
+              <span className="stat-value">{aqiStats.max !== null ? aqiStats.max.toFixed(0) : '—'}</span>
+            </span>
+          </div>
+
           <DynamicsChart
             mode="aqi"
             data={finalDayData}
@@ -201,8 +233,7 @@ export default function PollutionDynamicsModal({
               .map((d) => d[p.key])
               .filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v)));
               
-              const min = vals.length > 0 ? Math.min(...vals) : 0;
-              const max = vals.length > 0 ? Math.max(...vals) : 0;
+              const stats = getStats(vals);
 
               const currentVal = finalDayData[activeHourInDay]?.[p.key];
               const displayCurrent =
@@ -220,10 +251,22 @@ export default function PollutionDynamicsModal({
                     <strong>{p.label}</strong>
                     <span className="pollutant-card-unit">{displayCurrent} мкг/м³</span>
                   </div>
+
                   <div className="pollutant-card-stats">
-                    <span>Минимум: {min !== null ? min.toFixed(1) : '—'}</span>
-                    <span>Максимум: {max !== null ? max.toFixed(1) : '—'}</span>
-                  </div>
+                  <span className="stat-item">
+                    <span className="stat-label" data-full="Минимум" data-short="Мин">Минимум</span>:&nbsp;
+                    <span className="stat-value">{stats.min !== null ? stats.min.toFixed(1) : '—'}</span>
+                  </span>
+                  <span className="stat-item">
+                    <span className="stat-label" data-full="Среднее" data-short="Ср">Среднее</span>:&nbsp;
+                    <span className="stat-value">{stats.avg !== null ? stats.avg.toFixed(1) : '—'}</span>
+                  </span>
+                  <span className="stat-item">
+                    <span className="stat-label" data-full="Максимум" data-short="Макс">Максимум</span>:&nbsp;
+                    <span className="stat-value">{stats.max !== null ? stats.max.toFixed(1) : '—'}</span>
+                  </span>
+                </div>
+
                   <DynamicsChart
                     mode="pollutant"
                     data={finalDayData}
