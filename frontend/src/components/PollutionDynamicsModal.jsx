@@ -23,6 +23,9 @@ const METRICS_METADATA = {
   carbon_monoxide: { key: 'carbon_monoxide', label: 'CO', title: 'Суточная динамика CO (мкг/м³)', unit: 'мкг/м³', color: '#6366f1' },
 };
 
+// Список доступных вариантов шага времени (от 1 до 24 часов) для выпадающего меню
+const STEP_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24];
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   try {
@@ -37,10 +40,13 @@ const formatDate = (dateStr) => {
   }
 };
 
-const buildHourRecord = (isoTime, idx, hourlyData, isCurrent) => {
+const buildHourRecord = (isoTime, idx, hourlyData, isCurrent, hourIndex = 0) => {
   const parsed = parseIsoTimeString(isoTime);
   return {
     time: isoTime,
+    // Сохранение глобального индекса в массиве airData и часа для точного клика по точкам
+    globalIndex: idx,
+    hourIndex,
     hourLabel: parsed?.timeStr || isoTime.split('T')[1]?.slice(0, 5) || '00:00',
     isCurrent,
     aqi: hourlyData.european_aqi?.[idx] ?? null,
@@ -67,6 +73,27 @@ export default function PollutionDynamicsModal({
   const [localActiveIndex, setLocalActiveIndex] = useState(selectedTimeIndex);
   // Реактивное состояние активного показателя на главном графике
   const [activeMetricKey, setActiveMetricKey] = useState('aqi');
+
+  // Состояние шага интервала в часах (1-24) и тумблера "Все дни"
+  const [stepHours, setStepHours] = useState(1);
+  const [isAllDays, setIsAllDays] = useState(false);
+
+  // Взаимная блокировка - если шаг больше 12 часов, принудительно включаем "Все дни" и блокируем тумблер
+  const isToggleDisabled = stepHours > 12;
+
+  useEffect(() => {
+    if (stepHours > 12) {
+      setIsAllDays(true);
+    }
+  }, [stepHours]);
+
+  const handleStepHoursChange = (e) => {
+    const nextStep = Math.max(1, Math.min(24, Number(e.target.value) || 1));
+    setStepHours(nextStep);
+    if (nextStep > 12) {
+      setIsAllDays(true);
+    }
+  };
 
   useEffect(() => {
     setLocalActiveIndex(selectedTimeIndex);
@@ -116,20 +143,33 @@ export default function PollutionDynamicsModal({
     const parsed = parseIsoTimeString(t);
     if (parsed && parsed.dateStr === selectedDateStr) {
       const isCurrent = idx === safeIdx;
+      const hIdx = dayData.length;
       if (isCurrent) {
-        activeHourInDay = dayData.length;
+        activeHourInDay = hIdx;
       }
-      dayData.push(buildHourRecord(t, idx, airData.hourly, isCurrent));
+      dayData.push(buildHourRecord(t, idx, airData.hourly, isCurrent, hIdx));
     }
   });
 
   // Если фильтрация не дала результатов, берём первые 24 часа
-  const finalDayData =
+  const baseDayData =
     dayData.length > 0
       ? dayData
       : airData.hourly.time.slice(0, 24).map((t, idx) =>
-          buildHourRecord(t, idx, airData.hourly, idx === safeIdx)
+          buildHourRecord(t, idx, airData.hourly, idx === safeIdx, idx)
         );
+
+  // Выборка данных (либо все 11 суток при isAllDays=true, либо 24 часа выбранного дня) и прореживание точек с шагом stepHours
+  const sourceData = isAllDays
+    ? airData.hourly.time.map((t, idx) =>
+        buildHourRecord(t, idx, airData.hourly, idx === safeIdx, idx % 24)
+      )
+    : baseDayData;
+
+  const finalDayData =
+    stepHours > 1
+      ? sourceData.filter((item, i) => i % stepHours === 0 || item.isCurrent)
+      : sourceData;
 
   const latVal = coords?.lat ?? airData?.latitude;
   const lonVal = coords?.lon ?? airData?.longitude;
@@ -140,7 +180,9 @@ export default function PollutionDynamicsModal({
     const targetRecord = finalDayData[localIdx];
     if (!targetRecord) return;
 
-    const globalIndex = airData.hourly.time.indexOf(targetRecord.time);
+    const globalIndex = targetRecord.globalIndex !== undefined
+      ? targetRecord.globalIndex
+      : airData.hourly.time.indexOf(targetRecord.time);
     
     if (globalIndex !== -1) {
       setLocalActiveIndex(globalIndex);
@@ -175,6 +217,7 @@ export default function PollutionDynamicsModal({
   const aqiStats = getStats(mainMetricValues);
   const decimals = activeMetricKey === 'aqi' ? 0 : 1;
 
+  // В разметку ниже добавлена панель управления .dynamics-modal-controls (выбор шага, тумблер "Все дни" и подсказка)
   return (
     <div
       className="dynamics-modal-overlay"
@@ -210,6 +253,55 @@ export default function PollutionDynamicsModal({
         </div>
 
         <div className="dynamics-modal-scroll-area">
+          <div className="dynamics-modal-controls" data-testid="dynamics-modal-controls">
+            <label className="dynamics-control-item">
+              <span className="dynamics-control-label">Шаг точек:</span>
+              <select
+                className="dynamics-step-select"
+                data-testid="step-hours-select"
+                value={stepHours}
+                onChange={handleStepHoursChange}
+                aria-label="Интервал точек"
+              >
+                {STEP_OPTIONS.map((h) => (
+                  <option key={h} value={h}>
+                    {h} ч
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label
+              className={
+                'dynamics-toggle-switch' +
+                (isToggleDisabled ? ' dynamics-toggle-switch--disabled' : '')
+              }
+            >
+              <input
+                type="checkbox"
+                role="switch"
+                className="dynamics-toggle-input"
+                data-testid="all-days-toggle"
+                checked={isAllDays}
+                disabled={isToggleDisabled}
+                aria-disabled={isToggleDisabled ? 'true' : 'false'}
+                onChange={(e) => {
+                  if (!isToggleDisabled) {
+                    setIsAllDays(e.target.checked);
+                  }
+                }}
+              />
+              <span className="dynamics-toggle-slider" />
+              <span className="dynamics-toggle-text">Все дни</span>
+            </label>
+
+            {isToggleDisabled && (
+              <span className="dynamics-toggle-hint" data-testid="all-days-hint">
+                При шаге более 12 ч отображаются все дни
+              </span>
+            )}
+          </div>
+
           <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
             <div className="dynamics-modal-main-chart__header">
               <h3>{activeMetric.title}</h3>
@@ -246,11 +338,13 @@ export default function PollutionDynamicsModal({
               valueKey={activeMetric.key}
               unit={activeMetric.unit}
               color={activeMetric.color}
-              activeIndex={activeHourInDay}
+              activeIndex={activeHour}
               isColorBlind={isColorBlind}
               colorBlindType={colorBlindType}
               height={220}
               onPointClick={handleChartPointClick}
+              // Передаю режим всех дней в главный график для адаптации меток оси X
+              isAllDays={isAllDays}
             />
           </div>
 
@@ -262,7 +356,7 @@ export default function PollutionDynamicsModal({
               
               const stats = getStats(vals);
 
-              const currentVal = finalDayData[activeHourInDay]?.[p.key];
+              const currentVal = finalDayData[activeHour]?.[p.key];
               const displayCurrent =
                 currentVal !== null && currentVal !== undefined && !Number.isNaN(Number(currentVal))
                   ? Number(currentVal).toFixed(1)
@@ -318,11 +412,13 @@ export default function PollutionDynamicsModal({
                     valueKey={p.key}
                     unit="мкг/м³"
                     color={p.color}
-                    activeIndex={activeHourInDay}
+                    activeIndex={activeHour}
                     isColorBlind={isColorBlind}
                     colorBlindType={colorBlindType}
                     height={90}
                     onPointClick={handleChartPointClick}
+                    // Передаю режим всех дней в главный график для адаптации меток оси X
+                    isAllDays={isAllDays}
                   />
                 </div>
               );

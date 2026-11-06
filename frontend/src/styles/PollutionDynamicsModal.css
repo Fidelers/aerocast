@@ -283,3 +283,93 @@
   background-color: #3b82f6;
   color: #ffffff;
 }
+/* Стили панели управления интервалом и кастомного тумблера "Все дни" с поддержкой тем */
+.dynamics-modal-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 16px 24px 0 24px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background-color: var(--surface-secondary, #f1f5f9);
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.dynamics-control-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h, #08060d);
+}
+
+.dynamics-step-select {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #e5e7eb);
+  background-color: var(--surface-card, #ffffff);
+  color: var(--text-h, #08060d);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dynamics-toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h, #08060d);
+}
+
+.dynamics-toggle-switch--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dynamics-toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dynamics-toggle-slider {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  background-color: var(--border, #cbd5e1);
+  border-radius: 20px;
+  transition: background-color 0.2s ease;
+}
+
+.dynamics-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.dynamics-toggle-input:checked + .dynamics-toggle-slider {
+  background-color: var(--primary, #3b82f6);
+}
+
+.dynamics-toggle-input:checked + .dynamics-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.dynamics-toggle-hint {
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 500;
+}
