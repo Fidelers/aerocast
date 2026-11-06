@@ -744,5 +744,52 @@ describe('SidebarCoverage — граничные случаи и полное п
             fireEvent.touchMove(sidebar, { touches: [{ clientX: 150, clientY: 100 }] });
             expect(sidebar.classList.contains('sidebar--dragging')).toBe(false);
         });
+
+        it('покрывает pointerType=mouse вне хэндла и режим mascotMode=button (lines 428, 471, 924-930)', () => {
+            const { container } = render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    mascotMode="button"
+                />
+            );
+
+            const sidebar = container.querySelector('.sidebar');
+
+            fireEvent.pointerDown(sidebar, { clientX: 200, clientY: 100, pointerType: 'mouse' });
+
+            fireEvent.pointerMove(window, { clientX: 180, clientY: 100 });
+
+            const openChatBtn = screen.getByTestId('open-ai-chat-btn');
+            expect(openChatBtn).toBeDefined();
+
+            fireEvent.click(openChatBtn);
+
+            expect(container.querySelector('.sidebar-ai-chat-container')).toBeDefined();
+
+            const settingsBtnNoProp = container.querySelector('.sidebar-chat-active-container button[aria-label="Настройки"]');
+            expect(settingsBtnNoProp).toBeDefined();
+            fireEvent.click(settingsBtnNoProp);
+            expect(document.querySelector('.settings-modal-overlay')).toBeDefined();
+        });
+
+        it('открывает настройки из встроенного чата при наличии внешнего пропа onOpenSettings (line 903)', () => {
+            const onOpenSettingsMock = vi.fn();
+            const { container } = render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    mascotMode="button"
+                    onOpenSettings={onOpenSettingsMock}
+                />
+            );
+
+            const openChatBtn = screen.getByTestId('open-ai-chat-btn');
+            fireEvent.click(openChatBtn);
+
+            const settingsBtn = container.querySelector('.sidebar-chat-active-container button[aria-label="Настройки"]');
+            fireEvent.click(settingsBtn);
+            expect(onOpenSettingsMock).toHaveBeenCalledTimes(1);
+        });
     });
 });

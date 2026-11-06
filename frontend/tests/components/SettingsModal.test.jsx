@@ -383,4 +383,18 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(COLORBLIND_TYPES).toHaveLength(4);
         expect(COLORBLIND_TYPES.map(t => t.id)).toEqual(['okabe', 'deuteranopia', 'protanopia', 'tritanopia']);
     });
+
+    it('25. В автономном режиме переключение режима маскота сохраняется в localStorage', () => {
+        localStorage.clear();
+        render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+
+        const mascotRadio = screen.getByTestId('settings-mascot-mode-mascot');
+        const buttonRadio = screen.getByTestId('settings-mascot-mode-button');
+
+        fireEvent.click(buttonRadio);
+        expect(localStorage.getItem('aerocast_mascot_mode')).toBe('button');
+
+        fireEvent.click(mascotRadio);
+        expect(localStorage.getItem('aerocast_mascot_mode')).toBe('mascot');
+    });
 });

@@ -373,6 +373,20 @@ describe('Controller: gridAirController', () => {
                 source: 'offline_database_miss'
             }));
         });
+
+        it('при сбое Open-Meteo, если устаревший кэш найден, но не содержит точек, считает промахом и возвращает 500', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
+            batchAirService.fetchBatchAirQuality.mockRejectedValue(new Error('Open-Meteo 503'));
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce({ type: 'micro', points: [] });
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                source: 'offline_database_miss'
+            }));
+        });
     });
 
     describe('5. Отдельные методы контроллера', () => {

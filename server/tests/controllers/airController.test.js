@@ -569,6 +569,48 @@ describe('Controller: airController.getAirQuality', () => {
             expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/', { timeout: 3500 });
         });
 
+        it('распознает различные диапазоны приватных IP (172.16-31, fc00, ::1)', async () => {
+            req = { ip: '172.20.1.1' };
+            axios.get.mockResolvedValueOnce({
+                data: { success: true, latitude: 3.3, longitude: 4.4, city: 'Локальный' }
+            });
+            await airController.locateByIp(req, res);
+            expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/', { timeout: 3500 });
+
+            req = { ip: 'fc00::1' };
+            axios.get.mockResolvedValueOnce({
+                data: { success: true, latitude: 3.3, longitude: 4.4, city: 'Локальный' }
+            });
+            await airController.locateByIp(req, res);
+            expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/', { timeout: 3500 });
+
+            req = { ip: '::1' };
+            axios.get.mockResolvedValueOnce({
+                data: { success: true, latitude: 3.3, longitude: 4.4, city: 'Локальный' }
+            });
+            await airController.locateByIp(req, res);
+            expect(axios.get).toHaveBeenCalledWith('https://ipwho.is/', { timeout: 3500 });
+        });
+
+        it('вызывает резервный сервис ipapi.co с публичным IP, если ipwho.is вернул ошибку', async () => {
+            req = { headers: { 'x-forwarded-for': '8.8.4.4' } };
+            axios.get
+                .mockRejectedValueOnce(new Error('ipwho offline'))
+                .mockResolvedValueOnce({
+                    data: { latitude: 55.0, longitude: 82.0, city: 'Новосибирск' }
+                });
+
+            await airController.locateByIp(req, res);
+
+            expect(axios.get).toHaveBeenNthCalledWith(1, 'https://ipwho.is/8.8.4.4', { timeout: 3500 });
+            expect(axios.get).toHaveBeenNthCalledWith(2, 'https://ipapi.co/8.8.4.4/json/', { timeout: 3500 });
+            expect(res.json).toHaveBeenCalledWith({
+                latitude: 55.0,
+                longitude: 82.0,
+                city: 'Новосибирск'
+            });
+        });
+
         it('помечает статический fallback заголовком X-Geo-Fallback', async () => {
             res.set = jest.fn();
             axios.get.mockRejectedValue(new Error('both services down'));

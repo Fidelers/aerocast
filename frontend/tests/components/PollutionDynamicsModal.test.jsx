@@ -403,4 +403,93 @@ describe('PollutionDynamicsModal component (поверхностное окно 
         // Компонент штатно открывается, используя первый доступный час по умолчанию
         expect(screen.getByRole('dialog')).toBeTruthy();
     });
+
+    it('18. Переключает активный показатель на карточку загрязнителя и возвращается к AQI', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={30}
+            />
+        );
+
+        const pm25Card = screen.getByTestId('pollutant-card-pm2_5');
+        fireEvent.click(pm25Card);
+
+        const resetBtn = screen.getByTestId('reset-to-aqi-btn');
+        expect(resetBtn).toBeTruthy();
+
+        fireEvent.click(resetBtn);
+        expect(screen.queryByTestId('reset-to-aqi-btn')).toBeNull();
+    });
+
+    it('19. Обрабатывает клавиши Enter и Space на карточках загрязнителей', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={30}
+            />
+        );
+
+        const pm10Card = screen.getByTestId('pollutant-card-pm10');
+        fireEvent.keyDown(pm10Card, { key: 'Enter' });
+        expect(screen.getByTestId('reset-to-aqi-btn')).toBeTruthy();
+
+        const no2Card = screen.getByTestId('pollutant-card-nitrogen_dioxide');
+        fireEvent.keyDown(no2Card, { key: ' ' });
+        expect(screen.getByTestId('reset-to-aqi-btn')).toBeTruthy();
+    });
+
+    it('20. Вызывает onSelectTime при клике по интерактивной точке на графике', () => {
+        const handleSelectTime = vi.fn();
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={30}
+                onSelectTime={handleSelectTime}
+            />
+        );
+
+        const interactivePoints = container.querySelectorAll('.dynamics-modal-main-chart rect[role="button"]');
+        expect(interactivePoints.length).toBeGreaterThan(0);
+
+        fireEvent.click(interactivePoints[5]);
+        expect(handleSelectTime).toHaveBeenCalled();
+    });
+
+    it('21. Покрывает запасной вариант первых 24 часов и некорректный формат даты (lines 36, 131)', () => {
+        const weirdAirData = {
+            latitude: 55.75,
+            longitude: 37.62,
+            hourly: {
+                time: ['invalid-date-format', 'invalid-date-2'],
+                european_aqi: [10, 20],
+                pm2_5: [5, 10]
+            }
+        };
+
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={weirdAirData}
+                selectedTimeIndex={0}
+            />
+        );
+        expect(screen.getByText(/invalid-date-format/i)).toBeDefined();
+
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={weirdAirData}
+                selectedTimeIndex={999}
+            />
+        );
+    });
 });

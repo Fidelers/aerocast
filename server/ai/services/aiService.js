@@ -1182,7 +1182,7 @@ async function sendChatMessage({
             }
         }
 
-        const IS_INFO_Q = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем)\b)/i;
+        const IS_INFO_Q = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем)(?:[\s,!?]|$|\b))/i;
         if (IS_INFO_Q.test(cleanUserMessage) && emotion === 'alert') {
             emotion = 'think';
         }

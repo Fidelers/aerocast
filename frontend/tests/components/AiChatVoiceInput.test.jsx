@@ -368,4 +368,153 @@ describe('AiChatModal Voice Input (Голосовой ввод)', () => {
       );
     });
   });
+
+  it('обрабатывает события onsoundstart, onspeechstart и onerror(not-allowed)', async () => {
+    window.SpeechRecognition = MockSpeechRecognition;
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+
+    expect(mockRecognitionInstance).not.toBeNull();
+
+    mockRecognitionInstance.onsoundstart?.();
+
+    mockRecognitionInstance.onspeechstart?.();
+
+    mockRecognitionInstance.onerror?.({ error: 'not-allowed' });
+
+    await waitFor(() => {
+      expect(screen.getByText(/доступ к микрофону заблокирован/i)).toBeDefined();
+    });
+  });
+
+  it('отменяет голосовую запись и останавливает треки медиапотока при нажатии Escape', async () => {
+    window.SpeechRecognition = MockSpeechRecognition;
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(mockRecognitionInstance.abort).toHaveBeenCalled();
+  });
+
+  it('выводит предупреждение и останавливает треки если браузер не поддерживает распознавание речи и MediaRecorder', async () => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+    delete window.MediaRecorder;
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/разрешение на микрофон получено, однако ваш браузер не поддерживает/i)).toBeDefined();
+    });
+    expect(mockStream.getTracks()[0].stop).toHaveBeenCalled();
+  });
+
+  it('отменяет запись при вводе текста в input (line 1586) или при отправке формы (lines 966-986)', async () => {
+    window.SpeechRecognition = MockSpeechRecognition;
+    const { container } = render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+    await waitFor(() => expect(mockRecognitionInstance).not.toBeNull());
+
+    const input = container.querySelector('.ai-chat-input');
+    fireEvent.change(input, { target: { value: 'привет' } });
+    expect(mockRecognitionInstance.abort).toHaveBeenCalled();
+
+    mockRecognitionInstance = null;
+    await userEvent.click(micBtn);
+    await waitFor(() => expect(mockRecognitionInstance).not.toBeNull());
+
+    const form = input.closest('form');
+    fireEvent.submit(form);
+    expect(mockRecognitionInstance.abort).toHaveBeenCalled();
+  });
+
+  it('отменяет запись при закрытии модального окна (line 1416)', async () => {
+    window.SpeechRecognition = MockSpeechRecognition;
+    const { rerender } = render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+    await waitFor(() => expect(mockRecognitionInstance).not.toBeNull());
+
+    mockRecognitionInstance.onstart();
+
+    rerender(<AiChatModal isOpen={false} onClose={vi.fn()} />);
+    expect(mockRecognitionInstance.abort).toHaveBeenCalled();
+  });
+
+  it('обрабатывает ошибку при сбое запуска MediaRecorder (lines 1390-1395)', async () => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+
+    const startSpy = vi.fn().mockImplementation(() => {
+      throw new Error('Failed to start recorder');
+    });
+
+    class MockMediaRecorderFail {
+      constructor() {
+        this.start = startSpy;
+        this.stop = vi.fn();
+        this.state = 'inactive';
+        this.ondataavailable = null;
+        this.onstop = null;
+        this.mimeType = 'audio/webm';
+      }
+    }
+    MockMediaRecorderFail.isTypeSupported = vi.fn().mockReturnValue(true);
+    window.MediaRecorder = MockMediaRecorderFail;
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+
+    expect(startSpy).toHaveBeenCalled();
+    expect(mockStream.getTracks()[0].stop).toHaveBeenCalled();
+  });
+
+  it('игнорирует аудиотреки при отмене записи MediaRecorder (lines 1373-1375)', async () => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+
+    let recorderInstance = null;
+    class MockMediaRecorderCancel {
+      constructor() {
+        this.state = 'inactive';
+        this.ondataavailable = null;
+        this.onstart = null;
+        this.onstop = null;
+        this.mimeType = 'audio/webm';
+        this.start = vi.fn().mockImplementation(() => {
+          this.state = 'recording';
+          if (this.onstart) this.onstart();
+        });
+        this.stop = vi.fn().mockImplementation(() => {
+          this.state = 'inactive';
+          if (this.onstop) this.onstop();
+        });
+        recorderInstance = this;
+      }
+    }
+    MockMediaRecorderCancel.isTypeSupported = vi.fn().mockReturnValue(true);
+    window.MediaRecorder = MockMediaRecorderCancel;
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+    const micBtn = screen.getByTestId('ai-chat-mic-btn');
+    await userEvent.click(micBtn);
+
+    expect(recorderInstance.start).toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(recorderInstance.stop).toHaveBeenCalled();
+  });
 });

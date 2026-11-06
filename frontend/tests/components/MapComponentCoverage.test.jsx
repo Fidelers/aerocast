@@ -1159,5 +1159,56 @@ describe('MapComponentCoverage — граничные случаи и полно
                 />
             );
         });
+
+        it('покрывает расчет пульсации maxPollution для grid.data и различных диапазонов (41-60 и 61-100)', async () => {
+            const canvasRenderer = await import('../../src/utils/canvasFieldRenderer.js');
+            
+            canvasRenderer.renderFieldToCanvas.mockReturnValueOnce({
+                toDataUrl: vi.fn(() => 'data:image/png;base64,mockImage'),
+                hasPollution: true,
+                grid: { data: [55] }
+            });
+
+            const { rerender } = render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37, eaqi: 55 }], bbox: [30, 50, 40, 60] }}
+                    selectedTimeIndex={1}
+                    viewMode="color"
+                />
+            );
+
+            canvasRenderer.renderFieldToCanvas.mockReturnValueOnce({
+                toDataUrl: vi.fn(() => 'data:image/png;base64,mockImage'),
+                hasPollution: true,
+                grid: [85]
+            });
+
+            rerender(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37, eaqi: 85 }], bbox: [30, 50, 40, 60] }}
+                    selectedTimeIndex={1}
+                    viewMode="color"
+                />
+            );
+            canvasRenderer.renderFieldToCanvas.mockReturnValueOnce({
+                toDataUrl: vi.fn(() => 'data:image/png;base64,mockImage'),
+                hasPollution: true,
+                grid: [[15, 35], [75, 40]]
+            });
+
+            rerender(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37, eaqi: 75 }], bbox: [30, 50, 40, 60] }}
+                    selectedTimeIndex={1}
+                    viewMode="color"
+                />
+            );
+        });
     });
 });

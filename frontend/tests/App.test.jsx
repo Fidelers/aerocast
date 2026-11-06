@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
 import App from '../src/App';
 import { findDefaultTimeIndex } from '../src/utils/timeUtils';
 
@@ -114,7 +114,11 @@ vi.mock('../src/components/MapComponent', () => {
                 React.createElement('button', {
                     'data-testid': 'map-btn-marker-click',
                     onClick: () => props.onMarkerClick && props.onMarkerClick()
-                }, 'Click Marker')
+                }, 'Click Marker'),
+                React.createElement('button', {
+                    'data-testid': 'map-btn-warning',
+                    onClick: () => props.onMapClick && props.onMapClick(0, 0)
+                }, 'Show Warning')
             );
         }
     };
@@ -935,6 +939,25 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             } finally {
                 window.matchMedia = origMatchMedia;
                 localStorage.removeItem('aerocast_colorblind');
+            }
+        });
+
+        it('обрабатывает события visibilitychange, focus и таймеры скрытия предупреждения покрытия', () => {
+            vi.useFakeTimers();
+            try {
+                render(React.createElement(App));
+
+                document.dispatchEvent(new Event('visibilitychange'));
+
+                window.dispatchEvent(new Event('focus'));
+
+                const warnBtn = screen.getByTestId('map-btn-warning');
+                fireEvent.click(warnBtn);
+
+                act(() => { vi.advanceTimersByTime(5100); });
+                act(() => { vi.advanceTimersByTime(400); });
+            } finally {
+                vi.useRealTimers();
             }
         });
     });

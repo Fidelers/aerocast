@@ -530,5 +530,10 @@ describe('Service: spatialCacheService (Пространственное кэш�
             expect(result).toBeNull();
         });
     });
-});
-
+        it('возвращает memDeleted при ошибке db.run в clearSpatialCache', async () => {
+            spatialCacheService.setSpatialCache('grid_micro_test_1', { data: 1 }, 100);
+            mockDb.run.mockRejectedValueOnce(new Error('DB run error'));
+            const deleted = await spatialCacheService.clearSpatialCache('micro');
+            expect(deleted).toBe(0);
+        });
+    });
