@@ -30,6 +30,21 @@ function buildBezierPath(points) {
   return d;
 }
 
+// Адаптация меток оси X для режима "Все дни" ("ДД.ММ" и часы)
+function formatAxisLabel(item, prevItem, isAllDays) {
+  if (!item || typeof item !== 'object') return '';
+  const hourStr = item.hourLabel || (item.time ? item.time.split('T')[1]?.slice(0, 5) : '') || '00:00';
+  if (!isAllDays) return hourStr;
+
+  const datePart = item.time ? item.time.split('T')[0] : '';
+  const prevDatePart = prevItem && prevItem.time ? prevItem.time.split('T')[0] : '';
+  if (datePart && datePart !== prevDatePart) {
+    const [, m, d] = datePart.split('-');
+    if (d && m) return `${d}.${m}`;
+  }
+  return hourStr;
+}
+
 export default function DynamicsChart({
   mode = 'pollutant',
   data = [],
@@ -41,6 +56,7 @@ export default function DynamicsChart({
   colorBlindType = 'okabe',
   height,
   onPointClick,
+  isAllDays = false,
 }) {
   const chartHeight = height || (mode === 'aqi' ? 220 : 90);
   const width = mode === 'aqi' ? 720 : 320;
@@ -111,6 +127,10 @@ export default function DynamicsChart({
     }
   };
 
+  // Шаг отображения меток оси X, чтобы не накладывались друг на друга
+  const useStandard24Labels = !isAllDays && data.length === 24;
+  const labelStep = Math.max(1, Math.ceil(data.length / 8));
+
   return (
     <div className={`dynamics-chart dynamics-chart--${mode}`} data-colorblind={isColorBlind ? 'true' : 'false'}>
       <svg viewBox={`0 0 ${width} ${chartHeight}`} width="100%" height={chartHeight} role="img" aria-label={`График ${valueKey}`}>
@@ -136,7 +156,7 @@ export default function DynamicsChart({
         {linePath && <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={mode === 'aqi' ? '2.5' : '2'} />}
 
         {activePoint && activePoint.val !== null && (
-          <g className="chart-active-marker" data-active-hour={safeActiveIdx} aria-current="time">
+          <g className="chart-active-marker" data-active-hour={data[safeActiveIdx]?.hourIndex ?? safeActiveIdx} aria-current="time">
             <line x1={activePoint.x} y1={0} x2={activePoint.x} y2={chartHeight} stroke={strokeColor} strokeDasharray="3 3" strokeWidth="1" />
             <circle cx={activePoint.x} cy={activePoint.y} r={mode === 'aqi' ? 5 : 4} fill={strokeColor} stroke="#ffffff" strokeWidth="2" />
             <text x={activePoint.x} y={Math.max(12, activePoint.y - 8)} textAnchor="middle" fontSize="11" fontWeight="bold" fill={strokeColor}>
@@ -145,14 +165,25 @@ export default function DynamicsChart({
           </g>
         )}
 
-        {TIME_INDICES.map((hourIdx, idx) => {
-          if (hourIdx >= count) return null;
-          return (
-            <text key={hourIdx} x={hourIdx * stepX} y={chartHeight - 2} textAnchor="middle" fontSize="10" fill="#6b7280">
-              {TIME_LABELS[idx]}
-            </text>
-          );
-        })}
+        {useStandard24Labels
+          ? TIME_INDICES.map((hourIdx, idx) => {
+              if (hourIdx >= count) return null;
+              return (
+                <text key={hourIdx} x={hourIdx * stepX} y={chartHeight - 2} textAnchor="middle" fontSize="10" fill="#6b7280">
+                  {TIME_LABELS[idx]}
+                </text>
+              );
+            })
+          : data.map((item, idx) => {
+              if (idx % labelStep !== 0 && idx !== data.length - 1) return null;
+              const prevItem = idx > 0 ? data[idx - labelStep] || data[idx - 1] : null;
+              const labelText = formatAxisLabel(item, prevItem, isAllDays);
+              return (
+                <text key={idx} x={idx * stepX} y={chartHeight - 2} textAnchor="middle" fontSize="10" fill="#6b7280">
+                  {labelText}
+                </text>
+              );
+            })}
 
         {/* Интерактивный слой */}
         {onPointClick && points.map((point, idx) => {
