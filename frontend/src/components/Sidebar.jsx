@@ -868,9 +868,13 @@ function Sidebar({
           ) : (
             currentDay.hours.map((hourItem) => {
               const isHourActive = hourItem.index === activeTimeIndex;
+
+              const isNow = closestCurrentTimeIndex !== null && hourItem.index === closestCurrentTimeIndex;
+
               const timeClasses = [
                 'time',
-                isHourActive ? 'time--active' : ''
+                isHourActive ? 'time--active' : '',
+                isNow ? 'time--now' : ''
               ].filter(Boolean).join(' ');
 
               return (
@@ -879,6 +883,8 @@ function Sidebar({
                   className={timeClasses}
                   type="button"
                   onClick={() => handleHourClick(hourItem.index)}
+                  title={isNow ? 'Ближайшее текущее время' : undefined}
+                  data-is-now={isNow ? 'true' : undefined}
                 >
                   {hourItem.timeLabel}
                 </button>
