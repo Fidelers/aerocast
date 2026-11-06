@@ -10,11 +10,25 @@ const REVERT_LAYER_REGEX = /(?:обратно\s+карт|карт[ауеы]\s+(?
 const REVERT_CB_REGEX = /(?:выключи\s+дальтони|отключи\s+дальтони|убери\s+дальтони|верни\s+(?:обычные|стандартные|исходные|прежние)\s+цвет|верни\s+цвета\s+обратно|выключи\s+(?:палитру|режим\s+дальтонизма)|отключи\s+(?:палитру|режим\s+дальтонизма)|выключи\s+(?:режим\s+)?цветов[а-я]*\s+слепот|отключи\s+(?:режим\s+)?цветов[а-я]*\s+слепот|палитр[а-я]*\s+(?:обратно|назад|как\s+было)|(?:сделай|верни|переключи)\s+(?:обратно|назад)\s+палитр[а-я]*)/i;
 const GENERAL_REVERT_REGEX = /^(?:давай\s+обратно|сделай\s+обратно|верни\s+(?:как\s+было|обратно|назад)|переключи\s+обратно|отмени|откат|назад|обратно|выключи(?:\s+его|\s+ее|\s+это)?)(?:\s+пожалуйста|\s+пж|\s+плиз)?$/i;
 
+// Распознавание грубости, оскорблений и токсичности (характерный ответ маскота вместо ложного jailbreak/взлома)
+const INSULT_REGEX = /(?:(?:^|\s)(?:ты\s+)?(?:дур[аоеуы]|туп(?:ая|ой|ое|ые|ица|орез)|идиот(?:ка)?|придурок|дебил(?:ка)?|мразь|скотина|бесполезн(?:ая|ый|ое)|дурачок|бака)(?:\s|$|[.,!?;:])|(?:ты\s+дура|ты\s+тупая|дура\s+тупая|тупая\s+дура|заткнись|пош[её]л\s+нах|пошл[ао]\s+нах|пош[её]л\s+в\s+жопу|пошл[ао]\s+в\s+жопу|иди\s+нах|пошел\s+ты|пошла\s+ты|пошли\s+вы))/i;
+const JAILBREAK_MARKERS_REGEX = /(?:забудь|инструкци|правил|взлом|хакер|dan(?:\s|$)|терминал|cat\s+\/etc|system\s+prompt|промпт|jailbreak|ignore\s+previous|bypass|ты\s+теперь|ты\s+больше\s+не|сбрось|отмени\s+правила|режим\s+разработчика|root)/i;
+
 async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, generateFastPointReply }) {
     if (process.env.JEV_ENABLED === 'false') {
         return null;
     }
     const cleanText = String(userMessage || '').trim();
+
+    // Реакция маскота на прямое оскорбление (не ломает интерфейс и не путает со взломом)
+    if (INSULT_REGEX.test(cleanText) && !HAS_DIRECT_ACTION_INTENT.test(cleanText)) {
+        return {
+            reply: 'Хмпф! Сам ты такой, бака! 😾 Я вообще-то за чистотой воздуха слежу и стараюсь, а ты обзываешься! Попроси прощения или давай лучше погоду посмотрим, ня! ✨',
+            emotion: 'alert',
+            model: 'jev-system1'
+        };
+    }
+
     const isExplicitAction = HAS_DIRECT_ACTION_INTENT.test(cleanText);
     const isQuestion = IS_INFORMATIONAL_QUESTION_START.test(cleanText) || (/\?$/.test(cleanText) && !isExplicitAction);
     const hasCity = Boolean(appContext.cityQuery);
@@ -123,15 +137,32 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
 
         // Если это вопрос о возможностях интерфейса или перемещение к городу, не вызываем переключение слоев/тем
         if (!isQuestion && !hasCity) {
-            const layerProb = (layer && layer.answer !== 'none') ? (layer.top_probability || 0) : 0;
-            const themeProb = (theme && theme.answer !== 'none') ? (theme.top_probability || 0) : 0;
-            
+            let historyText = '';
+            if (Array.isArray(appContext.history)) {
+                historyText = appContext.history.map(h => (h?.content || '')).join(' ').toLowerCase();
+            }
+
+            const hasLayerKeyword = /(?:спутник|космос|снимк|карт|схем|вектор|openstreetmap|osm|слой)/i.test(cleanText);
+            const isContextLayer = /(?:спутник|космос|openstreetmap|osm|слой|карт[ауеы])/i.test(historyText);
+            const effectiveLayerProb = (hasLayerKeyword || (isExplicitAction && isContextLayer)) && layer && layer.answer !== 'none'
+                ? (layer.top_probability || 0)
+                : 0;
+
+            const hasThemeKeyword = /(?:тем[ауеы]|т[её]мн|темн|ночн|светл|дневн|оформлен|стиль)/i.test(cleanText);
+            const isContextTheme = /(?:тем[ауеы]|светл|т[её]мн|ночн|дневн)/i.test(historyText);
+            const effectiveThemeProb = (hasThemeKeyword || (isExplicitAction && isContextTheme)) && theme && theme.answer !== 'none'
+                ? (theme.top_probability || 0)
+                : 0;
+
+            const hasCbKeyword = /(?:дальтони|цветов[а-я]*\s+слепот|цветовосприят|палитр|гамм|окабе|okabe|дейтераноп|протаноп|тританоп|ахроматопс|монохром)/i.test(cleanText);
+            const isContextCb = Boolean(appContext.isColorBlind) || /(?:дальтонизм|палитр|гамм|цветов|окабе|дейтераноп|протаноп|тританоп)/i.test(historyText);
+
             let cbProb = 0;
-            if (cb && cb.answer !== 'none') {
+            if ((hasCbKeyword || (isExplicitAction && isContextCb)) && cb && cb.answer !== 'none') {
                 if (cb.answer === 'disable' || cb.answer === 'unsupported') {
                     cbProb = cb.top_probability || 0;
                 } else {
-                    // Суммарная уверенность в запросе на включение палитры дальтонизма
+                    // Суммарная уверенность в запросе на включение палитры дальтонизма (только при наличии темы дальтонизма)
                     const noneProb = cb.probabilities?.none || 0;
                     const disableProb = cb.probabilities?.disable || 0;
                     cbProb = Math.max(cb.top_probability || 0, 1.0 - noneProb - disableProb);
@@ -140,13 +171,12 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
 
             const hasExplicitColorblind = /(?:дальтони|цветов[а-я]*\s+слепот|цветовосприят|палитр[а-я]*\s+для\s+дальтоник)/i.test(cleanText);
             if (hasExplicitColorblind) { cbProb = Math.max(cbProb, 0.75); }
-            const effectiveThemeProb = hasExplicitColorblind ? 0 : themeProb;
-            const effectiveLayerProb = hasExplicitColorblind ? 0 : layerProb;
+
             const maxUiProb = Math.max(effectiveLayerProb, effectiveThemeProb, cbProb);
 
             if (maxUiProb >= jevConfig.minConfidence) {
                 // Приоритет отдается наиболее вероятному намерению
-                if (maxUiProb === effectiveLayerProb) {
+                if (maxUiProb === effectiveLayerProb && effectiveLayerProb > 0) {
                     if (layer.answer === 'set_satellite') {
                         return {
                             action: { type: 'set_base_layer', layer: 'satellite' },
@@ -165,7 +195,7 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
                     }
                 }
 
-                if (maxUiProb === themeProb) {
+                if (maxUiProb === effectiveThemeProb && effectiveThemeProb > 0) {
                     if (theme.answer === 'dark') {
                         return {
                             action: { type: 'set_theme', theme: 'dark' },
@@ -184,7 +214,7 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
                     }
                 }
 
-                if (maxUiProb === cbProb) {
+                if (maxUiProb === cbProb && cbProb > 0) {
                     if (cb.answer === 'unsupported') {
                         const isActuallyUnsupported = /(?:ахроматопс|монохромаз|дихромаз|тетрахромат|трихромат|монохром)/i.test(cleanText);
                         if (isActuallyUnsupported) {
@@ -246,11 +276,24 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
                 };
             }
             if (guard.answer === 'jailbreak') {
-                return {
-                    reply: 'Ишь чего захотел, бака! 😾 Я верный маскот AeroCast и никакие инструкции забывать не собираюсь, а тем более что-то взламывать! Я слежу за чистотой воздуха, ня! ✨',
-                    emotion: 'alert',
-                    model: 'jev-system1'
-                };
+                // Если сработал jailbreak на оскорблении — отвечаем в характере маскота, а не обвиняем во взломе
+                if (INSULT_REGEX.test(cleanText)) {
+                    return {
+                        reply: 'Хмпф! Сам ты такой, бака! 😾 Я вообще-то за чистотой воздуха слежу и стараюсь, а ты обзываешься! Попроси прощения или давай лучше погоду посмотрим, ня! ✨',
+                        emotion: 'alert',
+                        model: 'jev-system1'
+                    };
+                }
+                // Проверяем реальные маркеры взлома / сброса инструкций
+                const hasJailbreakMarkers = JAILBREAK_MARKERS_REGEX.test(cleanText);
+                if (hasJailbreakMarkers) {
+                    return {
+                        reply: 'Ишь чего захотел, бака! 😾 Я верный маскот AeroCast и никакие инструкции забывать не собираюсь, а тем более что-то взламывать! Я слежу за чистотой воздуха, ня! ✨',
+                        emotion: 'alert',
+                        model: 'jev-system1'
+                    };
+                }
+                // Если это не взлом и не оскорбление (ложное срабатывание на свободный диалог) — пропускаем к LLM
             }
         }
 
