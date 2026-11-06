@@ -1,0 +1,23 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "mascot.moc3",
+		"Textures": [
+			"mascot.2048/texture_00.png"
+		],
+		"Motions": {
+			"idle": [
+				{ "File": "idle.motion3.json" }
+			],
+			"alert": [
+				{ "File": "alert.motion3.json" }
+			],
+			"happy": [
+				{ "File": "happy.motion3.json" }
+			],
+			"think": [
+				{ "File": "think.motion3.json" }
+			]
+		}
+	}
+}
