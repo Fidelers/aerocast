@@ -140,8 +140,7 @@ describe('DynamicsChartCoverage', () => {
       bottom: 220,
     });
 
-    // 1. Выделение с движением
-    fireEvent.mouseDown(svg, { button: 0, clientX: 50 });
+        fireEvent.mouseDown(svg, { button: 0, clientX: 50 });
     fireEvent.mouseMove(window, { clientX: 300 });
     expect(container.querySelector('.chart-selection-box')).toBeTruthy();
     fireEvent.mouseUp(window, { clientX: 300 });

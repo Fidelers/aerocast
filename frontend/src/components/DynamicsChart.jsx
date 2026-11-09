@@ -31,7 +31,6 @@ function buildBezierPath(points) {
   return d;
 }
 
-// Форматирование даты и времени для всплывающей подсказки выбора диапазона
 function formatPointTooltip(item) {
   if (!item || typeof item !== 'object') return '';
   const timeStr = item.time || '';
@@ -57,18 +56,18 @@ export default function DynamicsChart({
   isAllDays = false,
   enableRangeSelection = false,
   onRangeSelect = null,
+  isMain = false,
 }) {
-  const chartHeight = height || (mode === 'aqi' ? 220 : 90);
-  const width = mode === 'aqi' ? 720 : 320;
+  const isMainChart = isMain || (height && height >= 180) || mode === 'aqi';
+  const chartHeight = height || (isMainChart ? 220 : 90);
+  const width = isMainChart ? 720 : 320;
   const svgRef = useRef(null);
 
-  // Состояние перетаскивания для выбора диапазона (как на торговой площадке Steam)
   const [dragState, setDragState] = useState(null);
   const isMouseDownRef = useRef(false);
   const dragStartRef = useRef(null);
   const didDragRef = useRef(false);
 
-  // Извлечение числовых значений
   const rawValues = data.map((item) => {
     if (typeof item === 'number') return item;
     if (!item || typeof item !== 'object') return null;
@@ -81,7 +80,6 @@ export default function DynamicsChart({
   let minVal = validValues.length > 0 ? Math.min(...validValues) : 0;
   let maxVal = validValues.length > 0 ? Math.max(...validValues) : 100;
 
-  // Верхняя граница шкалы EAQI не менее 100 для сохранения пропорций
   if (mode === 'aqi') {
     minVal = Math.min(0, minVal);
     maxVal = Math.max(100, maxVal);
@@ -89,11 +87,10 @@ export default function DynamicsChart({
     maxVal = minVal + 10;
   }
 
-  // Грамотные отступы для исключения обрезки меток оси X и маркеров графика
-  const padLeft = mode === 'aqi' ? 26 : 10;
-  const padRight = mode === 'aqi' ? 22 : 10;
-  const padTop = mode === 'aqi' ? 18 : 8;
-  const padBottom = mode === 'aqi' ? 22 : 14;
+  const padLeft = isMainChart ? 26 : 10;
+  const padRight = isMainChart ? 22 : 10;
+  const padTop = isMainChart ? 18 : 8;
+  const padBottom = isMainChart ? 22 : 14;
 
   const usableWidth = width - padLeft - padRight;
   const usableHeight = chartHeight - padTop - padBottom;
@@ -130,11 +127,10 @@ export default function DynamicsChart({
       ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${areaBottom} L ${points[0].x.toFixed(2)} ${areaBottom} Z`
       : '';
 
-  const gradientId = `chart-grad-${mode}-${valueKey}-${Math.round(chartHeight)}`;
+  const gradientId = `chart-grad-${mode}-${valueKey}-${Math.round(chartHeight)}-${width}`;
   const safeActiveIdx = activeIndex >= 0 && activeIndex < points.length ? activeIndex : 0;
   const activePoint = points[safeActiveIdx] || null;
 
-  // Преобразование координаты clientX мыши в индекс элемента данных и X на SVG
   const getCoordinatesFromClientX = useCallback((clientX) => {
     if (!svgRef.current) return { svgX: padLeft, idx: 0 };
     const rect = svgRef.current.getBoundingClientRect();
@@ -147,7 +143,6 @@ export default function DynamicsChart({
     return { svgX, idx };
   }, [width, stepX, padLeft, data.length]);
 
-  // Обработка начала выделения мышью (Steam Community Market style)
   const handleMouseDown = (e) => {
     if (e.button !== 0 || !enableRangeSelection || data.length < 2) return;
     const { svgX, idx } = getCoordinatesFromClientX(e.clientX);
@@ -163,7 +158,6 @@ export default function DynamicsChart({
     });
   };
 
-  // Глобальные обработчики перетаскивания курсора
   useEffect(() => {
     if (!enableRangeSelection) return;
 
@@ -198,7 +192,6 @@ export default function DynamicsChart({
         const fromIdx = Math.min(startIdx, idx);
         const toIdx = Math.max(startIdx, idx);
         onRangeSelect?.(fromIdx, toIdx);
-        // Небольшой таймаут для сброса didDragRef, чтобы не сработал onClick на элементе
         setTimeout(() => {
           didDragRef.current = false;
         }, 80);
@@ -215,7 +208,6 @@ export default function DynamicsChart({
     };
   }, [enableRangeSelection, getCoordinatesFromClientX, onRangeSelect]);
 
-  // Обработчик взаимодействия с точкой (клик мышью или Enter/Space)
   const handleInteraction = (idx) => {
     if (didDragRef.current) return;
     if (onPointClick && idx >= 0 && idx < data.length) {
@@ -223,14 +215,12 @@ export default function DynamicsChart({
     }
   };
 
-  // Определение многодневного режима: если установлен флаг isAllDays или данные охватывают разные даты
   const isMultiDay = isAllDays || (data.length > 0 && (() => {
     const firstDate = data[0]?.time ? data[0].time.split('T')[0] : null;
     const lastDate = data[data.length - 1]?.time ? data[data.length - 1].time.split('T')[0] : null;
     return Boolean(firstDate && lastDate && firstDate !== lastDate);
   })());
 
-  // Сбор всех уникальных суток с точной привязкой к началу дня
   const dayTicks = [];
   let currentDayStr = null;
   data.forEach((item, idx) => {
@@ -250,12 +240,9 @@ export default function DynamicsChart({
     }
   });
 
-  // Рендеринг меток оси X
   const renderAxisLabels = () => {
-    // 1. Многодневный режим: вывод всех дней без пропусков и дублирования
     if (isMultiDay && dayTicks.length > 1) {
       let visibleDays = dayTicks;
-      // В малых графиках (width < 500) прореживаем при более чем 6 днях
       if (width < 500 && dayTicks.length > 6) {
         const step = Math.ceil(dayTicks.length / 5);
         visibleDays = dayTicks.filter((_, i) => i % step === 0 || i === dayTicks.length - 1);
@@ -306,7 +293,6 @@ export default function DynamicsChart({
       );
     }
 
-    // 2. Стандартный суточный режим (24 часа)
     if (!isAllDays && data.length === 24) {
       return (
         <g className="chart-axis-labels">
@@ -330,7 +316,6 @@ export default function DynamicsChart({
       );
     }
 
-    // 3. Произвольный почасовой или масштабированный интервал
     const labelStep = Math.max(1, Math.ceil(data.length / 8));
     return (
       <g className="chart-axis-labels">
@@ -365,7 +350,6 @@ export default function DynamicsChart({
     );
   };
 
-  // Параметры прямоугольника выделения при drag-to-select
   const selectionBox = dragState && dragState.isDragging ? {
     left: Math.max(padLeft, Math.min(dragState.startX, dragState.currentX)),
     right: Math.min(width - padRight, Math.max(dragState.startX, dragState.currentX)),
@@ -396,7 +380,6 @@ export default function DynamicsChart({
           </linearGradient>
         </defs>
 
-        {/* Пороговые значения европейской шкалы EAQI */}
         {mode === 'aqi' && EAQI_THRESHOLDS.map((t) => {
           const yPos = getY(t.val);
           const lineColor = isColorBlind ? palette[t.level] : getAqiInfo(t.val, { colorBlind: false }).hex;
@@ -417,13 +400,10 @@ export default function DynamicsChart({
           );
         })}
 
-        {/* Заливка области под кривой */}
         {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
 
-        {/* Основная плавная линия графика */}
-        {linePath && <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={mode === 'aqi' ? '2.5' : '2'} />}
+        {linePath && <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={isMainChart ? '2.5' : '2'} />}
 
-        {/* Маркер выбранного времени */}
         {activePoint && activePoint.val !== null && (
           <g className="chart-active-marker" data-active-hour={data[safeActiveIdx]?.hourIndex ?? safeActiveIdx} aria-current="time">
             <line
@@ -435,7 +415,7 @@ export default function DynamicsChart({
               strokeDasharray="3 3"
               strokeWidth="1.2"
             />
-            <circle cx={activePoint.x} cy={activePoint.y} r={mode === 'aqi' ? 5 : 4} fill={strokeColor} stroke="#ffffff" strokeWidth="2" />
+            <circle cx={activePoint.x} cy={activePoint.y} r={isMainChart ? 5 : 4} fill={strokeColor} stroke="#ffffff" strokeWidth="2" />
             <text
               x={Math.max(padLeft + 20, Math.min(width - padRight - 20, activePoint.x))}
               y={Math.max(padTop - 2, activePoint.y - 8)}
@@ -449,13 +429,10 @@ export default function DynamicsChart({
           </g>
         )}
 
-        {/* Метки оси X */}
         {renderAxisLabels()}
 
-        {/* Слой выбора диапазона (Steam Community Market drag selection) */}
         {selectionBox && (
           <g className="chart-selection-box" pointerEvents="none">
-            {/* Полупрозрачная подсветка выбранной зоны */}
             <rect
               x={selectionBox.left}
               y={padTop}
@@ -466,7 +443,6 @@ export default function DynamicsChart({
               strokeWidth="1"
               strokeDasharray="4 2"
             />
-            {/* Левая граница диапазона */}
             <line
               x1={selectionBox.left}
               y1={padTop}
@@ -475,7 +451,6 @@ export default function DynamicsChart({
               stroke="#60a5fa"
               strokeWidth="2.5"
             />
-            {/* Правая граница диапазона */}
             <line
               x1={selectionBox.right}
               y1={padTop}
@@ -484,7 +459,6 @@ export default function DynamicsChart({
               stroke="#60a5fa"
               strokeWidth="2.5"
             />
-            {/* Информационная плашка с периодом выбора */}
             {(() => {
               const startT = formatPointTooltip(data[selectionBox.fromIdx]);
               const endT = formatPointTooltip(data[selectionBox.toIdx]);
@@ -518,7 +492,6 @@ export default function DynamicsChart({
           </g>
         )}
 
-        {/* Интерактивный слой точек для клика и доступности клавиатуры */}
         {onPointClick && points.map((point, idx) => {
           const rectWidth = stepX; 
           const rectX = point.x - rectWidth / 2;

@@ -14,7 +14,9 @@
 .dynamics-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -53,6 +55,13 @@
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid var(--border, #e5e7eb);
+}
+
+.meta-item--active {
+  border-color: var(--primary, #3b82f6);
+  color: var(--primary, #3b82f6);
+  background: rgba(59, 130, 246, 0.08);
+  font-weight: 600;
 }
 
 .dynamics-modal-close {
@@ -239,7 +248,6 @@
   }
 }
 
-/* Интерактивные карточки малых графиков */
 .pollutant-chart-card--interactive {
   cursor: pointer;
   transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
@@ -317,7 +325,6 @@
   color: #ffffff;
 }
 
-/* Панель управления интервалом и выбором диапазона (Steam Community Market style) */
 .dynamics-modal-controls {
   display: flex;
   align-items: center;
@@ -330,7 +337,6 @@
   border: 1px solid var(--border, #e5e7eb);
 }
 
-/* Группа кнопок предустановленных интервалов (День, 3 дня, Неделя, Все дни) */
 .dynamics-range-presets {
   display: inline-flex;
   align-items: center;
@@ -366,7 +372,6 @@
   box-shadow: 0 1px 3px rgba(59, 130, 246, 0.35);
 }
 
-/* Кнопка сброса до обычного состояния */
 .dynamics-modal-reset-range-btn {
   display: inline-flex;
   align-items: center;
@@ -481,7 +486,6 @@
   font-weight: 500;
 }
 
-/* Поддержка темной темы для панели управления и карточек */
 [data-theme="dark"] .dynamics-modal-content {
   background: var(--bg, #16171d);
   border: 1px solid var(--border, #2e303a);
@@ -525,6 +529,12 @@
 
 [data-theme="dark"] .dynamics-modal-main-chart {
   border-bottom-color: var(--border, #2e303a);
+}
+
+[data-theme="dark"] .meta-item--active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #60a5fa;
 }
 
 @media (max-width: 640px) {
