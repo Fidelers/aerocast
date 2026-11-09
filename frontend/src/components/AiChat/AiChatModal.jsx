@@ -438,6 +438,7 @@ export default function AiChatModal({
   const transcriptRef = useRef('');
   const isCancelledRef = useRef(false);
   const messagesRef = useRef(messages);
+  const emotionResetTimerRef = useRef(null);
   const inputMessageRef = useRef(inputMessage);
   const requestQueueRef = useRef([]);
   const isRequestingRef = useRef(false);
@@ -548,6 +549,40 @@ export default function AiChatModal({
     messagesRef.current = [...messagesRef.current, message];
     setMessages(messagesRef.current);
   }, []);
+
+  // Сброс эмоции маскота обратно в idle через 7 секунд после ответа
+  useEffect(() => {
+    if (isLoading) {
+      if (emotionResetTimerRef.current) {
+        clearTimeout(emotionResetTimerRef.current);
+        emotionResetTimerRef.current = null;
+      }
+      return;
+    }
+
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+
+    if (lastAssistant && lastAssistant.emotion && lastAssistant.emotion !== 'idle') {
+      if (emotionResetTimerRef.current) {
+        clearTimeout(emotionResetTimerRef.current);
+      }
+
+      emotionResetTimerRef.current = setTimeout(() => {
+        messagesRef.current = messagesRef.current.map((msg) =>
+          msg.id === lastAssistant.id ? { ...msg, emotion: 'idle' } : msg
+        );
+        setMessages(messagesRef.current);
+        emotionResetTimerRef.current = null;
+      }, 7000);
+    }
+
+    return () => {
+      if (emotionResetTimerRef.current) {
+        clearTimeout(emotionResetTimerRef.current);
+        emotionResetTimerRef.current = null;
+      }
+    };
+  }, [isLoading, messages]);
 
   const toggleSound = () => {
     setIsSoundEnabled((prev) => {
@@ -1022,6 +1057,11 @@ export default function AiChatModal({
         abortControllerRef.current.abort();
       } catch {}
       abortControllerRef.current = null;
+    }
+
+    if (emotionResetTimerRef.current) {
+      clearTimeout(emotionResetTimerRef.current);
+      emotionResetTimerRef.current = null;
     }
 
     messagesRef.current = [INITIAL_GREETING];

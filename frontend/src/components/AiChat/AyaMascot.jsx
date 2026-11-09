@@ -27,19 +27,51 @@ export default function AyaMascot({
     return valid.includes(norm) ? norm : 'idle';
   }, [emotion]);
 
+  const currentMotionEmotionRef = useRef('idle');
+
   const playEmotion = useCallback(async (emotionName) => {
+    currentMotionEmotionRef.current = emotionName;
     const model = modelRef.current;
     if (!model) return;
-    const mm = model.internalModel?.motionManager;
+    const internalModel = model.internalModel;
+    const mm = internalModel?.motionManager;
+    const coreModel = internalModel?.coreModel;
     if (!mm) return;
 
     try {
-      mm.defaultIdleGroup = emotionName;
+      // 1. Полностью останавливаем все предыдущие движения
+      mm.stopAllMotions();
+
+      // 2. Сбрасываем параметры модели к дефолтным (чтобы наклон головы, сердитые глаза и брови не застывали)
+      if (coreModel && typeof coreModel.getParameterCount === 'function') {
+        const paramCount = coreModel.getParameterCount();
+        for (let i = 0; i < paramCount; i++) {
+          coreModel.setParameterValueByIndex(i, coreModel.getParameterDefaultValue(i), 1);
+        }
+        if (typeof coreModel.saveParameters === 'function') {
+          coreModel.saveParameters();
+        }
+      }
+
+      if (mm.groups) {
+        mm.groups.idle = 'idle';
+      }
+
       const motion = await mm.loadMotion(emotionName, 0);
+
+      // Если за время асинхронной загрузки эмоция успела поменяться — отменяем
+      if (currentMotionEmotionRef.current !== emotionName) {
+        return;
+      }
+
       if (motion) {
         if (typeof motion.setIsLoop === 'function') motion.setIsLoop(true);
         if (typeof motion.setIsLoopFadeIn === 'function') motion.setIsLoopFadeIn(false);
       }
+
+      // Дополнительно останавливаем очередь перед запуском новой анимации
+      mm.stopAllMotions();
+
       await model.motion(emotionName, 0, 3);
     } catch (err) {
       console.warn(`Live2D: ошибка воспроизведения ${emotionName}`, err);
