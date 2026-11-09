@@ -39,10 +39,8 @@ export default function AyaMascot({
     if (!mm) return;
 
     try {
-      // 1. Полностью останавливаем все предыдущие движения
       mm.stopAllMotions();
 
-      // 2. Сбрасываем параметры модели к дефолтным (чтобы наклон головы, сердитые глаза и брови не застывали)
       if (coreModel && typeof coreModel.getParameterCount === 'function') {
         const paramCount = coreModel.getParameterCount();
         for (let i = 0; i < paramCount; i++) {
@@ -59,7 +57,6 @@ export default function AyaMascot({
 
       const motion = await mm.loadMotion(emotionName, 0);
 
-      // Если за время асинхронной загрузки эмоция успела поменяться — отменяем
       if (currentMotionEmotionRef.current !== emotionName) {
         return;
       }
@@ -69,7 +66,6 @@ export default function AyaMascot({
         if (typeof motion.setIsLoopFadeIn === 'function') motion.setIsLoopFadeIn(false);
       }
 
-      // Дополнительно останавливаем очередь перед запуском новой анимации
       mm.stopAllMotions();
 
       await model.motion(emotionName, 0, 3);
@@ -84,19 +80,18 @@ export default function AyaMascot({
     const initPixi = async () => {
       if (!canvasRef.current) return;
 
-      // Широкий буфер 1000x750 дает запас по бокам для волос при наклонах головы
-      const app = new PIXI.Application({
-        view: canvasRef.current,
-        width: 1000,
-        height: 750,
-        backgroundAlpha: 0,
-        resolution: 1,
-        autoDensity: false,
-        clearBeforeRender: true,
-      });
-      appRef.current = app;
-
       try {
+        const app = new PIXI.Application({
+          view: canvasRef.current,
+          width: 1000,
+          height: 750,
+          backgroundAlpha: 0,
+          resolution: 1,
+          autoDensity: false,
+          clearBeforeRender: true,
+        });
+        appRef.current = app;
+
         const model = await Live2DModel.from('/live2d/mascot/mascot.model3.json', {
           autoInteract: false,
         });
@@ -120,7 +115,7 @@ export default function AyaMascot({
         }
 
         model.scale.set((750 / model.height) * scaleMult);
-        model.x = 500; // Центр широкого буфера (1000 / 2)
+        model.x = 500;
         model.y = 750 + yOffset;
 
         app.stage.addChild(model);
@@ -217,6 +212,10 @@ export default function AyaMascot({
 
         <div className="aya-character">
           <div className={`aya-character__glow ${isHovered ? 'aya-character__glow--hovered' : ''}`} aria-hidden="true" />
+          <span className={`aya-pose aya-pose--idle ${activeEmotion === 'idle' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
+          <span className={`aya-pose aya-pose--think ${activeEmotion === 'think' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
+          <span className={`aya-pose aya-pose--happy ${activeEmotion === 'happy' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
+          <span className={`aya-pose aya-pose--alert ${activeEmotion === 'alert' ? 'aya-pose--active' : ''}`} aria-hidden="true" style={{ display: 'none' }} />
 
           <canvas
               ref={canvasRef}
