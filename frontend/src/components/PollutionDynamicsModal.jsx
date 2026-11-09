@@ -40,6 +40,19 @@ const formatDate = (dateStr) => {
   }
 };
 
+const formatDateShort = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(`${dateStr}`);
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+};
+
 const buildHourRecord = (isoTime, idx, hourlyData, isCurrent, hourIndex = 0) => {
   const parsed = parseIsoTimeString(isoTime);
   return {
@@ -78,20 +91,31 @@ export default function PollutionDynamicsModal({
   const [stepHours, setStepHours] = useState(1);
   const [isAllDays, setIsAllDays] = useState(false);
 
+  // Состояние выбранного диапазона дат (в стиле торговой площадки Steam)
+  // rangePreset: 'day' (сутки), '3days' (3 дня), 'week' (неделя), 'all' (все дни), 'custom' (выделенный мышью)
+  const [rangePreset, setRangePreset] = useState('day');
+  const [customRange, setCustomRange] = useState(null);
+
   // Взаимная блокировка - если шаг больше 12 часов, принудительно включаем "Все дни" и блокируем тумблер
   const isToggleDisabled = stepHours > 12;
 
   useEffect(() => {
     if (stepHours > 12) {
       setIsAllDays(true);
+      if (rangePreset === 'day') {
+        setRangePreset('all');
+      }
     }
-  }, [stepHours]);
+  }, [stepHours, rangePreset]);
 
   const handleStepHoursChange = (e) => {
     const nextStep = Math.max(1, Math.min(24, Number(e.target.value) || 1));
     setStepHours(nextStep);
     if (nextStep > 12) {
       setIsAllDays(true);
+      if (rangePreset === 'day') {
+        setRangePreset('all');
+      }
     }
   };
 
@@ -135,47 +159,63 @@ export default function PollutionDynamicsModal({
   const parsedCurrent = parseIsoTimeString(currentIso);
   const selectedDateStr = parsedCurrent?.dateStr || currentIso.split('T')[0] || '';
 
-  // Фильтруем ровно 24 часа за выбранные сутки
-  const dayData = [];
-  let activeHourInDay = 0;
+  // Полный массив записей всех доступных часов
+  const allRecords = airData.hourly.time.map((t, idx) =>
+    buildHourRecord(t, idx, airData.hourly, idx === safeIdx, idx % 24)
+  );
 
-  airData.hourly.time.forEach((t, idx) => {
-    const parsed = parseIsoTimeString(t);
-    if (parsed && parsed.dateStr === selectedDateStr) {
-      const isCurrent = idx === safeIdx;
-      const hIdx = dayData.length;
-      if (isCurrent) {
-        activeHourInDay = hIdx;
+  // Вычисление среза данных на основе выбранного пресета или выделенной зоны (Steam selection)
+  let visibleSlice = [];
+
+  if (customRange) {
+    const startG = Math.max(0, Math.min(allRecords.length - 1, customRange.startGlobal));
+    const endG = Math.max(0, Math.min(allRecords.length - 1, customRange.endGlobal));
+    visibleSlice = allRecords.slice(Math.min(startG, endG), Math.max(startG, endG) + 1);
+  } else if (!isAllDays && rangePreset === 'day') {
+    // Режим одних суток выбранной даты
+    const dayRecords = [];
+    allRecords.forEach((r) => {
+      const parsed = parseIsoTimeString(r.time);
+      if (parsed && parsed.dateStr === selectedDateStr) {
+        dayRecords.push(r);
       }
-      dayData.push(buildHourRecord(t, idx, airData.hourly, isCurrent, hIdx));
+    });
+
+    if (dayRecords.length > 0) {
+      visibleSlice = dayRecords;
+    } else {
+      // Запасной вариант: первые 24 часа
+      visibleSlice = allRecords.slice(0, Math.min(24, allRecords.length));
     }
-  });
+  } else if (rangePreset === '3days') {
+    // 3 суток (72 часа) вокруг текущей точки
+    const centerIdx = safeIdx >= 0 ? safeIdx : 0;
+    const startG = Math.max(0, centerIdx - 24);
+    const endG = Math.min(allRecords.length - 1, startG + 71);
+    visibleSlice = allRecords.slice(startG, endG + 1);
+  } else if (rangePreset === 'week') {
+    // 7 суток (168 часов) вокруг текущей точки
+    const centerIdx = safeIdx >= 0 ? safeIdx : 0;
+    const startG = Math.max(0, centerIdx - 72);
+    const endG = Math.min(allRecords.length - 1, startG + 167);
+    visibleSlice = allRecords.slice(startG, endG + 1);
+  } else {
+    // 'all' - все доступные дни
+    visibleSlice = allRecords;
+  }
 
-  // Если фильтрация не дала результатов, берём первые 24 часа
-  const baseDayData =
-    dayData.length > 0
-      ? dayData
-      : airData.hourly.time.slice(0, 24).map((t, idx) =>
-          buildHourRecord(t, idx, airData.hourly, idx === safeIdx, idx)
-        );
-
-  // Выборка данных (либо все 11 суток при isAllDays=true, либо 24 часа выбранного дня) и прореживание точек с шагом stepHours
-  const sourceData = isAllDays
-    ? airData.hourly.time.map((t, idx) =>
-        buildHourRecord(t, idx, airData.hourly, idx === safeIdx, idx % 24)
-      )
-    : baseDayData;
-
+  // Применяем шаг точек stepHours (если > 1)
   const finalDayData =
     stepHours > 1
-      ? sourceData.filter((item, i) => i % stepHours === 0 || item.isCurrent)
-      : sourceData;
+      ? visibleSlice.filter((item, i) => i % stepHours === 0 || item.isCurrent)
+      : visibleSlice;
 
   const latVal = coords?.lat ?? airData?.latitude;
   const lonVal = coords?.lon ?? airData?.longitude;
   const latStr = latVal != null ? Number(latVal).toFixed(4) : '';
   const lonStr = lonVal != null ? Number(lonVal).toFixed(4) : '';
 
+  // Клик по конкретной точке графика для синхронизации времени
   const handleChartPointClick = (localIdx) => {
     const targetRecord = finalDayData[localIdx];
     if (!targetRecord) return;
@@ -190,7 +230,33 @@ export default function PollutionDynamicsModal({
     }
   };
 
-  let activeHour = activeHourInDay;
+  // Обработка выделения диапазона мышкой (Steam style drag-to-select)
+  const handleRangeSelect = (fromLocalIdx, toLocalIdx) => {
+    const startRecord = finalDayData[fromLocalIdx];
+    const endRecord = finalDayData[toLocalIdx];
+    if (!startRecord || !endRecord) return;
+
+    const startG = startRecord.globalIndex;
+    const endG = endRecord.globalIndex;
+    if (startG !== undefined && endG !== undefined) {
+      setCustomRange({
+        startGlobal: Math.min(startG, endG),
+        endGlobal: Math.max(startG, endG),
+      });
+      setRangePreset('custom');
+      setIsAllDays(true);
+    }
+  };
+
+  // Кнопка сброса до обычного состояния
+  const handleResetToNormal = () => {
+    setCustomRange(null);
+    setRangePreset('all');
+    setIsAllDays(true);
+  };
+
+  // Определение активной точки в текущем отфильтрованном срезе данных
+  let activeHour = 0;
   const currentGlobalTime = airData.hourly.time[localActiveIndex];
   const matchInFinal = finalDayData.findIndex((d) => d.time === currentGlobalTime);
   if (matchInFinal !== -1) {
@@ -217,7 +283,13 @@ export default function PollutionDynamicsModal({
   const aqiStats = getStats(mainMetricValues);
   const decimals = activeMetricKey === 'aqi' ? 0 : 1;
 
-  // В разметку ниже добавлена панель управления .dynamics-modal-controls (выбор шага, тумблер "Все дни" и подсказка)
+  // Форматирование информации о выбранном периоде в шапке
+  const isViewingMultiDays = isAllDays || customRange !== null || rangePreset !== 'day';
+  const firstVisibleTime = finalDayData[0]?.time || '';
+  const lastVisibleTime = finalDayData[finalDayData.length - 1]?.time || '';
+  const firstDateStr = firstVisibleTime.split('T')[0] || '';
+  const lastDateStr = lastVisibleTime.split('T')[0] || '';
+
   return (
     <div
       className="dynamics-modal-overlay"
@@ -233,10 +305,18 @@ export default function PollutionDynamicsModal({
       >
         <div className="dynamics-modal-header">
           <div className="dynamics-modal-header-content">
-            <h2>Суточная динамика качества воздуха</h2>
+            <h2>Динамика качества воздуха</h2>
             <div className="dynamics-modal-meta">
-              <span>Дата: {formatDate(selectedDateStr)}</span>
-              {latStr && lonStr && <span>Координаты: {latStr}, {lonStr}</span>}
+              {isViewingMultiDays && firstDateStr !== lastDateStr ? (
+                <span className="meta-item">
+                  Период: {formatDateShort(firstDateStr)} — {formatDateShort(lastDateStr)}
+                </span>
+              ) : (
+                <span className="meta-item">Дата: {formatDate(selectedDateStr)}</span>
+              )}
+              {latStr && lonStr && (
+                <span className="meta-item">Координаты: {latStr}, {lonStr}</span>
+              )}
             </div>
           </div>
           <button
@@ -253,7 +333,74 @@ export default function PollutionDynamicsModal({
         </div>
 
         <div className="dynamics-modal-scroll-area">
+          {/* Панель управления диапазоном дней (Steam Market style) и параметрами графика */}
           <div className="dynamics-modal-controls" data-testid="dynamics-modal-controls">
+            {/* Группа кнопок предустановленных диапазонов (День, 3 дня, Неделя, Все дни) */}
+            <div className="dynamics-range-presets" role="group" aria-label="Предустановленные диапазоны дат">
+              <button
+                type="button"
+                className={`dynamics-preset-btn ${rangePreset === 'day' && !customRange ? 'dynamics-preset-btn--active' : ''}`}
+                onClick={() => {
+                  setRangePreset('day');
+                  setCustomRange(null);
+                  setIsAllDays(false);
+                }}
+              >
+                Сутки
+              </button>
+              <button
+                type="button"
+                className={`dynamics-preset-btn ${rangePreset === '3days' && !customRange ? 'dynamics-preset-btn--active' : ''}`}
+                onClick={() => {
+                  setRangePreset('3days');
+                  setCustomRange(null);
+                  setIsAllDays(true);
+                }}
+              >
+                3 дня
+              </button>
+              <button
+                type="button"
+                className={`dynamics-preset-btn ${rangePreset === 'week' && !customRange ? 'dynamics-preset-btn--active' : ''}`}
+                onClick={() => {
+                  setRangePreset('week');
+                  setCustomRange(null);
+                  setIsAllDays(true);
+                }}
+              >
+                Неделя
+              </button>
+              <button
+                type="button"
+                className={`dynamics-preset-btn ${rangePreset === 'all' && !customRange ? 'dynamics-preset-btn--active' : ''}`}
+                onClick={() => {
+                  setRangePreset('all');
+                  setCustomRange(null);
+                  setIsAllDays(true);
+                }}
+              >
+                Все дни
+              </button>
+            </div>
+
+            {/* Кнопка сброса до обычного состояния при пользовательском выделении или масштабировании */}
+            {(customRange !== null || rangePreset === 'custom') && (
+              <button
+                type="button"
+                className="dynamics-modal-reset-range-btn"
+                data-testid="reset-range-btn"
+                onClick={handleResetToNormal}
+                title="Сбросить выбранный диапазон до обычного состояния (все дни)"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Сбросить до обычного
+              </button>
+            )}
+
+            {/* Выпадающий список шага дискретизации точек */}
             <label className="dynamics-control-item">
               <span className="dynamics-control-label">Шаг точек:</span>
               <select
@@ -271,6 +418,7 @@ export default function PollutionDynamicsModal({
               </select>
             </label>
 
+            {/* Тумблер переключения "Все дни" */}
             <label
               className={
                 'dynamics-toggle-switch' +
@@ -288,6 +436,8 @@ export default function PollutionDynamicsModal({
                 onChange={(e) => {
                   if (!isToggleDisabled) {
                     setIsAllDays(e.target.checked);
+                    setCustomRange(null);
+                    setRangePreset(e.target.checked ? 'all' : 'day');
                   }
                 }}
               />
@@ -300,21 +450,37 @@ export default function PollutionDynamicsModal({
                 При шаге более 12 ч отображаются все дни
               </span>
             )}
+
+            {/* Подсказка по выбору диапазона зажатием мыши как в Steam */}
+            <span className="dynamics-drag-hint">
+              💡 Зажмите и потяните мышь по графику для выбора диапазона
+            </span>
           </div>
 
           <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
             <div className="dynamics-modal-main-chart__header">
               <h3>{activeMetric.title}</h3>
-              {activeMetricKey !== 'aqi' && (
-                <button
-                  type="button"
-                  className="dynamics-modal-reset-btn"
-                  data-testid="reset-to-aqi-btn"
-                  onClick={() => setActiveMetricKey('aqi')}
-                >
-                  Вернуть общий индекс AQI
-                </button>
-              )}
+              <div className="dynamics-modal-main-chart__actions">
+                {customRange !== null && (
+                  <button
+                    type="button"
+                    className="dynamics-modal-reset-btn dynamics-modal-reset-btn--range"
+                    onClick={handleResetToNormal}
+                  >
+                    Сбросить выбор диапазона ↺
+                  </button>
+                )}
+                {activeMetricKey !== 'aqi' && (
+                  <button
+                    type="button"
+                    className="dynamics-modal-reset-btn"
+                    data-testid="reset-to-aqi-btn"
+                    onClick={() => setActiveMetricKey('aqi')}
+                  >
+                    Вернуть общий индекс AQI
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="pollutant-card-stats pollutant-card-stats--main">
@@ -343,8 +509,9 @@ export default function PollutionDynamicsModal({
               colorBlindType={colorBlindType}
               height={220}
               onPointClick={handleChartPointClick}
-              // Передаю режим всех дней в главный график для адаптации меток оси X
-              isAllDays={isAllDays}
+              isAllDays={isViewingMultiDays}
+              enableRangeSelection={true}
+              onRangeSelect={handleRangeSelect}
             />
           </div>
 
@@ -362,7 +529,6 @@ export default function PollutionDynamicsModal({
                   ? Number(currentVal).toFixed(1)
                   : '—';
 
-              // Проверка активности карточки
               const isCardActive = activeMetricKey === p.key;
 
               return (
@@ -417,8 +583,7 @@ export default function PollutionDynamicsModal({
                     colorBlindType={colorBlindType}
                     height={90}
                     onPointClick={handleChartPointClick}
-                    // Передаю режим всех дней в главный график для адаптации меток оси X
-                    isAllDays={isAllDays}
+                    isAllDays={isViewingMultiDays}
                   />
                 </div>
               );

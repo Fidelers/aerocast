@@ -88,4 +88,64 @@ describe('DynamicsChartCoverage', () => {
     );
     expect(container.querySelector('svg')).toBeDefined();
   });
+  it('отображает все дни в многодневном режиме без пропусков и дубликатов', () => {
+    const multiDayData = [
+      { time: '2026-10-31T00:00', aqi: 20 },
+      { time: '2026-10-31T12:00', aqi: 25 },
+      { time: '2026-11-01T00:00', aqi: 30 },
+      { time: '2026-11-01T12:00', aqi: 35 },
+      { time: '2026-11-02T00:00', aqi: 40 },
+    ];
+
+    const { container } = render(
+      <DynamicsChart
+        mode="aqi"
+        data={multiDayData}
+        isAllDays={true}
+      />
+    );
+
+    expect(container.textContent).toContain('31.10');
+    expect(container.textContent).toContain('01.11');
+    expect(container.textContent).toContain('02.11');
+  });
+
+  it('поддерживает выделение диапазона мышью (drag-to-select)', () => {
+    const onRangeSelect = vi.fn();
+    const onPointClick = vi.fn();
+    const data = [
+      { time: '2026-11-01T00:00', aqi: 10 },
+      { time: '2026-11-01T06:00', aqi: 20 },
+      { time: '2026-11-01T12:00', aqi: 30 },
+      { time: '2026-11-01T18:00', aqi: 40 },
+    ];
+
+    const { container } = render(
+      <DynamicsChart
+        mode="aqi"
+        data={data}
+        enableRangeSelection={true}
+        onRangeSelect={onRangeSelect}
+        onPointClick={onPointClick}
+      />
+    );
+
+    const svg = container.querySelector('svg');
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 220,
+      right: 720,
+      bottom: 220,
+    });
+
+    // 1. Выделение с движением
+    fireEvent.mouseDown(svg, { button: 0, clientX: 50 });
+    fireEvent.mouseMove(window, { clientX: 300 });
+    expect(container.querySelector('.chart-selection-box')).toBeTruthy();
+    fireEvent.mouseUp(window, { clientX: 300 });
+
+    expect(onRangeSelect).toHaveBeenCalled();
+  });
 });

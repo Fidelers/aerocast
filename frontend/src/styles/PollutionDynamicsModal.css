@@ -1,4 +1,3 @@
-
 .dynamics-modal-header {
   display: flex;
   justify-content: space-between;
@@ -115,9 +114,6 @@
 
 .dynamics-modal-pollutants-grid {
   padding-top: 24px;
-}
-
-.dynamics-modal-pollutants-grid {
   display: grid;
   gap: 14px;
   margin-top: 0;
@@ -184,10 +180,21 @@
 }
 
 .pollutant-card-stats--main {
-  margin-top: 4px;
-  margin-bottom: 12px;
-  padding: 0 4px;
-  font-size: 0.8rem;
+  margin-top: 6px;
+  margin-bottom: 14px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pollutant-card-stats--main .stat-item {
+  background: var(--surface-secondary, #f1f5f9);
+  border: 1px solid var(--border, #e5e7eb);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 .stat-item {
@@ -263,37 +270,137 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.dynamics-modal-main-chart__header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-h, #08060d);
+  line-height: 1.3;
+}
+
+.dynamics-modal-main-chart__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .dynamics-modal-reset-btn {
-  padding: 5px 10px;
+  padding: 5px 12px;
   font-size: 12px;
   font-weight: 500;
   border-radius: 6px;
-  border: 1px solid #3b82f6;
+  border: 1px solid var(--primary, #3b82f6);
   background-color: transparent;
-  color: #3b82f6;
+  color: var(--primary, #3b82f6);
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
 
 .dynamics-modal-reset-btn:hover {
-  background-color: #3b82f6;
+  background-color: var(--primary, #3b82f6);
   color: #ffffff;
 }
-/* Стили панели управления интервалом и кастомного тумблера "Все дни" с поддержкой тем */
+
+.dynamics-modal-reset-btn--range {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.dynamics-modal-reset-btn--range:hover {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+/* Панель управления интервалом и выбором диапазона (Steam Community Market style) */
 .dynamics-modal-controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
   margin: 16px 24px 0 24px;
   padding: 10px 16px;
   border-radius: 10px;
   background-color: var(--surface-secondary, #f1f5f9);
   border: 1px solid var(--border, #e5e7eb);
+}
+
+/* Группа кнопок предустановленных интервалов (День, 3 дня, Неделя, Все дни) */
+.dynamics-range-presets {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.dynamics-preset-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.dynamics-preset-btn:hover {
+  color: var(--text-h, #08060d);
+  background: var(--surface-secondary, #f1f5f9);
+}
+
+.dynamics-preset-btn--active {
+  background: var(--primary, #3b82f6) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.35);
+}
+
+/* Кнопка сброса до обычного состояния */
+.dynamics-modal-reset-range-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--primary, #3b82f6);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary, #3b82f6);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.dynamics-modal-reset-range-btn:hover {
+  background: var(--primary, #3b82f6);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.dynamics-modal-reset-range-btn:active {
+  transform: translateY(0);
+}
+
+.dynamics-drag-hint {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
 }
 
 .dynamics-control-item {
@@ -372,4 +479,63 @@
   font-size: 12px;
   color: #f59e0b;
   font-weight: 500;
+}
+
+/* Поддержка темной темы для панели управления и карточек */
+[data-theme="dark"] .dynamics-modal-content {
+  background: var(--bg, #16171d);
+  border: 1px solid var(--border, #2e303a);
+}
+
+[data-theme="dark"] .dynamics-modal-header {
+  background-color: var(--bg, #16171d);
+  border-bottom-color: var(--border, #2e303a);
+}
+
+[data-theme="dark"] .dynamics-modal-controls {
+  background-color: #1e2029;
+  border-color: #2e303a;
+}
+
+[data-theme="dark"] .dynamics-range-presets {
+  background: #16171d;
+  border-color: #2e303a;
+}
+
+[data-theme="dark"] .dynamics-preset-btn:hover {
+  background: #282a36;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .dynamics-step-select {
+  background-color: #16171d;
+  border-color: #2e303a;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .pollutant-chart-card {
+  background: #1a1b23;
+  border-color: #2e303a;
+}
+
+[data-theme="dark"] .pollutant-card-stats--main .stat-item {
+  background: #1a1b23;
+  border-color: #2e303a;
+}
+
+[data-theme="dark"] .dynamics-modal-main-chart {
+  border-bottom-color: var(--border, #2e303a);
+}
+
+@media (max-width: 640px) {
+  .dynamics-drag-hint {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .dynamics-modal-controls {
+    gap: 10px;
+    margin: 12px 16px 0 16px;
+    padding: 8px 12px;
+  }
 }

@@ -492,4 +492,95 @@ describe('PollutionDynamicsModal component (поверхностное окно 
             />
         );
     });
+    // -----------------------------------------------------------------------------------------------------------------
+    // 6. Выбор диапазона дней в стиле торговой площадки Steam и сброс до обычного состояния
+    // -----------------------------------------------------------------------------------------------------------------
+    it('22. Отображает все дни без пропусков при переключении на "Все дни"', () => {
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={38}
+            />
+        );
+
+        const allDaysBtn = screen.getByRole('button', { name: /все дни/i });
+        fireEvent.click(allDaysBtn);
+
+        expect(container.textContent).toContain('22.10');
+        expect(container.textContent).toContain('23.10');
+        expect(container.textContent).toContain('24.10');
+    });
+
+    it('23. Переключает пресеты диапазонов (Сутки, 3 дня, Неделя, Все дни)', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={38}
+            />
+        );
+
+        const dayBtn = screen.getByRole('button', { name: /^сутки$/i });
+        const threeDaysBtn = screen.getByRole('button', { name: /3 дня/i });
+        const weekBtn = screen.getByRole('button', { name: /неделя/i });
+        const allDaysBtn = screen.getByRole('button', { name: /все дни/i });
+
+        expect(dayBtn).toBeTruthy();
+        expect(threeDaysBtn).toBeTruthy();
+        expect(weekBtn).toBeTruthy();
+        expect(allDaysBtn).toBeTruthy();
+
+        fireEvent.click(threeDaysBtn);
+        expect(threeDaysBtn.className).toContain('dynamics-preset-btn--active');
+
+        fireEvent.click(weekBtn);
+        expect(weekBtn.className).toContain('dynamics-preset-btn--active');
+
+        fireEvent.click(dayBtn);
+        expect(dayBtn.className).toContain('dynamics-preset-btn--active');
+    });
+
+    it('24. Поддерживает выбор диапазона дней зажатием мыши (Steam drag-to-select) и сброс до обычного состояния', () => {
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={38}
+            />
+        );
+
+        const allDaysBtn = screen.getByRole('button', { name: /все дни/i });
+        fireEvent.click(allDaysBtn);
+
+        const svg = container.querySelector('.dynamics-modal-main-chart svg');
+        expect(svg).toBeTruthy();
+
+        vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+            left: 0,
+            top: 0,
+            width: 720,
+            height: 220,
+            right: 720,
+            bottom: 220,
+        });
+
+        fireEvent.mouseDown(svg, { button: 0, clientX: 100 });
+        fireEvent.mouseMove(window, { clientX: 400 });
+
+        const selectionBox = container.querySelector('.chart-selection-box');
+        expect(selectionBox).toBeTruthy();
+
+        fireEvent.mouseUp(window, { clientX: 400 });
+
+        const resetBtn = screen.getByTestId('reset-range-btn');
+        expect(resetBtn).toBeTruthy();
+        expect(resetBtn.textContent).toMatch(/сбросить до обычного/i);
+
+        fireEvent.click(resetBtn);
+        expect(screen.queryByTestId('reset-range-btn')).toBeNull();
+    });
 });

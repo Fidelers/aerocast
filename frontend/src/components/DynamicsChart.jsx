@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getAqiInfo, COLORBLIND_PALETTES } from '../types';
+
 const TIME_LABELS = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '23:00'];
 const TIME_INDICES = [0, 3, 6, 9, 12, 15, 18, 21, 23];
 
@@ -30,19 +31,16 @@ function buildBezierPath(points) {
   return d;
 }
 
-// Адаптация меток оси X для режима "Все дни" ("ДД.ММ" и часы)
-function formatAxisLabel(item, prevItem, isAllDays) {
+// Форматирование даты и времени для всплывающей подсказки выбора диапазона
+function formatPointTooltip(item) {
   if (!item || typeof item !== 'object') return '';
-  const hourStr = item.hourLabel || (item.time ? item.time.split('T')[1]?.slice(0, 5) : '') || '00:00';
-  if (!isAllDays) return hourStr;
-
-  const datePart = item.time ? item.time.split('T')[0] : '';
-  const prevDatePart = prevItem && prevItem.time ? prevItem.time.split('T')[0] : '';
-  if (datePart && datePart !== prevDatePart) {
-    const [, m, d] = datePart.split('-');
-    if (d && m) return `${d}.${m}`;
-  }
-  return hourStr;
+  const timeStr = item.time || '';
+  if (!timeStr) return item.hourLabel || '';
+  const [datePart, rawTime] = timeStr.split('T');
+  const dParts = datePart ? datePart.split('-') : [];
+  const dateFmt = dParts.length === 3 ? `${dParts[2]}.${dParts[1]}` : datePart;
+  const hourFmt = rawTime ? rawTime.slice(0, 5) : (item.hourLabel || '');
+  return `${dateFmt} ${hourFmt}`.trim();
 }
 
 export default function DynamicsChart({
@@ -57,10 +55,20 @@ export default function DynamicsChart({
   height,
   onPointClick,
   isAllDays = false,
+  enableRangeSelection = false,
+  onRangeSelect = null,
 }) {
   const chartHeight = height || (mode === 'aqi' ? 220 : 90);
   const width = mode === 'aqi' ? 720 : 320;
+  const svgRef = useRef(null);
 
+  // Состояние перетаскивания для выбора диапазона (как на торговой площадке Steam)
+  const [dragState, setDragState] = useState(null);
+  const isMouseDownRef = useRef(false);
+  const dragStartRef = useRef(null);
+  const didDragRef = useRef(false);
+
+  // Извлечение числовых значений
   const rawValues = data.map((item) => {
     if (typeof item === 'number') return item;
     if (!item || typeof item !== 'object') return null;
@@ -81,22 +89,27 @@ export default function DynamicsChart({
     maxVal = minVal + 10;
   }
 
-  // Симметричный вертикальный отступ 10% сверху и снизу
-  const padY = chartHeight * 0.1;
-  const usableHeight = chartHeight - padY * 2;
+  // Грамотные отступы для исключения обрезки меток оси X и маркеров графика
+  const padLeft = mode === 'aqi' ? 26 : 10;
+  const padRight = mode === 'aqi' ? 22 : 10;
+  const padTop = mode === 'aqi' ? 18 : 8;
+  const padBottom = mode === 'aqi' ? 22 : 14;
+
+  const usableWidth = width - padLeft - padRight;
+  const usableHeight = chartHeight - padTop - padBottom;
   const valRange = maxVal - minVal || 1;
 
   const count = Math.max(data.length, 2);
-  const stepX = width / (count - 1);
+  const stepX = usableWidth / (count - 1);
 
   const getY = (val) => {
     const safeVal = val !== null ? val : minVal;
     const ratio = (safeVal - minVal) / valRange;
-    return chartHeight - padY - ratio * usableHeight;
+    return chartHeight - padBottom - ratio * usableHeight;
   };
 
   const points = rawValues.map((val, idx) => ({
-    x: idx * stepX,
+    x: padLeft + idx * stepX,
     y: getY(val),
     val,
     idx,
@@ -111,81 +124,401 @@ export default function DynamicsChart({
   }
 
   const linePath = buildBezierPath(points);
+  const areaBottom = chartHeight - padBottom;
   const areaPath =
     points.length > 1
-      ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${chartHeight} L ${points[0].x.toFixed(2)} ${chartHeight} Z`
+      ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${areaBottom} L ${points[0].x.toFixed(2)} ${areaBottom} Z`
       : '';
 
-  const gradientId = `chart-grad-${mode}-${valueKey}`;
+  const gradientId = `chart-grad-${mode}-${valueKey}-${Math.round(chartHeight)}`;
   const safeActiveIdx = activeIndex >= 0 && activeIndex < points.length ? activeIndex : 0;
   const activePoint = points[safeActiveIdx] || null;
 
-  // Обработчик взаимодействия с точкой
+  // Преобразование координаты clientX мыши в индекс элемента данных и X на SVG
+  const getCoordinatesFromClientX = useCallback((clientX) => {
+    if (!svgRef.current) return { svgX: padLeft, idx: 0 };
+    const rect = svgRef.current.getBoundingClientRect();
+    const clampedClientX = Math.max(rect.left, Math.min(rect.right, clientX));
+    const relX = clampedClientX - rect.left;
+    const svgX = (relX / (rect.width || 1)) * width;
+
+    const rawIdx = Math.round((svgX - padLeft) / stepX);
+    const idx = Math.max(0, Math.min(data.length - 1, rawIdx));
+    return { svgX, idx };
+  }, [width, stepX, padLeft, data.length]);
+
+  // Обработка начала выделения мышью (Steam Community Market style)
+  const handleMouseDown = (e) => {
+    if (e.button !== 0 || !enableRangeSelection || data.length < 2) return;
+    const { svgX, idx } = getCoordinatesFromClientX(e.clientX);
+    isMouseDownRef.current = true;
+    didDragRef.current = false;
+    dragStartRef.current = { startX: svgX, startIdx: idx, clientX: e.clientX };
+    setDragState({
+      startX: svgX,
+      currentX: svgX,
+      startIdx: idx,
+      currentIdx: idx,
+      isDragging: false,
+    });
+  };
+
+  // Глобальные обработчики перетаскивания курсора
+  useEffect(() => {
+    if (!enableRangeSelection) return;
+
+    const handleWindowMouseMove = (e) => {
+      if (!isMouseDownRef.current || !dragStartRef.current) return;
+      const diffPixels = Math.abs(e.clientX - dragStartRef.current.clientX);
+      const { svgX, idx } = getCoordinatesFromClientX(e.clientX);
+
+      if (diffPixels > 8) {
+        didDragRef.current = true;
+        setDragState({
+          startX: dragStartRef.current.startX,
+          currentX: svgX,
+          startIdx: dragStartRef.current.startIdx,
+          currentIdx: idx,
+          isDragging: true,
+        });
+      }
+    };
+
+    const handleWindowMouseUp = (e) => {
+      if (!isMouseDownRef.current || !dragStartRef.current) return;
+      const { startIdx, clientX } = dragStartRef.current;
+      const { idx } = getCoordinatesFromClientX(e.clientX);
+      const diffPixels = Math.abs(e.clientX - clientX);
+
+      isMouseDownRef.current = false;
+      dragStartRef.current = null;
+      setDragState(null);
+
+      if (diffPixels > 8 && Math.abs(startIdx - idx) >= 1) {
+        const fromIdx = Math.min(startIdx, idx);
+        const toIdx = Math.max(startIdx, idx);
+        onRangeSelect?.(fromIdx, toIdx);
+        // Небольшой таймаут для сброса didDragRef, чтобы не сработал onClick на элементе
+        setTimeout(() => {
+          didDragRef.current = false;
+        }, 80);
+      } else {
+        didDragRef.current = false;
+      }
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [enableRangeSelection, getCoordinatesFromClientX, onRangeSelect]);
+
+  // Обработчик взаимодействия с точкой (клик мышью или Enter/Space)
   const handleInteraction = (idx) => {
+    if (didDragRef.current) return;
     if (onPointClick && idx >= 0 && idx < data.length) {
       onPointClick(idx);
     }
   };
 
-  // Шаг отображения меток оси X, чтобы не накладывались друг на друга
-  const useStandard24Labels = !isAllDays && data.length === 24;
-  const labelStep = Math.max(1, Math.ceil(data.length / 8));
+  // Определение многодневного режима: если установлен флаг isAllDays или данные охватывают разные даты
+  const isMultiDay = isAllDays || (data.length > 0 && (() => {
+    const firstDate = data[0]?.time ? data[0].time.split('T')[0] : null;
+    const lastDate = data[data.length - 1]?.time ? data[data.length - 1].time.split('T')[0] : null;
+    return Boolean(firstDate && lastDate && firstDate !== lastDate);
+  })());
+
+  // Сбор всех уникальных суток с точной привязкой к началу дня
+  const dayTicks = [];
+  let currentDayStr = null;
+  data.forEach((item, idx) => {
+    if (!item || typeof item !== 'object') return;
+    const timeStr = item.time || '';
+    const dateStr = timeStr.split('T')[0];
+    if (dateStr && dateStr !== currentDayStr) {
+      currentDayStr = dateStr;
+      const parts = dateStr.split('-');
+      const label = parts.length === 3 ? `${parts[2]}.${parts[1]}` : dateStr;
+      dayTicks.push({
+        idx,
+        x: padLeft + idx * stepX,
+        label,
+        dateStr,
+      });
+    }
+  });
+
+  // Рендеринг меток оси X
+  const renderAxisLabels = () => {
+    // 1. Многодневный режим: вывод всех дней без пропусков и дублирования
+    if (isMultiDay && dayTicks.length > 1) {
+      let visibleDays = dayTicks;
+      // В малых графиках (width < 500) прореживаем при более чем 6 днях
+      if (width < 500 && dayTicks.length > 6) {
+        const step = Math.ceil(dayTicks.length / 5);
+        visibleDays = dayTicks.filter((_, i) => i % step === 0 || i === dayTicks.length - 1);
+      } else if (dayTicks.length > 14) {
+        visibleDays = dayTicks.filter((_, i) => i % 2 === 0 || i === dayTicks.length - 1);
+      }
+
+      return (
+        <g className="chart-axis-labels">
+          {visibleDays.map((day, dIdx) => {
+            let anchor = 'middle';
+            let renderX = day.x;
+            if (day.x < padLeft + 16) {
+              anchor = 'start';
+              renderX = Math.max(padLeft, day.x);
+            } else if (day.x > width - padRight - 16) {
+              anchor = 'end';
+              renderX = Math.min(width - padRight, day.x);
+            }
+
+            return (
+              <g key={`day-tick-${day.dateStr}-${dIdx}`}>
+                {day.idx > 0 && (
+                  <line
+                    x1={day.x}
+                    y1={padTop}
+                    x2={day.x}
+                    y2={chartHeight - padBottom}
+                    stroke="currentColor"
+                    strokeOpacity="0.12"
+                    strokeDasharray="3 3"
+                  />
+                )}
+                <text
+                  x={renderX}
+                  y={chartHeight - 4}
+                  textAnchor={anchor}
+                  fontSize={width < 500 ? '9' : '10'}
+                  fill="#9ca3af"
+                  fontWeight="500"
+                >
+                  {day.label}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      );
+    }
+
+    // 2. Стандартный суточный режим (24 часа)
+    if (!isAllDays && data.length === 24) {
+      return (
+        <g className="chart-axis-labels">
+          {TIME_INDICES.map((hourIdx, idx) => {
+            if (hourIdx >= count) return null;
+            const x = padLeft + hourIdx * stepX;
+            return (
+              <text
+                key={hourIdx}
+                x={x}
+                y={chartHeight - 4}
+                textAnchor="middle"
+                fontSize="10"
+                fill="#9ca3af"
+              >
+                {TIME_LABELS[idx]}
+              </text>
+            );
+          })}
+        </g>
+      );
+    }
+
+    // 3. Произвольный почасовой или масштабированный интервал
+    const labelStep = Math.max(1, Math.ceil(data.length / 8));
+    return (
+      <g className="chart-axis-labels">
+        {data.map((item, idx) => {
+          if (idx % labelStep !== 0 && idx !== data.length - 1) return null;
+          const x = padLeft + idx * stepX;
+          const timeLabel = item?.hourLabel || (item?.time ? item.time.split('T')[1]?.slice(0, 5) : '') || `${idx}:00`;
+          let anchor = 'middle';
+          let renderX = x;
+          if (x < padLeft + 16) {
+            anchor = 'start';
+            renderX = padLeft;
+          } else if (x > width - padRight - 16) {
+            anchor = 'end';
+            renderX = width - padRight;
+          }
+
+          return (
+            <text
+              key={`hour-tick-${idx}`}
+              x={renderX}
+              y={chartHeight - 4}
+              textAnchor={anchor}
+              fontSize="10"
+              fill="#9ca3af"
+            >
+              {timeLabel}
+            </text>
+          );
+        })}
+      </g>
+    );
+  };
+
+  // Параметры прямоугольника выделения при drag-to-select
+  const selectionBox = dragState && dragState.isDragging ? {
+    left: Math.max(padLeft, Math.min(dragState.startX, dragState.currentX)),
+    right: Math.min(width - padRight, Math.max(dragState.startX, dragState.currentX)),
+    fromIdx: Math.min(dragState.startIdx, dragState.currentIdx),
+    toIdx: Math.max(dragState.startIdx, dragState.currentIdx),
+  } : null;
 
   return (
-    <div className={`dynamics-chart dynamics-chart--${mode}`} data-colorblind={isColorBlind ? 'true' : 'false'}>
-      <svg viewBox={`0 0 ${width} ${chartHeight}`} width="100%" height={chartHeight} role="img" aria-label={`График ${valueKey}`}>
+    <div
+      className={`dynamics-chart dynamics-chart--${mode}`}
+      data-colorblind={isColorBlind ? 'true' : 'false'}
+      style={{ userSelect: 'none', position: 'relative' }}
+    >
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${chartHeight}`}
+        width="100%"
+        height={chartHeight}
+        role="img"
+        aria-label={`График ${valueKey}`}
+        style={{ cursor: enableRangeSelection ? 'crosshair' : 'default', display: 'block' }}
+        onMouseDown={handleMouseDown}
+      >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.35" />
+            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.38" />
             <stop offset="100%" stopColor={strokeColor} stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
+        {/* Пороговые значения европейской шкалы EAQI */}
         {mode === 'aqi' && EAQI_THRESHOLDS.map((t) => {
           const yPos = getY(t.val);
           const lineColor = isColorBlind ? palette[t.level] : getAqiInfo(t.val, { colorBlind: false }).hex;
           return (
             <g key={t.val} className="chart-threshold-line">
-              <line x1="0" y1={yPos} x2={width} y2={yPos} stroke={lineColor} strokeDasharray="4 4" strokeWidth="1" opacity="0.65" />
-              <text x="4" y={yPos - 4} fontSize="10" fill={lineColor}>{t.val}</text>
+              <line
+                x1={padLeft}
+                y1={yPos}
+                x2={width - padRight}
+                y2={yPos}
+                stroke={lineColor}
+                strokeDasharray="4 4"
+                strokeWidth="1"
+                opacity="0.6"
+              />
+              <text x="4" y={yPos + 3} fontSize="10" fill={lineColor} fontWeight="600">{t.val}</text>
             </g>
           );
         })}
 
+        {/* Заливка области под кривой */}
         {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
+
+        {/* Основная плавная линия графика */}
         {linePath && <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={mode === 'aqi' ? '2.5' : '2'} />}
 
+        {/* Маркер выбранного времени */}
         {activePoint && activePoint.val !== null && (
           <g className="chart-active-marker" data-active-hour={data[safeActiveIdx]?.hourIndex ?? safeActiveIdx} aria-current="time">
-            <line x1={activePoint.x} y1={0} x2={activePoint.x} y2={chartHeight} stroke={strokeColor} strokeDasharray="3 3" strokeWidth="1" />
+            <line
+              x1={activePoint.x}
+              y1={padTop}
+              x2={activePoint.x}
+              y2={chartHeight - padBottom}
+              stroke={strokeColor}
+              strokeDasharray="3 3"
+              strokeWidth="1.2"
+            />
             <circle cx={activePoint.x} cy={activePoint.y} r={mode === 'aqi' ? 5 : 4} fill={strokeColor} stroke="#ffffff" strokeWidth="2" />
-            <text x={activePoint.x} y={Math.max(12, activePoint.y - 8)} textAnchor="middle" fontSize="11" fontWeight="bold" fill={strokeColor}>
+            <text
+              x={Math.max(padLeft + 20, Math.min(width - padRight - 20, activePoint.x))}
+              y={Math.max(padTop - 2, activePoint.y - 8)}
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="bold"
+              fill={strokeColor}
+            >
               {activePoint.val} {unit}
             </text>
           </g>
         )}
 
-        {useStandard24Labels
-          ? TIME_INDICES.map((hourIdx, idx) => {
-              if (hourIdx >= count) return null;
-              return (
-                <text key={hourIdx} x={hourIdx * stepX} y={chartHeight - 2} textAnchor="middle" fontSize="10" fill="#6b7280">
-                  {TIME_LABELS[idx]}
-                </text>
-              );
-            })
-          : data.map((item, idx) => {
-              if (idx % labelStep !== 0 && idx !== data.length - 1) return null;
-              const prevItem = idx > 0 ? data[idx - labelStep] || data[idx - 1] : null;
-              const labelText = formatAxisLabel(item, prevItem, isAllDays);
-              return (
-                <text key={idx} x={idx * stepX} y={chartHeight - 2} textAnchor="middle" fontSize="10" fill="#6b7280">
-                  {labelText}
-                </text>
-              );
-            })}
+        {/* Метки оси X */}
+        {renderAxisLabels()}
 
-        {/* Интерактивный слой */}
+        {/* Слой выбора диапазона (Steam Community Market drag selection) */}
+        {selectionBox && (
+          <g className="chart-selection-box" pointerEvents="none">
+            {/* Полупрозрачная подсветка выбранной зоны */}
+            <rect
+              x={selectionBox.left}
+              y={padTop}
+              width={Math.max(1, selectionBox.right - selectionBox.left)}
+              height={usableHeight}
+              fill="rgba(59, 130, 246, 0.2)"
+              stroke="rgba(59, 130, 246, 0.5)"
+              strokeWidth="1"
+              strokeDasharray="4 2"
+            />
+            {/* Левая граница диапазона */}
+            <line
+              x1={selectionBox.left}
+              y1={padTop}
+              x2={selectionBox.left}
+              y2={chartHeight - padBottom}
+              stroke="#60a5fa"
+              strokeWidth="2.5"
+            />
+            {/* Правая граница диапазона */}
+            <line
+              x1={selectionBox.right}
+              y1={padTop}
+              x2={selectionBox.right}
+              y2={chartHeight - padBottom}
+              stroke="#60a5fa"
+              strokeWidth="2.5"
+            />
+            {/* Информационная плашка с периодом выбора */}
+            {(() => {
+              const startT = formatPointTooltip(data[selectionBox.fromIdx]);
+              const endT = formatPointTooltip(data[selectionBox.toIdx]);
+              const rangeText = `${startT} — ${endT}`;
+              const midX = (selectionBox.left + selectionBox.right) / 2;
+              const badgeX = Math.max(75, Math.min(width - 75, midX));
+              return (
+                <g transform={`translate(${badgeX}, ${padTop + 20})`}>
+                  <rect
+                    x="-70"
+                    y="-13"
+                    width="140"
+                    height="24"
+                    rx="6"
+                    fill="#1e293b"
+                    stroke="#60a5fa"
+                    strokeWidth="1.5"
+                  />
+                  <text
+                    textAnchor="middle"
+                    y="3"
+                    fontSize="11"
+                    fontWeight="600"
+                    fill="#ffffff"
+                  >
+                    {rangeText}
+                  </text>
+                </g>
+              );
+            })()}
+          </g>
+        )}
+
+        {/* Интерактивный слой точек для клика и доступности клавиатуры */}
         {onPointClick && points.map((point, idx) => {
           const rectWidth = stepX; 
           const rectX = point.x - rectWidth / 2;
@@ -199,7 +532,7 @@ export default function DynamicsChart({
               width={rectWidth}
               height={chartHeight}
               fill="transparent"
-              style={{ cursor: 'pointer', outline: 'none' }}
+              style={{ cursor: enableRangeSelection ? 'crosshair' : 'pointer', outline: 'none' }}
               role="button"
               tabIndex={0}
               aria-label={`Выбрать время: ${timeLabel}, значение: ${point.val ?? 'нет данных'} ${unit}`}
