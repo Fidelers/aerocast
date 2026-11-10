@@ -233,6 +233,28 @@ h2 {
   background: rgba(156, 163, 175, 0.45);
 }
 
+.sidebar--chat-open {
+  overflow-y: hidden !important;
+}
+
+.sidebar--chat-open .sidebar__header,
+.sidebar--chat-open .city-search,
+.sidebar--chat-open .display-mode {
+  flex-shrink: 0;
+}
+
+.sidebar--chat-open .geo-nav,
+.sidebar--chat-open .date-nav,
+.sidebar--chat-open .time-nav {
+  display: none !important;
+}
+
+@media screen and (max-height: 600px) {
+  .sidebar--chat-open {
+    overflow-y: auto !important;
+  }
+}
+
 .sidebar__header {
   display: flex;
   align-items: center;
