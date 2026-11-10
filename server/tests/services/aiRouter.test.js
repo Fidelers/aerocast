@@ -311,6 +311,13 @@ describe('aiRouter.routeRequest', () => {
             expect(res.emotion).toBe('think');
         });
 
+        it('напрямую перехватывает математические примеры (48*3654=, 2+2) без обращения к Jev', async () => {
+            const res = await routeRequest({ userMessage: '48*3654=' });
+            expect(res.reply).toContain('калькулятор');
+            expect(res.emotion).toBe('think');
+            expect(res.model).toBe('jev-system1');
+        });
+
         it('блокирует попытки jailbreak (jailbreak)', async () => {
             jevClient.scoreDecisions.mockResolvedValueOnce({
                 guardrail: { answer: 'jailbreak', top_probability: 0.98 }

@@ -339,6 +339,35 @@ describe('AI Module & Local LLM endpoints', () => {
             expect(recipeResult.emotion).toBe('think');
         });
 
+        it('перехватывает математические формулы и примеры (48*3654=, 2+2) даже при наличии pointAnalytics', async () => {
+            const pointAnalytics = {
+                locationName: 'Новокузнецк, Россия',
+                lat: 53.75,
+                lon: 87.14,
+                aqi: 28,
+                pm2_5: 12.0
+            };
+
+            const formulaResult = await aiService.sendChatMessage({
+                userMessage: '48*3654=',
+                pointAnalytics
+            });
+            expect(formulaResult.reply).toContain('калькулятор');
+            expect(formulaResult.reply).not.toContain('Новокузнецк');
+            expect(formulaResult.emotion).toBe('think');
+
+            const simpleMath = await aiService.sendChatMessage({
+                userMessage: '2+2',
+                pointAnalytics
+            });
+            expect(simpleMath.reply).toContain('калькулятор');
+
+            const equationResult = await aiService.sendChatMessage({
+                userMessage: 'Реши квадратное уравнение 2x^2 + 5x - 3 = 0'
+            });
+            expect(equationResult.reply).toContain('калькулятор');
+        });
+
         it('распознает тег [action:set_layer:satellite] и возвращает action, удаляя тег из ответа', async () => {
             const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
                 data: {
