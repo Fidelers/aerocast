@@ -980,7 +980,7 @@ export default function AiChatModal({
             id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             role: 'assistant',
             isError: true,
-            content: `Ошибка соединения: ${err.message}. Проверьте сервер и настройки AnyModel.`,
+            content: `Ошибка соединения: ${err.message}. Проверьте подключение к серверу и статус AI-сервисов.`,
             timestamp: Date.now()
           });
         } finally {

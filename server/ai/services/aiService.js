@@ -219,8 +219,8 @@ function isNotCityName(str) {
     if (/^(?:значени[а-яё]*|качеств[а-яё]*|уровн[а-яё]*|воздух[а-яё]*|данн[а-яё]*|замер[а-яё]*|аналитик[а-яё]*|шкал[а-яё]*|индекс[а-яё]*|дн[еяй]*|недел[а-яё]*|месяц[а-яё]*|год[а-яё]*|времен[а-яё]*|период[а-яё]*|архив[а-яё]*|истори[а-яё]*|числ[а-яё]*|маки|аки|aqi|eaqi|пм|pm|средн[а-яё]*|максим[а-яё]*|миним[а-яё]*|пик[а-яё]*|норм[а-яё]*|мире|росси[а-яё]*|планет[а-яё]*|стран[а-яё]*)$/i.test(s)) return true;
     // Загрязнители и бытовые/абстрактные слова не должны приниматься за название города
     if (/^[0-9+\-*/^%×÷=().,?xXхХ!\s]+$/.test(s)) return true;
-    if (/^(?:co|no2|so2|o3|pm|pm2[.,]?5|pm10|aqi|eaqi|uv|dust|пыл[а-яё]*|угар[а-яё]*|газ[а-яё]*|окн[а-яё]*|квартир[а-яё]*|проветр[а-яё]*|пробежк[а-яё]*|тренировк[а-яё]*|прогулк[а-яё]*|паркинг[а-яё]*)$/i.test(s)) return true;
-    if (/(?:воздух|качеств|аналитик|погод|замер|прогноз|архив|проветр|окн|квартир|пробеж|трениров|прогул|паркинг|угар|смог|пыл)/i.test(s)) return true;
+    if (/^(?:co|no2|so2|o3|pm|pm2[.,]?5|pm10|aqi|eaqi|uv|dust|пыл[а-яё]*|угар[а-яё]*|газ[а-яё]*|окн[а-яё]*|квартир[а-яё]*|проветр[а-яё]*|пробежк[а-яё]*|тренировк[а-яё]*|прогулк[а-яё]*|паркинг[а-яё]*|датчик[а-яё]*)$/i.test(s)) return true;
+    if (/(?:воздух|качеств|аналитик|погод|замер|прогноз|архив|проветр|окн|квартир|пробеж|трениров|прогул|паркинг|угар|смог|пыл|датчик)/i.test(s)) return true;
     return false;
 }
 
@@ -231,6 +231,7 @@ function extractCityIntent(text) {
     if (/^(?:какие\s+города|как\s+найти|где\s+найти|кто\s+ты|кто\s+тебя)\b/i.test(clean)) {
         return null;
     }
+    if (/(?:что\s+по\s+датчик|по\s+датчик|что\s+с\s+датчик|какие\s+датчик)/i.test(clean)) return null;
     if (/(?:т[её]мн|светл|ночн|дневн)\s+(?:тем[ау]|режим)/i.test(clean)) return null;
     if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп|обратно|как\s+было|назад|откат|отмени)/i.test(clean)) return null;
     if (/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(clean)) {
@@ -450,11 +451,12 @@ async function resolveCity(raw) {
     return null;
 }
 
-async function retry(fn, retries = 3, delay = 1000) {
+async function retry(fn, retries = (process.env.NODE_ENV === 'test' ? 0 : 3), delay = 1000) {
     try {
         return await fn();
     } catch (err) {
-        if (retries <= 0 || !err.response) throw err;
+        const isRetryable = err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || (err.response && err.response.status >= 500);
+        if (retries <= 0 || !isRetryable) throw err;
         await new Promise(resolve => setTimeout(resolve, delay));
         return retry(fn, retries - 1, delay * 2);
     }
@@ -976,8 +978,8 @@ async function sendChatMessage({
             reply = reply.replace(/[\[(]action:\s*[a-zA-Z0-9_-]+(?::[^\]\)\n]+)?[\])]/gi, '').trim();
         }
 
-        const IS_INFORMATIONAL_QUESTION = /(?:^(?:какие|какой|какая|какое|какую|что\s+такое|что\s+за|расскажи|почему|зачем)\b)/i;
-        if (action && IS_INFORMATIONAL_QUESTION.test(cleanUserMessage)) {
+        const IS_INFORMATIONAL_QUESTION = /(?:^(?:как\s+(?:найти|пользоваться|работает|переключить|включить|отключить|управлять|посмотреть|выбрать|открыть|использовать|попасть|поменять)|где\s+(?:найти|посмотреть|переключить|находится|включить|увидеть)|какие\s+(?:палитры|цвета|режимы|кнопки|панели|города|команды)|что\s+такое|что\s+за|что\s+значит|расскажи(?:\s+о|\s+про|\s+как)|почему|зачем|объясни)\b)/i;
+        if (action && (IS_INFORMATIONAL_QUESTION.test(cleanUserMessage) || /(?:например|к\s+примеру|образц[а-яё]*|вроде)\s*[:,\-—–]?\s*$/i.test(reply.substring(0, actionMatch?.index || 0)))) {
             action = null;
         }
 
@@ -1059,6 +1061,10 @@ async function sendChatMessage({
                     action = detectedFromReply;
                 }
             }
+        }
+
+        if (action && (IS_INFORMATIONAL_QUESTION.test(cleanUserMessage) || /(?:например|к\s+примеру|образц[а-яё]*|вроде)\s*[:,\-—–]?\s*$/i.test(reply.substring(0, actionMatch?.index || 0)))) {
+            action = null;
         }
 
         if (!isFollowUpAnalytics && action && action.type === 'set_location') {

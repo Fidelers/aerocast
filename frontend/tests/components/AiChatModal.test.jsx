@@ -125,11 +125,11 @@ describe('AiChatModal Component', () => {
     );
   });
 
-  it('отправляет сообщение пользователя и отображает ответ от AnyModel API', async () => {
+  it('отправляет сообщение пользователя и отображает ответ от AI API', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        reply: 'Ответ от AnyModel: всё супер!',
+        reply: 'Ответ от AI: всё супер!',
         emotion: 'happy'
       })
     });
@@ -149,7 +149,7 @@ describe('AiChatModal Component', () => {
 
     // Ждем появления ответа
     await waitFor(() => {
-      expect(screen.getByText('Ответ от AnyModel: всё супер!')).toBeDefined();
+      expect(screen.getByText('Ответ от AI: всё супер!')).toBeDefined();
     });
 
     expect(global.fetch).toHaveBeenCalledWith(

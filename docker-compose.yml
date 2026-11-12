@@ -57,6 +57,9 @@ services:
       --ctx-size 12288
       -n 2048
       -np 1
+      --no-cache-prompt
+      --slot-prompt-similarity 0.0
+      --no-context-shift
       --repeat-penalty 1.1
     deploy:
       resources:
