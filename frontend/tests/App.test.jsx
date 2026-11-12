@@ -961,4 +961,106 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             }
         });
     });
+
+    describe('BUG-01: Запрос разрешения на доступ к геолокации и центрирование карты при открытии сайта', () => {
+        let origGeo;
+
+        beforeEach(() => {
+            origGeo = globalThis.navigator.geolocation;
+        });
+
+        afterEach(() => {
+            if (origGeo !== undefined) {
+                globalThis.navigator.geolocation = origGeo;
+            } else {
+                delete globalThis.navigator.geolocation;
+            }
+        });
+
+        it('запрашивает геолокацию по GPS с enableHighAccuracy: true при монтировании', () => {
+            const getCurrentPositionMock = vi.fn();
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: getCurrentPositionMock
+            };
+
+            render(React.createElement(App));
+
+            expect(getCurrentPositionMock).toHaveBeenCalledTimes(1);
+            expect(getCurrentPositionMock).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.any(Function),
+                expect.objectContaining({ enableHighAccuracy: true })
+            );
+        });
+
+        it('центрирует карту и запрашивает данные воздуха для координат GPS при разрешении доступа', async () => {
+            const mockLat = 55.7558;
+            const mockLon = 37.6173;
+
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn((successCb) => {
+                    successCb({
+                        coords: {
+                            latitude: mockLat,
+                            longitude: mockLon,
+                        }
+                    });
+                })
+            };
+
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockAirData
+            });
+
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(globalThis.fetch).toHaveBeenCalledWith(
+                    expect.stringContaining(`/api/air-quality?lat=${mockLat}&lon=${mockLon}`)
+                );
+            });
+        });
+
+        it('делает запрос ТОЛЬКО по GPS без запасного варианта: при отказе пользователя НЕ вызывает IP-fallback и оставляет координаты по умолчанию', async () => {
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn((_successCb, errorCb) => {
+                    errorCb({ code: 1, message: 'User denied Geolocation' });
+                })
+            };
+
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockAirData
+            });
+
+            render(React.createElement(App));
+
+            // Проверяем, что запасные IP-запросы НЕ выполнялись
+            expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining('locate-me'));
+            expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining('ipwho'));
+
+            // Запрос данных воздуха ушел только по координатам по умолчанию (Новокузнецк: 53.7596, 87.1467)
+            expect(globalThis.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/api/air-quality?lat=53.7596&lon=87.1467')
+            );
+        });
+
+        it('не падает и не делает запасных запросов при отсутствии navigator.geolocation в браузере', () => {
+            delete globalThis.navigator.geolocation;
+
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockAirData
+            });
+
+            render(React.createElement(App));
+
+            expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining('locate-me'));
+            expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining('ipwho'));
+            expect(globalThis.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/api/air-quality?lat=53.7596&lon=87.1467')
+            );
+        });
+    });
 });

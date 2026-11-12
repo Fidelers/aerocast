@@ -257,7 +257,7 @@ function App({ referenceDate } = {}) {
         setViewMode(mode);
     };
 
-    const handleLocationSelect = (loc, maybeLon, maybeName) => {
+    const handleLocationSelect = useCallback((loc, maybeLon, maybeName) => {
         setIsMobileSidebarOpen(false);
         let targetLat = null;
         let targetLon = null;
@@ -303,7 +303,36 @@ function App({ referenceDate } = {}) {
                 hideCoverageWarning();
             }
         }
-    };
+    }, [showCoverageWarning, hideCoverageWarning]);
+
+    useEffect(() => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            return;
+        }
+
+        let isMounted = true;
+
+        try {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    if (!isMounted) return;
+                    const lat = position?.coords?.latitude;
+                    const lon = position?.coords?.longitude;
+                    if (lat != null && lon != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lon))) {
+                        handleLocationSelect(Number(lat), Number(lon));
+                    }
+                },
+                () => {
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        } catch {
+        }
+
+        return () => {
+            isMounted = false;
+        };
+    }, [handleLocationSelect]);
 
     const isForecast = useMemo(() => {
         if (!selectedIsoTime) return false;

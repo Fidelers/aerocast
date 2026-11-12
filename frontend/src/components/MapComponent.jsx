@@ -188,7 +188,10 @@ export default function MapComponent({
         map.current = new maplibregl.Map({
             container: mapContainer.current,
             style: osmStyle,
-            center: [87.1467, 53.7596], // Новокузнецк
+            center: [
+                lon != null && !Number.isNaN(Number(lon)) ? Number(lon) : 87.1467,
+                lat != null && !Number.isNaN(Number(lat)) ? Number(lat) : 53.7596
+            ],
             zoom: 11,
             maxZoom: activeBaseLayer === 'satellite' ? SATELLITE_MAX_ZOOM : OSM_MAX_ZOOM,
             attributionControl: false,
