@@ -69,12 +69,12 @@ function detectMapLayerIntent(text) {
     return null;
 }
 
-// Распознает команды режима дальтонизма: отключение, 4 поддерживаемых типа или неподдерживаемый вид
+// Распознает команды режима цветовой слепоты: отключение, 4 поддерживаемых типа или неподдерживаемый вид
 function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
 
-    // Вопросы о дальтонизме не должны триггерить действие
+    // Вопросы о дальтонизме и цветовой слепоте не должны триггерить действие
     const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|какую|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
     if (IS_QUESTION_REGEX.test(clean)) return null;
 
@@ -105,7 +105,7 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
         return { unsupported: true };
     }
 
-    const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+дальтонизма\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
+    const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+(?:цветовой\s+слепоты|дальтонизма)\s+|цветов(?:ой|ая)?\s+слепот[а-я]*\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+(?:цветовой\s+слепоты|дальтонизма)\s+)([а-яa-z0-9_-]+)/i;
     const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
     if (specMatch) {
         const word = specMatch[1].toLowerCase();
@@ -124,7 +124,7 @@ function detectColorBlindIntent(text, { isColorBlind = false, history = [] } = {
     if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
 
     // Без указания типа включается палитра Окабе по умолчанию
-    if ((hasOnWord && hasCbWord) || /^(?:дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
+    if ((hasOnWord && hasCbWord) || /^(?:цветовая\s+слепота|режим\s+цветовой\s+слепоты|дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
         return { enabled: true, colorBlindType: 'okabe' };
     }
 
@@ -167,7 +167,7 @@ function detectActionFromReply(replyText) {
         return null;
     }
 
-    if (/(?:выключаю\s+(?:режим\s+)?дальтонизма|отключаю\s+(?:режим\s+)?дальтонизма|выключаю\s+дальтонизм|отключаю\s+дальтонизм|возвращаю\s+стандартную\s+цветовую|возвращаю\s+стандартные\s+цвета|возвращаю\s+обычные\s+цвета|выключаю\s+его,\s+возвращаю)/i.test(clean)) {
+    if (/(?:выключаю\s+(?:режим\s+)?(?:цветовой\s+слепоты|дальтонизма)|отключаю\s+(?:режим\s+)?(?:цветовой\s+слепоты|дальтонизма)|выключаю\s+дальтонизм|отключаю\s+дальтонизм|возвращаю\s+стандартную\s+цветовую|возвращаю\s+стандартные\s+цвета|возвращаю\s+обычные\s+цвета|выключаю\s+его,\s+возвращаю)/i.test(clean)) {
         return { type: 'set_colorblind', enabled: false };
     }
 
@@ -181,7 +181,7 @@ function detectActionFromReply(replyText) {
     if (hasSwitchAction && /(?:тританоп)/i.test(clean)) {
         return { type: 'set_colorblind', enabled: true, colorBlindType: 'tritanopia' };
     }
-    if (hasSwitchAction && /(?:окабе|палитру\s+окабе|режим\s+дальтонизма|палитру\s+дальтонизма|режим\s+доступности\s+для\s+дальтоников)/i.test(clean)) {
+    if (hasSwitchAction && /(?:окабе|палитру\s+окабе|режим\s+цветовой\s+слепоты|режим\s+дальтонизма|палитру\s+(?:цветовой\s+слепоты|дальтонизма)|режим\s+доступности)/i.test(clean)) {
         return { type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' };
     }
 
@@ -243,23 +243,32 @@ function extractCityIntent(text) {
     // Снимаем вежливые вводные слова в начале («можешь пожалуйста сказать», «подскажи пожалуйста», «скажи», «хочу узнать»)
     let stripped = clean.replace(/^(?:(?:можешь|можете)(?:\s+ли)?(?:\s+пожалуйста|\s+пж|\s+плиз)?\s+(?:сказать|подсказать|рассказать|узнать|проверить|глянуть|посмотреть|показать)|подскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|скажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|расскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|пожалуйста\s+|пж\s+|плиз\s+|хочу\s+узнать|интересно|дай\s+знать|проверь(?:те)?)\s+/i, '').trim();
 
+    const cleanCityStr = (raw) => {
+        if (!raw || typeof raw !== 'string') return '';
+        let c = raw.trim().replace(/[.,!?;:()]+$/, '').trim();
+        c = c.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        c = c.replace(/\s+на\s+(?:карте|схеме|спутнике|экране)\b.*$/i, '').trim();
+        c = c.replace(/^(?:карту|камеру|фокус|вид|экран)\s+/i, '').trim();
+        c = c.replace(/^(?:в|во|на|к|до|по|для)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
+        c = c.replace(/\s+на\s+(?:карте|схеме|спутнике|экране)\b.*$/i, '').trim();
+        c = c.replace(/[.,!?;:()]+$/, '').trim();
+        return c;
+    };
+
     // Запросы вида «покажи полную аналитику по Новосибирску», «сводка по Казани», «подробная аналитика по Москве»
     const ANALYTICS_CITY_REGEX = /(?:(?:покажи(?:те)?|дай(?:те)?|выведи(?:те)?|открой(?:те)?|предоставь(?:те)?|сделай(?:те)?|глянь(?:те)?|посмотри(?:те)?|хочу)?\s*(?:полн[а-яё]*|кратк[а-яё]*|подробн[а-яё]*|общ[а-яё]*|вс[её]|всю)?\s*(?:аналитик[а-яё]*|сводк[а-яё]*|анализ[а-яё]*|данн[а-яё]*|картин[а-яё]*|информаци[а-яё]*)\s+(?:по|в|во|для|о|про)\s+(?:город[а-яё]*\s+)?)(.+)$/i;
     let analyticsMatch = stripped.match(ANALYTICS_CITY_REGEX) || clean.match(ANALYTICS_CITY_REGEX);
     if (analyticsMatch) {
-        let city = analyticsMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
-        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
-        city = city.replace(/^(?:в|во|на|к|до|по|для)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
+        const city = cleanCityStr(analyticsMatch[1]);
         if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
     }
 
-    const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
+    const NAV_REGEX = /(?:(?:перейди(?:те)?|перейти|переходим|переход|перемести(?:ть|сь|те)?|перемещаемся|перемещение|перенеси(?:ть|сь|те)?|открой(?:те)?|открыть|открываем|покажи(?:те)?|показать|показывай|полети(?:м)?|полетели|лететь|слетай(?:те)?|слетаем|поехали|погнали|сгоняй(?:те)?|сгоняем|переключи(?:ть|сь|те)?|переключай|найди(?:те)?|найти|поищи|ищи|глянь(?:те)?|глянем|погляди|посмотри(?:те)?|посмотрим|посмотреть|хочу|давай)\s+(?:пожалуйста\s+|пж\s+|плиз\s+)?(?:мне\s+)?(?:карту\s+|камеру\s+|вид\s+|фокус\s+)?(?:(?:в|во|на|к|до)\s+)?(?:город\s+)?|^(?:город)\s+)(.+)$/i;
     const navMatch = clean.match(NAV_REGEX);
     if (navMatch) {
-        let city = navMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
-        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        const city = cleanCityStr(navMatch[1]);
         if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
@@ -268,8 +277,7 @@ function extractCityIntent(text) {
     const AIR_QUALITY_CITY_REGEX = /(?:что(?:\s+там|\s+сейчас|\s+тут)*\s+(?:по|о|про)\s+качеств[а-яё]*\s+воздуха|качеств[а-яё]*\s+воздуха|что\s+с\s+воздухом)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+(?:город\s+)?(.+)$/i;
     let qualityMatch = stripped.match(AIR_QUALITY_CITY_REGEX) || clean.match(AIR_QUALITY_CITY_REGEX);
     if (qualityMatch) {
-        let city = qualityMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
-        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
+        const city = cleanCityStr(qualityMatch[1]);
         if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
@@ -278,9 +286,7 @@ function extractCityIntent(text) {
     const AIR_CITY_REGEX = /(?:(?:что(?:\s+там|\s+сейчас|\s+тут)*(?:\s+(?:с\s+воздухом|по\s+воздуху|с\s+аналитикой|по\s+аналитике|с\s+замерами|по\s+замерам))?|как(?:\s+там|\s+сейчас)?\s+(?:воздух|дышится|погода)|качество\s+воздуха|какая\s+аналитика|какой(?:\s+там|\s+сейчас)?\s+воздух|чем\s+дышат|воздух|погода|замеры|аналитика)\s+(?:пожалуйста\s+)?(?:в|во|на|по)\s+)(?!качеств|воздух|аналитик|погод|замер|данн)(?:город\s+)?(.+)$/i;
     let airMatch = stripped.match(AIR_CITY_REGEX) || clean.match(AIR_CITY_REGEX);
     if (airMatch) {
-        let city = airMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
-        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
-        city = city.replace(/^(?:в|во|на|к|до)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
+        const city = cleanCityStr(airMatch[1]);
         if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
@@ -289,9 +295,7 @@ function extractCityIntent(text) {
     const PRO_CITY_REGEX = /(?:про\s+(?:воздух|аналитику|погоду|замеры)\s+(?:в|во|на|по)\s+)(?:город\s+)?(.+)$/i;
     let proMatch = stripped.match(PRO_CITY_REGEX) || clean.match(PRO_CITY_REGEX);
     if (proMatch) {
-        let city = proMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
-        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
-        city = city.replace(/^(?:в|во|на|к|до)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
+        const city = cleanCityStr(proMatch[1]);
         if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
@@ -300,9 +304,7 @@ function extractCityIntent(text) {
     const CAP_CITY_REGEX = /(?:^|\s)(?:в|во|на|к|до)\s+(?:городе\s+|город\s+)?([А-ЯЁ][а-яё\-]+(?:\s+[А-ЯЁ][а-яё\-]+)?)/g;
     let inMatch;
     while ((inMatch = CAP_CITY_REGEX.exec(clean)) !== null) {
-        let city = inMatch[1].trim().replace(/[.,!?;:()]+$/, '').trim();
-        city = city.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
-        city = city.replace(/^(?:в|во|на|к|до)\s+/i, '').replace(/^(?:город[а-яё]*|локаци[а-яё]*|точк[а-яё]*)\s+/i, '').trim();
+        const city = cleanCityStr(inMatch[1]);
         if (city.length >= 2 && city.length <= 40 && !isNotCityName(city)) {
             return city;
         }
@@ -458,6 +460,28 @@ async function retry(fn, retries = 3, delay = 1000) {
     }
 }
 
+function isCapabilitiesQuery(text) {
+    if (!text || typeof text !== 'string') return false;
+    const clean = text.toLowerCase().trim();
+    return /(?:что\s+ты\s+умеешь|какой(?:\s+у\s+тебя)?\s+функционал|какие(?:\s+у\s+тебя)?\s+возможност|расскажи(?:\s+о\s+своих)?\s+возможност|какие\s+команды|покажи\s+команды|твой\s+функционал|твои\s+функции|что\s+умеет\s+ая|что\s+ты\s+можешь|команды\s+для\s+маскота|список\s+команд|функционал\s+аи|^(?:помощь|help|справка)$)/i.test(clean);
+}
+
+function generateCapabilitiesReply() {
+    return {
+        reply: `Приветик! Я — Ая, милая девушка-маскот платформы AeroCast! Вот что я умею делать, ня! ✨\n\n` +
+            `🗺️ Управление картой: переключаю спутниковые снимки ESRI из космоса («Переключи на спутник») и векторную схему OpenStreetMap («Верни обычную карту»).\n` +
+            `🌓 Темы оформления: включаю тёмную ночную («Включи тёмную тему») и светлую дневную («Включи светлую тему») темы интерфейса.\n` +
+            `👁️ Режим цветовой слепоты: активирую специальные высококонтрастные палитры (Окабе по умолчанию, Дейтеранопия, Протанопия, Тританопия) и отключаю их.\n` +
+            `🏙️ Навигация: мгновенно нахожу и открываю любой город на карте по названию («Покажи Казань»).\n` +
+            `📊 Аналитика воздуха: выдаю точный индекс EAQI, концентрации 6 веществ (PM2.5, PM10, NO₂, SO₂, O₃, CO), пыль и УФ-индекс в реальном времени.\n` +
+            `📜 Архив и прогноз: помню точные пики загрязнения за прошедшие 7 дней с датой и временем и знаю прогноз на 3 дня вперёд!\n` +
+            `🏃‍♀️ Советы по здоровью: подсказываю, безопасно ли бегать, гулять с детьми и открывать окна.\n\n` +
+            `Быстрые команды можно выбрать по кнопке со знаком вопроса рядом с аналитикой или просто спросить меня в чате, ня! 😊`,
+        model: aiConfig.model,
+        emotion: 'happy'
+    };
+}
+
 function isAnalyticsQuery(text) {
     if (!text || typeof text !== 'string') return false;
     const clean = text.toLowerCase().trim();
@@ -474,7 +498,10 @@ function generateHistoryReply(historyData, locationName, cleanUserMessage = '') 
         return null;
     }
     const loc = locationName || 'выбранной локации';
-    const { pastMaxAqi, pastMinAqi, pastAvgAqi, pastDays } = historyData;
+    const pastMaxAqi = historyData.pastMaxAqi || (historyData.maxAqi != null ? { aqi: historyData.maxAqi, label: historyData.maxAqiLabel || '' } : null);
+    const pastMinAqi = historyData.pastMinAqi ?? (historyData.minAqi != null ? { aqi: historyData.minAqi } : null);
+    const pastAvgAqi = historyData.pastAvgAqi ?? historyData.avgAqi;
+    const pastDays = historyData.pastDays ?? historyData.days;
 
     const wantsMaxOrPeak = /(?:максим|само[ее]\s+высок|пик|худш|больш)/i.test(cleanUserMessage);
     const wantsMin = /(?:миним|само[ее]\s+(?:низк|чист)|лучш)/i.test(cleanUserMessage);
@@ -570,7 +597,9 @@ function generateFullAnalyticsReply(pointAnalytics, cleanUserMessage = '') {
         forecastText = ` По прогнозу на 3 дня средний индекс составит ${pointAnalytics.forecast3Days.periodAvgAqi} (разброс ${pointAnalytics.forecast3Days.periodMinAqi}–${pointAnalytics.forecast3Days.periodMaxAqi}).`;
     }
 
-    const reply = `Смотри, вот полная картина качества воздуха по ${loc}, ня! ✨ Сейчас индекс EAQI равен ${numAqi}, концентрация PM2.5: ${pm25Str}.${historyText}${forecastText} Я внимательно слежу за атмосферой и архивом, дыши спокойно, ня! 😊`;
+    const reply = `Смотри, вот полная картина качества воздуха по ${loc}, ня! ✨\n\n` +
+        `📊 Текущий воздух: Индекс EAQI равен ${numAqi}, концентрация PM2.5: ${pm25Str}.${historyText}${forecastText}\n` +
+        `🌿 Рекомендации: Я внимательно слежу за атмосферой и архивом, дыши спокойно, ня! 😊`;
 
     return {
         reply,
@@ -605,6 +634,43 @@ function generatePointAnalyticsReply(pointAnalytics, cleanUserMessage) {
     const pm25Str = (pm2_5 != null && !isNaN(Number(pm2_5))) ? `${Number(pm2_5).toFixed(1)} мкг/м³` : null;
     const pm10Str = (pm10 != null && !isNaN(Number(pm10))) ? `${Number(pm10).toFixed(1)} мкг/м³` : null;
     const no2Str = (no2 != null && !isNaN(Number(no2))) ? `${Number(no2).toFixed(1)} мкг/м³` : null;
+
+    const wantsStructured = cleanUserMessage && /(?:структур|рекомендац|совет|врем|час|подробн)/i.test(cleanUserMessage);
+    if (wantsStructured) {
+        let statusLabel = 'Отлично';
+        let advisory = 'Воздух очень свежий и чистый! Идеальные условия для уличного спорта, бега и прогулок';
+        let emotion = 'happy';
+        if (numAqi > 20 && numAqi <= 40) {
+            statusLabel = 'Хорошо';
+            advisory = 'Воздух чистый и безопасный, никаких ограничений для прогулок и активностей нет';
+            emotion = 'happy';
+        } else if (numAqi > 40 && numAqi <= 60) {
+            statusLabel = 'Удовлетворительно';
+            advisory = 'Приемлемый уровень. Астматикам и аллергикам при интенсивном беге стоит прислушиваться к организму';
+            emotion = 'think';
+        } else if (numAqi > 60 && numAqi <= 80) {
+            statusLabel = 'Плохо';
+            advisory = 'Загрязненный воздух. Рекомендуется отложить пробежки, детям и пожилым лучше сократить время прогулок';
+            emotion = 'alert';
+        } else if (numAqi > 80) {
+            statusLabel = numAqi <= 100 ? 'Очень плохо' : 'Опасно';
+            advisory = 'Тяжелый смог! Спорт на улице противопоказан, окна плотно закрыть, при выходе использовать респиратор';
+            emotion = 'alert';
+        }
+
+        const timeLabel = pointAnalytics.selectedTimeInfo?.label || pointAnalytics.time || 'текущий час';
+        const reply = `Смотри, вот подробная аналитика по ${locText}, ня! ✨\n\n` +
+            `🕒 Время замера: ${timeLabel}\n` +
+            `📊 Качество воздуха: Индекс EAQI равен ${numAqi} (${statusLabel})\n` +
+            `💨 Загрязнители: PM2.5: ${pm25Str || 'в норме'}, PM10: ${pm10Str || 'в норме'}${no2Str ? `, NO₂: ${no2Str}` : ''}\n` +
+            `🌿 Рекомендации: ${advisory}, ня! 😊`;
+
+        return {
+            reply,
+            model: aiConfig.model,
+            emotion
+        };
+    }
 
     if (numAqi <= 20) {
         return {
@@ -657,8 +723,9 @@ function buildPointAnalyticsReply(pointAnalytics, cleanUserMessage = '') {
     }
 
     const isHistory = /(?:прошл|предыдущ|вчера|позавчера|раньше|архив|истори|пик|было\s+(?:ли|самое)?)/i.test(cleanUserMessage);
-    if (isHistory && pointAnalytics.historyData) {
-        const historyReply = generateHistoryReply(pointAnalytics.historyData, pointAnalytics.locationName, cleanUserMessage);
+    const historyObj = pointAnalytics.historyData || pointAnalytics.historySummary;
+    if (isHistory && historyObj) {
+        const historyReply = generateHistoryReply(historyObj, pointAnalytics.locationName, cleanUserMessage);
         if (historyReply) return historyReply;
     }
 
@@ -917,7 +984,7 @@ async function sendChatMessage({
         const cbIntent = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
         if (cbIntent?.unsupported) {
             action = null;
-            reply = 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨';
+            reply = 'Хмпф! Такого режима цветовой слепоты у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨';
             emotion = 'alert';
         } else {
             if (!action && cbIntent) {
@@ -1101,10 +1168,10 @@ async function sendChatMessage({
             reply = uniqueSentences.join(' ').trim();
         }
 
-        const charLimit = aiConfig.maxCharLimit || 750;
+        const charLimit = aiConfig.maxCharLimit || 2500;
         if (reply.length > charLimit) {
             const textChunk = reply.substring(0, charLimit);
-            const sentenceEndMatches = [...textChunk.matchAll(/(?<!\b\d)[.!?](?=\s|$)/g)];
+            const sentenceEndMatches = [...textChunk.matchAll(/(?<!\b\d)[.!?✨~](?=\s|$)/g)];
             if (sentenceEndMatches.length > 0) {
                 const lastMatch = sentenceEndMatches[sentenceEndMatches.length - 1];
                 const cutoff = lastMatch.index;
@@ -1114,6 +1181,27 @@ async function sendChatMessage({
             } else {
                 const spaceCutoff = textChunk.lastIndexOf(' ');
                 reply = (spaceCutoff > 200 ? textChunk.substring(0, spaceCutoff) : textChunk).trim() + '...';
+            }
+        }
+
+        // Защита от оборванных на полуслове фраз при генерации LLM (например, "в 04:", висячие двоеточия/запятые/тире)
+        if (reply) {
+            if (/(?:[\s,;:\-—–]+|\b\d{1,2}:)\s*$/.test(reply)) {
+                reply = reply.replace(/(?:[\s,;:\-—–]+|\b\d{1,2}:)\s*$/g, '').trim();
+                if (!/[.!?✨~)\"']$/.test(reply)) {
+                    const sentenceEndMatches = [...reply.matchAll(/(?<!\b\d)[.!?✨~](?=\s|$)/g)];
+                    if (sentenceEndMatches.length > 0) {
+                        const lastMatch = sentenceEndMatches[sentenceEndMatches.length - 1];
+                        const cutoff = lastMatch.index;
+                        if (cutoff > 200) {
+                            reply = reply.substring(0, cutoff + 1).trim();
+                        } else {
+                            reply += '.';
+                        }
+                    } else {
+                        reply += '.';
+                    }
+                }
             }
         }
 
@@ -1138,6 +1226,10 @@ async function sendChatMessage({
         }
 
         if (!reply) {
+            if (isCapabilitiesQuery(cleanUserMessage)) {
+                return generateCapabilitiesReply();
+            }
+
             if (effectivePointAnalytics) {
                 const isFullAnalytics = /(?:полн[а-яё]*\s+аналитик|всю\s+аналитик|подробн[а-яё]*\s+аналитик|полн[а-яё]*\s+картин)/i.test(cleanUserMessage);
                 if (isFullAnalytics) {
@@ -1150,8 +1242,9 @@ async function sendChatMessage({
                     if (allDaysReply) return allDaysReply;
                 }
                 const isHistory = /(?:прошл|предыдущ|вчера|позавчера|раньше|архив|истори|пик|было\s+(?:ли|самое)?)/i.test(cleanUserMessage);
-                if (isHistory && effectivePointAnalytics.historyData) {
-                    const historyReply = generateHistoryReply(effectivePointAnalytics.historyData, effectivePointAnalytics.locationName, cleanUserMessage);
+                const historyObj = effectivePointAnalytics.historyData || effectivePointAnalytics.historySummary;
+                if (isHistory && historyObj) {
+                    const historyReply = generateHistoryReply(historyObj, effectivePointAnalytics.locationName, cleanUserMessage);
                     if (historyReply) return historyReply;
                 }
                 const isForecast = /(?:прогноз|3\s+дня|три\s+дня|завтра|послезавтра|будет)/i.test(cleanUserMessage);
@@ -1224,6 +1317,11 @@ async function sendChatMessage({
     } catch (err) {
         console.error('[LLM Error]', err.response?.data || err.message);
 
+        // Оффлайн-fallback: запрос о возможностях / функционале ассистента
+        if (isCapabilitiesQuery(cleanUserMessage)) {
+            return generateCapabilitiesReply();
+        }
+
         // Оффлайн-fallback: переключение карты при сбое или недоступности LLM
         const fallbackLayer = detectMapLayerIntent(cleanUserMessage);
         if (fallbackLayer) {
@@ -1237,11 +1335,11 @@ async function sendChatMessage({
             };
         }
 
-        // Оффлайн-fallback: переключение режима дальтонизма при сбое LLM
+        // Оффлайн-fallback: переключение режима цветовой слепоты при сбое LLM
         const fallbackCB = detectColorBlindIntent(cleanUserMessage, { isColorBlind, history });
         if (fallbackCB?.unsupported) {
             return {
-                reply: 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨',
+                reply: 'Хмпф! Такого режима цветовой слепоты у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨',
                 model: aiConfig.model,
                 emotion: 'alert',
                 action: null
@@ -1261,7 +1359,7 @@ async function sendChatMessage({
             return {
                 reply: cbType === 'okabe'
                     ? 'Секундочку! Включаю режим доступности для людей с нарушением цветовосприятия с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨'
-                    : `Без проблем! Переключаю палитру дальтонизма на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
+                    : `Без проблем! Переключаю режим цветовой слепоты на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
                 model: aiConfig.model,
                 emotion: 'happy',
                 action: { type: 'set_colorblind', enabled: true, colorBlindType: cbType }
@@ -1290,8 +1388,9 @@ async function sendChatMessage({
             }
 
             const isHistory = /(?:прошл|предыдущ|вчера|позавчера|раньше|архив|истори|было\s+(?:ли|самое)?)/i.test(cleanUserMessage);
-            if (isHistory && effectivePointAnalytics.historyData) {
-                const historyReply = generateHistoryReply(effectivePointAnalytics.historyData, effectivePointAnalytics.locationName, cleanUserMessage);
+            const historyObj = effectivePointAnalytics.historyData || effectivePointAnalytics.historySummary;
+            if (isHistory && historyObj) {
+                const historyReply = generateHistoryReply(historyObj, effectivePointAnalytics.locationName, cleanUserMessage);
                 if (historyReply) return historyReply;
             }
 
@@ -1366,6 +1465,8 @@ module.exports = {
     generateHistoryReply,
     generateAllDaysReply,
     generateFullAnalyticsReply,
+    isCapabilitiesQuery,
+    generateCapabilitiesReply,
     cityMatchesLocation,
     isNotCityName,
     isMathQuery: aiRouter.isMathQuery

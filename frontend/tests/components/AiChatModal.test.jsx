@@ -46,17 +46,83 @@ describe('AiChatModal Component', () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
-  it('переключает состояние звука и сохраняет в localStorage', async () => {
+  it('открывает меню команд маскота по клику на кнопку со знаком вопроса и отправляет выбранную команду в чат', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Команда принята, ня! ✨',
+        action: { type: 'set_base_layer', layer: 'satellite' },
+        emotion: 'happy'
+      })
+    });
+
     render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
 
-    const soundBtn = screen.getByRole('button', { name: /звук/i });
-    expect(soundBtn).toBeDefined();
+    const helpBtn = screen.getByTestId('ai-chat-help-commands-btn');
+    expect(helpBtn).toBeDefined();
+    expect(helpBtn.getAttribute('aria-label')).toBe('Команды для маскота');
+    expect(helpBtn.querySelector('svg')).toBeTruthy();
 
-    await userEvent.click(soundBtn);
-    expect(localStorage.getItem('aerocast_sound_enabled')).toBe('false');
+    // Клик открывает меню команд
+    await userEvent.click(helpBtn);
+    expect(screen.getByText(/Команды для маскота/i)).toBeDefined();
+    expect(screen.getByText(/Переключи на спутник/i)).toBeDefined();
+    expect(screen.getByText(/Окабе/i)).toBeDefined();
+    expect(screen.getByText(/Что ты умеешь/i)).toBeDefined();
 
-    await userEvent.click(soundBtn);
-    expect(localStorage.getItem('aerocast_sound_enabled')).toBe('true');
+    // Клик по команде отправляет ее в чат и закрывает меню
+    const satBtn = screen.getByText(/Переключи на спутник/i);
+    await userEvent.click(satBtn);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/ai/chat',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('Переключи на спутник')
+      })
+    );
+    expect(screen.queryByText(/Команды для маскота/i)).toBeNull();
+  });
+
+  it('в меню команд нет пометок (Jev)/(Gemma), нет кнопки Москвы, и команды цветовой слепоты/аналитики отправляются корректно', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Ответ на команду, ня!',
+        emotion: 'happy'
+      })
+    });
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+
+    const helpBtn = screen.getByTestId('ai-chat-help-commands-btn');
+    await userEvent.click(helpBtn);
+
+    // Проверка отсутствия скобок (Jev) и (Gemma)
+    expect(screen.queryByText(/\(jev\)/i)).toBeNull();
+    expect(screen.queryByText(/\(gemma\)/i)).toBeNull();
+
+    // Проверка отсутствия удаленной кнопки Аналитика по городу (Москва)
+    expect(screen.queryByText(/Аналитика по городу \(Москва\)/i)).toBeNull();
+
+    // Проверка названий разделов
+    expect(screen.getByText('Карта и спутник')).toBeDefined();
+    expect(screen.getByText('Светлый / темный режим')).toBeDefined();
+    expect(screen.getByText('Режим цветовой слепоты')).toBeDefined();
+    expect(screen.getByText('Аналитика и рекомендации')).toBeDefined();
+    expect(screen.getByText('Возможности маскота')).toBeDefined();
+
+    // Клик по команде возможностей
+    const capBtn = screen.getByText(/Что ты умеешь\? Функционал Аи/i);
+    await userEvent.click(capBtn);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/ai/chat',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('Что ты умеешь? Расскажи о своем функционале')
+      })
+    );
   });
 
   it('отправляет сообщение пользователя и отображает ответ от AnyModel API', async () => {
@@ -478,7 +544,7 @@ describe('AiChatModal Component', () => {
     await userEvent.keyboard('{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByText(/Такого режима дальтонизма у нас нет/i)).toBeDefined();
+      expect(screen.getByText(/Такого режима (?:цветовой слепоты|дальтонизма) у нас нет/i)).toBeDefined();
     });
 
     expect(handleColorBlindChange).not.toHaveBeenCalled();
@@ -570,7 +636,7 @@ describe('AiChatModal Component', () => {
     });
   });
 
-  it('выключает дальтонизм при вежливой фразе "выключи пожалуйста режим дальтонизма" через fallback', async () => {
+  it('выключает дальтонизм при вежливой фразе "выключи пожалуйста режим цветовой слепоты" через fallback', async () => {
     const handleColorBlindChange = vi.fn();
     global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
 
@@ -584,7 +650,7 @@ describe('AiChatModal Component', () => {
     );
 
     const input = screen.getByPlaceholderText('Спроси что-нибудь...');
-    await userEvent.type(input, 'выключи пожалуйста режим дальтонизма');
+    await userEvent.type(input, 'выключи пожалуйста режим цветовой слепоты');
     await userEvent.keyboard('{Enter}');
 
     await waitFor(() => {

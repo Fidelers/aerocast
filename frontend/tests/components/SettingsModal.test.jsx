@@ -81,17 +81,17 @@ describe('SettingsModal component (окно настроек темы и цве�
             />
         );
 
-        const cbSwitch = screen.getByRole('switch', { name: /переключить режим для дальтоников/i });
+        const cbSwitch = screen.getByRole('switch', { name: /переключить режим цветовой слепоты/i });
         expect(cbSwitch).toBeTruthy();
         expect(cbSwitch.getAttribute('aria-checked')).toBe('false');
-        expect(screen.getByText(/режим для дальтоников/i)).toBeTruthy();
+        expect(screen.getByText(/режим цветовой слепоты/i)).toBeTruthy();
 
         // Клик переключает режим в true
         fireEvent.click(cbSwitch);
         expect(handleColorBlindChange).toHaveBeenCalledWith(true);
     });
 
-    it('6. Интерактивная палитра предпросмотра адаптируется под активный режим дальтонизма', () => {
+    it('6. Интерактивная палитра предпросмотра адаптируется под активный режим цветовой слепоты', () => {
         const { rerender } = render(
             <SettingsModal
                 isOpen={true}
@@ -170,7 +170,7 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(localStorage.getItem('aerocast_theme')).toBeTruthy();
         expect(document.documentElement.getAttribute('data-theme')).toBeTruthy();
 
-        const cbSwitch = screen.getByRole('switch', { name: /переключить режим для дальтоников/i });
+        const cbSwitch = screen.getByRole('switch', { name: /переключить режим цветовой слепоты/i });
         fireEvent.click(cbSwitch);
 
         expect(localStorage.getItem('aerocast_colorblind')).toBe('true');
@@ -250,7 +250,7 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(localStorage.getItem('aerocast_theme')).toBe('dark');
         expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
 
-        const cbSwitch = screen.getByRole('switch', { name: /переключить режим для дальтоников/i });
+        const cbSwitch = screen.getByRole('switch', { name: /переключить режим цветовой слепоты/i });
         fireEvent.click(cbSwitch);
         expect(localStorage.getItem('aerocast_colorblind')).toBe('true');
         expect(document.documentElement.getAttribute('data-colorblind')).toBe('true');
@@ -410,6 +410,6 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(card.querySelector('.settings-modal__header')).toBeTruthy();
         expect(card.querySelector('.settings-modal__body')).toBeTruthy();
         expect(screen.getByRole('switch', { name: /переключить тему оформления/i })).toBeTruthy();
-        expect(screen.getByRole('switch', { name: /режим для дальтоников/i })).toBeTruthy();
+        expect(screen.getByRole('switch', { name: /режим цветовой слепоты/i })).toBeTruthy();
     });
 });

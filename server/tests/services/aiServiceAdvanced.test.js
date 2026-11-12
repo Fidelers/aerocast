@@ -141,7 +141,7 @@ describe('aiService advanced coverage for LLM response post-processing', () => {
         jest.spyOn(axios, 'post').mockResolvedValueOnce({
             data: {
                 choices: [{
-                    message: { content: 'Включаю режим, но ты же не уточнил какой именно режим дальтонизма нужен.' },
+                    message: { content: 'Включаю режим, но ты же не уточнил какой именно режим цветовой слепоты нужен.' },
                     finish_reason: 'stop'
                 }]
             }
@@ -195,7 +195,7 @@ describe('aiService advanced coverage for LLM response post-processing', () => {
         expect(res.emotion).toBe('alert');
     });
     it('обрабатывает усечение слишком длинного ответа модели (> charLimit)', async () => {
-        const longReply = 'Предложение один. '.repeat(100);
+        const longReply = 'Предложение один. '.repeat(200);
         jest.spyOn(axios, 'post').mockResolvedValueOnce({
             data: {
                 choices: [{
@@ -209,12 +209,12 @@ describe('aiService advanced coverage for LLM response post-processing', () => {
             userMessage: 'расскажи подробно',
             isFollowUpAnalytics: true
         });
-        expect(res.reply.length).toBeLessThanOrEqual(1050);
+        expect(res.reply.length).toBeLessThanOrEqual(2550);
         expect(res.reply).toContain('Предложение один.');
     });
 
     it('обрабатывает усечение длинного ответа без знаков препинания по пробелу', async () => {
-        const longWordyReply = 'слово '.repeat(300);
+        const longWordyReply = 'слово '.repeat(500);
         jest.spyOn(axios, 'post').mockResolvedValueOnce({
             data: {
                 choices: [{
@@ -228,8 +228,27 @@ describe('aiService advanced coverage for LLM response post-processing', () => {
             userMessage: 'расскажи',
             isFollowUpAnalytics: true
         });
-        expect(res.reply.length).toBeLessThanOrEqual(1050);
+        expect(res.reply.length).toBeLessThanOrEqual(2550);
         expect(res.reply).toContain('...');
+    });
+
+    it('корректно устраняет оборванные на полуслове фрагменты вроде "в 04:" в конце генерации', async () => {
+        const truncatedReply = 'Хмпф! Вот показатели качества воздуха. Пик зафиксирован в 20:00. В то же время минимум был в 04:';
+        jest.spyOn(axios, 'post').mockResolvedValueOnce({
+            data: {
+                choices: [{
+                    message: { content: truncatedReply },
+                    finish_reason: 'length'
+                }]
+            }
+        });
+
+        const res = await aiService.sendChatMessage({
+            userMessage: 'покажи аналитику',
+            isFollowUpAnalytics: true
+        });
+        expect(res.reply).not.toContain('04:');
+        expect(res.reply).toContain('Пик зафиксирован в 20:00.');
     });
 
     it('корректирует грамматику на вопрос "ты мог бы" на "я могла бы"', async () => {

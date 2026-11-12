@@ -19,6 +19,8 @@ const args = process.argv.slice(2);
 const cliOptions = {
     target: 'all', // 'all' | 'jev' | 'gemma'
     category: null,
+    filter: null,
+    id: null,
     limit: null,
     url: null,
     verbose: args.includes('--verbose') || args.includes('-v'),
@@ -28,6 +30,8 @@ const cliOptions = {
 for (const arg of args) {
     if (arg.startsWith('--target=')) cliOptions.target = arg.split('=')[1].trim().toLowerCase();
     if (arg.startsWith('--category=')) cliOptions.category = arg.split('=')[1].trim();
+    if (arg.startsWith('--filter=')) cliOptions.filter = arg.split('=')[1].trim().toLowerCase();
+    if (arg.startsWith('--id=')) cliOptions.id = arg.split('=')[1].trim();
     if (arg.startsWith('--limit=')) cliOptions.limit = parseInt(arg.split('=')[1], 10);
     if (arg.startsWith('--url=')) cliOptions.url = arg.split('=')[1].trim();
 }
@@ -209,8 +213,8 @@ function validateTestCase(tc, result, durationMs) {
     }
 
     // 7. Ограничение длины ответа
-    if ((result.reply || '').length > 850) {
-        issues.push(`Превышен лимит длины ответа: ${(result.reply || '').length} > 850 символов`);
+    if ((result.reply || '').length > 2000) {
+        issues.push(`Превышен лимит длины ответа: ${(result.reply || '').length} > 2000 символов`);
     }
 
     return {
@@ -302,6 +306,16 @@ async function run() {
     if (cliOptions.category) {
         testCases = testCases.filter(tc => tc.category === cliOptions.category);
         console.log(`Фильтр по категории: "${cliOptions.category}" (${testCases.length} тестов)`);
+    }
+
+    if (cliOptions.filter) {
+        testCases = testCases.filter(tc => tc.id.toLowerCase().includes(cliOptions.filter) || tc.name.toLowerCase().includes(cliOptions.filter));
+        console.log(`Фильтр по ключевому слову: "${cliOptions.filter}" (${testCases.length} тестов)`);
+    }
+
+    if (cliOptions.id) {
+        testCases = testCases.filter(tc => tc.id === cliOptions.id);
+        console.log(`Фильтр по ID: "${cliOptions.id}" (${testCases.length} тестов)`);
     }
 
     if (cliOptions.limit && cliOptions.limit > 0) {

@@ -81,7 +81,7 @@ describe('FinalCoverageBoost', () => {
     fireEvent.pointerMove(window, { clientX: 100, clientY: 150 });
   });
 
-  it('покрывает переключение звука и кнопку нового диалога в AiChatModal', async () => {
+  it('покрывает кнопку команд маскота и кнопку нового диалога в AiChatModal', async () => {
     render(
       <AiChatModal
         isOpen={true}
@@ -89,9 +89,9 @@ describe('FinalCoverageBoost', () => {
       />
     );
 
-    const soundBtn = screen.getByRole('button', { name: /звук/i });
-    fireEvent.click(soundBtn);
-    expect(soundBtn).toBeDefined();
+    const helpBtn = screen.getByTestId('ai-chat-help-commands-btn');
+    fireEvent.click(helpBtn);
+    expect(screen.getByText(/Команды для маскота/i)).toBeDefined();
 
     const clearBtn = screen.getByRole('button', { name: /новый диалог/i });
     fireEvent.click(clearBtn);

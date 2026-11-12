@@ -39,7 +39,8 @@ describe('aiService helper functions and intent detection', () => {
             expect(aiService.detectColorBlindIntent('что такое дальтонизм?')).toBeNull();
         });
 
-        it('распознает отключение режима дальтонизма', () => {
+        it('распознает отключение режима цветовой слепоты', () => {
+            expect(aiService.detectColorBlindIntent('выключи режим цветовой слепоты')).toEqual({ enabled: false });
             expect(aiService.detectColorBlindIntent('выключи режим дальтонизма')).toEqual({ enabled: false });
             expect(aiService.detectColorBlindIntent('убери дальтонизм')).toEqual({ enabled: false });
             expect(aiService.detectColorBlindIntent('верни обычные цвета')).toEqual({ enabled: false });
@@ -295,6 +296,7 @@ describe('aiService helper functions and intent detection', () => {
     });
     describe('ensureFemininePersonaReply & aqiToEmotion branches', () => {
         it('покрывает оффлайн-fallback для аналитики (прогноз, архив, все дни)', async () => {
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValue(new Error('LLM offline'));
             const pointAnalytics = {
                 locationName: 'Кемерово',
                 aqi: 70,
@@ -330,6 +332,7 @@ describe('aiService helper functions and intent detection', () => {
                 pointAnalytics
             });
             expect(resAllDays.reply).toContain('11 дней');
+            axiosSpy.mockRestore();
         });
 
         it('проверяет переключение слоев карты в оффлайн-fallback', async () => {
@@ -358,6 +361,56 @@ describe('aiService helper functions and intent detection', () => {
                 enabled: true,
                 colorBlindType: 'deuteranopia'
             });
+        });
+
+        it('проверяет распознавание и ответ на запрос возможностей и функционала маскота', async () => {
+            expect(aiService.isCapabilitiesQuery('Что ты умеешь? Расскажи о своем функционале')).toBe(true);
+            expect(aiService.isCapabilitiesQuery('какой у тебя функционал?')).toBe(true);
+            expect(aiService.isCapabilitiesQuery('какие команды есть?')).toBe(true);
+            expect(aiService.isCapabilitiesQuery('расскажи о своих возможностях')).toBe(true);
+            expect(aiService.isCapabilitiesQuery('помощь')).toBe(true);
+            expect(aiService.isCapabilitiesQuery('какой воздух в Казани')).toBe(false);
+
+            const capabilitiesReply = aiService.generateCapabilitiesReply();
+            expect(capabilitiesReply.emotion).toBe('happy');
+            expect(capabilitiesReply.reply).toContain('Управление картой');
+            expect(capabilitiesReply.reply).toContain('Темы оформления');
+            expect(capabilitiesReply.reply).toContain('Режим цветовой слепоты');
+            expect(capabilitiesReply.reply).not.toContain('режим дальтонизма');
+            expect(capabilitiesReply.reply).toContain('Окабе');
+            expect(capabilitiesReply.reply).toContain('Навигация');
+            expect(capabilitiesReply.reply).toContain('Аналитика воздуха');
+            expect(capabilitiesReply.reply).toContain('Архив и прогноз');
+            expect(capabilitiesReply.reply).toContain('Советы по здоровью');
+
+            const axiosSpy = jest.spyOn(axios, 'post').mockRejectedValue(new Error('LLM offline'));
+            const resOffline = await aiService.sendChatMessage({
+                userMessage: 'Что ты умеешь? Расскажи о своем функционале'
+            });
+            expect(resOffline.reply).toContain('Управление картой');
+            expect(resOffline.reply).not.toContain('режим дальтонизма');
+            axiosSpy.mockRestore();
+        });
+
+        it('генерирует структурированную аналитику по точке с временем и рекомендациями', () => {
+            const pointAnalytics = {
+                locationName: 'Екатеринбург',
+                aqi: 45,
+                pm2_5: 18,
+                pm10: 28,
+                time: '14:00',
+                selectedTimeInfo: { label: 'Сегодня, 14:00' }
+            };
+
+            const structuredRes = aiService.generatePointAnalyticsReply(
+                pointAnalytics,
+                'Какая аналитика по текущей точке сейчас с временем и рекомендациями?'
+            );
+            expect(structuredRes.reply).toContain('🕒 Время замера:');
+            expect(structuredRes.reply).toContain('📊 Качество воздуха:');
+            expect(structuredRes.reply).toContain('💨 Загрязнители:');
+            expect(structuredRes.reply).toContain('🌿 Рекомендации:');
+            expect(structuredRes.reply).not.toContain('режим дальтонизма');
         });
     });
 

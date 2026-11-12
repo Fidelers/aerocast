@@ -81,12 +81,12 @@ function detectClientMapLayerIntent(text) {
   return null;
 }
 
-// Распознавание команд переключения режима дальтонизма и палитр на клиенте
+// Распознавание команд переключения режима цветовой слепоты и палитр на клиенте
 function detectClientColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
 
-  // Вопросы о дальтонизме не должны триггерить действие
+  // Вопросы о дальтонизме и цветовой слепоте не должны триггерить действие
   const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|какую|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
   if (IS_QUESTION_REGEX.test(clean)) return null;
 
@@ -117,8 +117,8 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
     return { unsupported: true };
   }
 
-  // Проверяем паттерны вида: "режим дальтонизма [название]", "палитра [название]", "дальтонизм [название]"
-  const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+дальтонизма\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+дальтонизма\s+)([а-яa-z0-9_-]+)/i;
+  // Проверяем паттерны вида: "режим цветовой слепоты [название]", "палитра [название]", "цветовая слепота [название]"
+  const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+(?:цветовой\s+слепоты|дальтонизма)\s+|цветов(?:ой|ая)?\s+слепот[а-я]*\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+(?:цветовой\s+слепоты|дальтонизма)\s+)([а-яa-z0-9_-]+)/i;
   const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
   if (specMatch) {
     const word = specMatch[1].toLowerCase();
@@ -136,8 +136,8 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
   if (/(?:тританоп[а-я]*|tritanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'tritanopia' };
   if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
 
-  // 3. Запрос на включение дальтонизма без типа -> Окабе по умолчанию
-  if ((hasOnWord && hasCbWord) || /^(?:дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
+  // 3. Запрос на включение цветовой слепоты без типа -> Окабе по умолчанию
+  if ((hasOnWord && hasCbWord) || /^(?:цветовая\s+слепота|режим\s+цветовой\s+слепоты|дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
     return { enabled: true, colorBlindType: 'okabe' };
   }
 
@@ -341,6 +341,7 @@ export default function AiChatModal({
   const [messages, setMessages] = useState([INITIAL_GREETING]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showCommandsMenu, setShowCommandsMenu] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(() => {
     try {
       return localStorage.getItem('aerocast_sound_enabled') !== 'false';
@@ -878,7 +879,7 @@ export default function AiChatModal({
             continue;
           }
 
-          // Клиентский fallback: переключение режима дальтонизма при сбое сетевого запроса
+          // Клиентский fallback: переключение режима цветовой слепоты при сбое сетевого запроса
           const fallbackCB = detectClientColorBlindIntent(job.text, {
             isColorBlind: isColorBlindRef.current,
             history: historyPayload
@@ -888,7 +889,7 @@ export default function AiChatModal({
               appendMessage({
                 id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 role: 'assistant',
-                content: 'Хмпф! Такого режима дальтонизма у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨',
+                content: 'Хмпф! Такого режима цветовой слепоты у нас нет! 😾 В AeroCast поддерживаются только 4 проверенные палитры: Окабе (по умолчанию), Дейтеранопия, Протанопия и Тританопия. Выбери что-то из них, ня! ✨',
                 emotion: 'alert',
                 timestamp: Date.now()
               });
@@ -921,7 +922,7 @@ export default function AiChatModal({
                 role: 'assistant',
                 content: cbType === 'okabe'
                   ? 'Секундочку! Включаю режим доступности для людей с нарушением цветовосприятия с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨'
-                  : `Без проблем! Переключаю палитру дальтонизма на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
+                  : `Без проблем! Переключаю режим цветовой слепоты на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
                 emotion: 'happy',
                 timestamp: Date.now()
               });
@@ -1045,6 +1046,11 @@ export default function AiChatModal({
 
     void processQueue();
   }, [appendMessage, processQueue]);
+
+  const handleCommandClick = useCallback((cmdText) => {
+    setShowCommandsMenu(false);
+    handleSendMessage(null, cmdText);
+  }, [handleSendMessage]);
 
   // Новый диалог: сбрасываем очередь и отменяем незавершенный запрос,
   // чтобы его ответ не попал в новый чат.
@@ -1457,12 +1463,14 @@ export default function AiChatModal({
     }
   }, [isOpen, isListening, handleCancelVoice]);
 
-  // Закрытие по клавише Escape (или отмена голосового ввода, если идет запись)
+  // Закрытие по клавише Escape (меню команд -> отмена голосового ввода -> закрытие чата)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (isListening) {
+        if (showCommandsMenu) {
+          setShowCommandsMenu(false);
+        } else if (isListening) {
           handleCancelVoice();
         } else {
           onClose?.();
@@ -1471,7 +1479,7 @@ export default function AiChatModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, isListening, handleCancelVoice]);
+  }, [isOpen, onClose, isListening, handleCancelVoice, showCommandsMenu]);
 
   useEffect(() => {
     return () => {
@@ -1505,6 +1513,22 @@ export default function AiChatModal({
         <div className="ai-chat-header__actions">
           <button
             type="button"
+            className={`ai-chat-header__btn ai-chat-header__help-btn ${showCommandsMenu ? 'ai-chat-header__btn--active' : ''}`}
+            onClick={() => setShowCommandsMenu((prev) => !prev)}
+            title="Команды для маскота"
+            aria-label="Команды для маскота"
+            aria-expanded={showCommandsMenu}
+            data-testid="ai-chat-help-commands-btn"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </button>
+
+          <button
+            type="button"
             className="ai-chat-header__btn"
             onClick={() => handleSendMessage(null, 'Какая аналитика по текущей точке?')}
             title={pointAnalytics ? `Аналитика: ${pointAnalytics.locationName}${pointAnalytics.aqi !== null ? ` · AQI ${pointAnalytics.aqi}` : ''}` : 'Аналитика по текущей точке'}
@@ -1536,48 +1560,173 @@ export default function AiChatModal({
           <button
             type="button"
             className="ai-chat-header__btn"
-            onClick={toggleSound}
-            title={isSoundEnabled ? 'Звук включен' : 'Без звука'}
-            aria-label={isSoundEnabled ? 'Выключить звук' : 'Включить звук'}
+            onClick={handleNewDialog}
+            title="Начать новый диалог"
+            aria-label="Начать новый диалог"
           >
-              {isSoundEnabled ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <line x1="23" y1="9" x2="17" y2="15" />
-                  <line x1="17" y1="9" x2="23" y2="15" />
-                </svg>
-              )}
-            </button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+          </button>
 
-            <button
-              type="button"
-              className="ai-chat-header__btn"
-              onClick={handleNewDialog}
-              title="Начать новый диалог"
-              aria-label="Начать новый диалог"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          <button
+            type="button"
+            className="ai-chat-header__btn ai-chat-header__close"
+            onClick={onClose}
+            title="Закрыть чат"
+            aria-label="Закрыть чат"
+          >
+            &times;
+          </button>
+        </div>
+      </header>
+
+      {showCommandsMenu && (
+        <div className="ai-chat-commands-popover" data-testid="ai-chat-commands-popover">
+          <div className="ai-chat-commands-popover__header">
+            <div className="ai-chat-commands-popover__title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
-            </button>
-
+              <span>Команды для маскота</span>
+            </div>
             <button
               type="button"
-              className="ai-chat-header__btn ai-chat-header__close"
-              onClick={onClose}
-              title="Закрыть чат"
-              aria-label="Закрыть чат"
+              className="ai-chat-commands-popover__close"
+              onClick={() => setShowCommandsMenu(false)}
+              aria-label="Закрыть меню команд"
             >
               &times;
             </button>
           </div>
-        </header>
+
+          <div className="ai-chat-commands-popover__list">
+            <div className="ai-chat-commands-popover__group">
+              <span className="ai-chat-commands-popover__group-title">Карта и спутник</span>
+              <div className="ai-chat-commands-popover__buttons">
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Переключи на спутник')}
+                >
+                  🛰️ Переключи на спутник
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Верни обычную карту')}
+                >
+                  🗺️ Верни обычную карту
+                </button>
+              </div>
+            </div>
+
+            <div className="ai-chat-commands-popover__group">
+              <span className="ai-chat-commands-popover__group-title">Светлый / темный режим</span>
+              <div className="ai-chat-commands-popover__buttons">
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Включи тёмную тему')}
+                >
+                  🌙 Включи тёмную тему
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Включи светлую тему')}
+                >
+                  ☀️ Включи светлую тему
+                </button>
+              </div>
+            </div>
+
+            <div className="ai-chat-commands-popover__group">
+              <span className="ai-chat-commands-popover__group-title">Режим цветовой слепоты</span>
+              <div className="ai-chat-commands-popover__buttons">
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Окабе')}
+                >
+                  👁️ Окабе (по умолчанию)
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Дейтеранопия')}
+                >
+                  🔵 Дейтеранопия
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Протанопия')}
+                >
+                  🔴 Протанопия
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Тританопия')}
+                >
+                  🟢 Тританопия
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item ai-chat-commands-popover__item--off"
+                  onClick={() => handleCommandClick('Отключи режим цветовой слепоты')}
+                >
+                  ✖️ Отключить режим цветовой слепоты
+                </button>
+              </div>
+            </div>
+
+            <div className="ai-chat-commands-popover__group">
+              <span className="ai-chat-commands-popover__group-title">Аналитика и рекомендации</span>
+              <div className="ai-chat-commands-popover__buttons">
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Какая аналитика по текущей точке сейчас с временем и рекомендациями?')}
+                >
+                  📍 Аналитика по точке с рекомендациями
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Какой был пик загрязнения в архиве и в какое время?')}
+                >
+                  📈 Пик в архиве по времени
+                </button>
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Дай прогноз качества воздуха на 3 дня и рекомендации по прогулкам')}
+                >
+                  🔮 Прогноз на 3 дня с советами
+                </button>
+              </div>
+            </div>
+
+            <div className="ai-chat-commands-popover__group">
+              <span className="ai-chat-commands-popover__group-title">Возможности маскота</span>
+              <div className="ai-chat-commands-popover__buttons">
+                <button
+                  type="button"
+                  className="ai-chat-commands-popover__item"
+                  onClick={() => handleCommandClick('Что ты умеешь? Расскажи о своем функционале')}
+                >
+                  ✨ Что ты умеешь? Функционал Аи
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
         <div className="ai-chat-messages" ref={messagesContainerRef}>
           {messages.map((msg) => {

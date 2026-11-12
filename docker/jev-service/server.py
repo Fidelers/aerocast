@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -19,8 +20,7 @@ app = FastAPI(title="AeroCast Jev System 1 Decision Service")
 
 model_engine: Optional[JevStyleDecisionGGUF] = None
 
-@app.on_event("startup")
-def load_model():
+def init_engine():
     global model_engine
     gguf_path = MODEL_DIR / "Jev-Style-0.8B-Decision-v3-Q4_K_M.gguf"
     binary_path = Path("/app/bin/jev-score")
@@ -30,9 +30,16 @@ def load_model():
     if not binary_path.exists():
         raise RuntimeError(f"jev-score binary not found at: {binary_path}")
 
+    if model_engine is not None:
+        try:
+            model_engine.close()
+        except Exception:
+            pass
+        model_engine = None
+
     gpu_layers = int(os.getenv("JEV_GPU_LAYERS", "99"))
     num_threads = int(os.getenv("OMP_NUM_THREADS", "6"))
-    print(f"[JevService] Loading model from {MODEL_DIR} with {num_threads} threads, {gpu_layers} GPU layers (many_mode=batched)...", flush=True)
+    print(f"[JevService] Loading model from {MODEL_DIR} with {num_threads} threads, {gpu_layers} GPU layers (many_mode=exact)...", flush=True)
     model_engine = JevStyleDecisionGGUF(
         model_dir=str(MODEL_DIR),
         quant="Q4_K_M",
@@ -40,9 +47,14 @@ def load_model():
         binary=str(binary_path),
         n_gpu_layers=gpu_layers,
         threads=num_threads,
-        many_mode="batched"
+        many_mode="exact",
+        stderr=sys.stderr
     )
-    print("[JevService] Jev-Style-0.8B ready for inference!", flush=True)
+    print("[JevService] Jev-Style-0.8B ready for inference (mode=exact)!", flush=True)
+
+@app.on_event("startup")
+def load_model():
+    init_engine()
 
 @app.on_event("shutdown")
 def unload_model():
@@ -50,24 +62,30 @@ def unload_model():
     if model_engine:
         model_engine.close()
 
+def ensure_engine_healthy():
+    global model_engine
+    if model_engine is None or getattr(model_engine, "proc", None) is None or model_engine.proc.poll() is not None:
+        print("[JevService] Scorer process dead or uninitialized, restarting engine...", flush=True)
+        init_engine()
+
 class ScoreManyRequest(BaseModel):
     state: Dict[str, Any]
     questions: List[Dict[str, Any]]
 
 @app.get("/health")
 def health():
+    ensure_engine_healthy()
     return {"status": "ok", "model": "Jev-Style-0.8B-Decision-v3"}
 
 @app.post("/decide_many")
 def decide_many(req: ScoreManyRequest):
-    if not model_engine:
-        raise HTTPException(status_code=503, detail="Model is not initialized")
+    ensure_engine_healthy()
     
     try:
         # Валидация вопросов
         formatted_questions = [make_question(q) for q in req.questions]
         
-        # Выполнение батч-скоринга за 1 forward-pass
+        # Выполнение скоринга
         results = model_engine.decide_many(req.state, formatted_questions)
         
         # Формирование ответа по ID вопросов
@@ -81,4 +99,12 @@ def decide_many(req: ScoreManyRequest):
             }
         return response_data
     except Exception as e:
+        print(f"[JevService] Error during decide_many: {e}", file=sys.stderr, flush=True)
+        traceback.print_exc()
+        # Если процесс упал, перезапускаем для следующих запросов
+        if model_engine is not None and getattr(model_engine, "proc", None) is not None and model_engine.proc.poll() is not None:
+            try:
+                init_engine()
+            except Exception as reinit_err:
+                print(f"[JevService] Failed to auto-recover engine: {reinit_err}", file=sys.stderr, flush=True)
         raise HTTPException(status_code=500, detail=str(e))

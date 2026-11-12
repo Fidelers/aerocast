@@ -74,9 +74,9 @@ describe('aiRouter.routeRequest', () => {
             });
         });
 
-        it('обрабатывает REVERT_CB_REGEX (отключение режима дальтонизма)', async () => {
+        it('обрабатывает REVERT_CB_REGEX (отключение режима цветовой слепоты)', async () => {
             const res = await routeRequest({
-                userMessage: 'отключи режим дальтонизма',
+                userMessage: 'отключи режим цветовой слепоты',
                 appContext: {}
             });
             expect(res).toEqual({
@@ -240,7 +240,7 @@ describe('aiRouter.routeRequest', () => {
             });
 
             const res = await routeRequest({ userMessage: 'включи режим ахроматопсия' });
-            expect(res.reply).toContain('Такого режима дальтонизма у нас нет');
+            expect(res.reply).toContain('Такого режима цветовой слепоты у нас нет');
             expect(res.emotion).toBe('alert');
         });
 
@@ -253,7 +253,7 @@ describe('aiRouter.routeRequest', () => {
             });
 
             const res = await routeRequest({
-                userMessage: 'сбрось режим дальтонизма',
+                userMessage: 'сбрось режим цветовой слепоты',
                 appContext: { isColorBlind: true }
             });
             expect(res.action).toEqual({ type: 'set_colorblind', enabled: false });
@@ -392,6 +392,110 @@ describe('aiRouter.routeRequest', () => {
             jevClient.scoreDecisions.mockResolvedValueOnce(null);
             const res = await routeRequest({ userMessage: 'просто тест' });
             expect(res).toBeNull();
+        });
+    });
+
+    describe('Команды из меню быстрого доступа (JEV Fast Actions)', () => {
+        it('обрабатывает команду карты: "Переключи на спутник"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'set_satellite', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Переключи на спутник' });
+            expect(res).toEqual({
+                action: { type: 'set_base_layer', layer: 'satellite' },
+                reply: expect.stringContaining('спутниковые снимки ESRI'),
+                emotion: 'happy',
+                model: 'jev-system1'
+            });
+        });
+
+        it('обрабатывает команду карты: "Верни обычную карту"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'set_osm', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Верни обычную карту' });
+            expect(res).toEqual({
+                action: { type: 'set_base_layer', layer: 'osm' },
+                reply: expect.stringContaining('OpenStreetMap'),
+                emotion: 'happy',
+                model: 'jev-system1'
+            });
+        });
+
+        it('обрабатывает команду темы: "Включи тёмную тему"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                theme: { answer: 'dark', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Включи тёмную тему' });
+            expect(res).toEqual({
+                action: { type: 'set_theme', theme: 'dark' },
+                reply: expect.stringContaining('тёмную тему'),
+                emotion: 'happy',
+                model: 'jev-system1'
+            });
+        });
+
+        it('обрабатывает команду темы: "Включи светлую тему"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                theme: { answer: 'light', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Включи светлую тему' });
+            expect(res).toEqual({
+                action: { type: 'set_theme', theme: 'light' },
+                reply: expect.stringContaining('светлую тему'),
+                emotion: 'happy',
+                model: 'jev-system1'
+            });
+        });
+
+        it('обрабатывает команду цветовой слепоты: "Включи режим цветовой слепоты Окабе"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                colorblind: { answer: 'okabe', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Включи режим цветовой слепоты Окабе' });
+            expect(res.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' });
+            expect(res.reply).toContain('Окабе');
+            expect(res.reply).not.toContain('режим дальтонизма');
+        });
+
+        it('обрабатывает команду цветовой слепоты: "Включи режим цветовой слепоты Дейтеранопия"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                colorblind: { answer: 'deuteranopia', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Включи режим цветовой слепоты Дейтеранопия' });
+            expect(res.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' });
+            expect(res.reply).toContain('Дейтеранопия');
+            expect(res.reply).not.toContain('режим дальтонизма');
+        });
+
+        it('обрабатывает команду цветовой слепоты: "Включи режим цветовой слепоты Протанопия"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                colorblind: { answer: 'protanopia', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Включи режим цветовой слепоты Протанопия' });
+            expect(res.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'protanopia' });
+            expect(res.reply).toContain('Протанопия');
+            expect(res.reply).not.toContain('режим дальтонизма');
+        });
+
+        it('обрабатывает команду цветовой слепоты: "Включи режим цветовой слепоты Тританопия"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                colorblind: { answer: 'tritanopia', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Включи режим цветовой слепоты Тританопия' });
+            expect(res.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'tritanopia' });
+            expect(res.reply).toContain('Тританопия');
+            expect(res.reply).not.toContain('режим дальтонизма');
+        });
+
+        it('обрабатывает команду выключения цветовой слепоты: "Отключи режим цветовой слепоты"', async () => {
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                colorblind: { answer: 'disable', top_probability: 0.95 }
+            });
+            const res = await routeRequest({ userMessage: 'Отключи режим цветовой слепоты' });
+            expect(res.action).toEqual({ type: 'set_colorblind', enabled: false });
+            expect(res.reply).toContain('цветовую гамму');
+            expect(res.reply).not.toContain('режим дальтонизма');
         });
     });
 });

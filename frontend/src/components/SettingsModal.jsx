@@ -314,7 +314,7 @@ export default function SettingsModal({
                 <span className="settings-item__title">Цветовая слепота</span>
               </div>
               <span className="settings-item__desc">
-                Высококонтрастная шкала для людей с нарушением цветовосприятия (режим для дальтоников)
+                Высококонтрастная шкала для людей с нарушением цветовосприятия (режим цветовой слепоты)
               </span>
             </div>
 
@@ -323,7 +323,7 @@ export default function SettingsModal({
               id="settings-colorblind-switch"
               role="switch"
               aria-checked={currentColorBlind}
-              aria-label="Переключить режим для дальтоников (цветовая слепота)"
+              aria-label="Переключить режим цветовой слепоты"
               data-testid="settings-colorblind-switch"
               className={`settings-switch ${currentColorBlind ? 'settings-switch--active' : ''}`}
               onClick={handleToggleColorBlind}

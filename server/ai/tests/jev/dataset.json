@@ -327,7 +327,7 @@
   {
     "id": "jev_cb_okabe_generic",
     "category": "colorblind",
-    "name": "Включение режима дальтонизма без указания типа (дефолт Окабе)",
+    "name": "Включение режима цветовой слепоты без указания типа (дефолт Окабе)",
     "input": {
       "userMessage": "Включи режим для дальтоников",
       "isColorBlind": false
@@ -453,7 +453,7 @@
     "category": "colorblind",
     "name": "Отключение режима для дальтоников",
     "input": {
-      "userMessage": "Отключи режим дальтонизма, верни обычные цвета",
+      "userMessage": "Отключи режим цветовой слепоты, верни обычные цвета",
       "isColorBlind": true,
       "colorBlindType": "okabe"
     },
@@ -473,7 +473,7 @@
     "category": "colorblind",
     "name": "Вежливое выключение режима доступности",
     "input": {
-      "userMessage": "Выключи пожалуйста режим дальтонизма",
+      "userMessage": "Выключи пожалуйста режим цветовой слепоты",
       "isColorBlind": true,
       "colorBlindType": "okabe"
     },
@@ -1781,6 +1781,172 @@
         "Ая",
         "AeroCast",
         "воздух"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_layer_satellite",
+    "category": "map_layers",
+    "name": "Команда из меню: Переключи на спутник",
+    "input": {
+      "userMessage": "Переключи на спутник"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_base_layer",
+        "layer": "satellite"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_layer_osm",
+    "category": "map_layers",
+    "name": "Команда из меню: Верни обычную карту",
+    "input": {
+      "userMessage": "Верни обычную карту"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_base_layer",
+        "layer": "osm"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_theme_dark",
+    "category": "theme",
+    "name": "Команда из меню: Включи тёмную тему",
+    "input": {
+      "userMessage": "Включи тёмную тему"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_theme",
+        "theme": "dark"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_theme_light",
+    "category": "theme",
+    "name": "Команда из меню: Включи светлую тему",
+    "input": {
+      "userMessage": "Включи светлую тему"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_theme",
+        "theme": "light"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_cb_okabe",
+    "category": "colorblind",
+    "name": "Команда из меню: Включи режим цветовой слепоты Окабе",
+    "input": {
+      "userMessage": "Включи режим цветовой слепоты Окабе"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_colorblind",
+        "enabled": true,
+        "colorBlindType": "okabe"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_cb_deuteranopia",
+    "category": "colorblind",
+    "name": "Команда из меню: Включи режим цветовой слепоты Дейтеранопия",
+    "input": {
+      "userMessage": "Включи режим цветовой слепоты Дейтеранопия"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_colorblind",
+        "enabled": true,
+        "colorBlindType": "deuteranopia"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_cb_protanopia",
+    "category": "colorblind",
+    "name": "Команда из меню: Включи режим цветовой слепоты Протанопия",
+    "input": {
+      "userMessage": "Включи режим цветовой слепоты Протанопия"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_colorblind",
+        "enabled": true,
+        "colorBlindType": "protanopia"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_cb_tritanopia",
+    "category": "colorblind",
+    "name": "Команда из меню: Включи режим цветовой слепоты Тританопия",
+    "input": {
+      "userMessage": "Включи режим цветовой слепоты Тританопия"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_colorblind",
+        "enabled": true,
+        "colorBlindType": "tritanopia"
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
+      ]
+    }
+  },
+  {
+    "id": "jev_cmd_cb_disable",
+    "category": "colorblind",
+    "name": "Команда из меню: Отключи режим цветовой слепоты",
+    "input": {
+      "userMessage": "Отключи режим цветовой слепоты"
+    },
+    "expectations": {
+      "action": {
+        "type": "set_colorblind",
+        "enabled": false
+      },
+      "allowedEmotions": [
+        "happy",
+        "idle"
       ]
     }
   }

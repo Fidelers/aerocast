@@ -83,6 +83,43 @@ describe('AI Module & Local LLM endpoints', () => {
             expect(res.headers['access-control-allow-origin']).toBe('http://192.168.1.120:5173');
             spy.mockRestore();
         });
+
+        it('обрабатывает запрос о функционале и возможностях Аи через POST /api/ai/chat', async () => {
+            const spy = jest.spyOn(aiService, 'sendChatMessage').mockResolvedValueOnce({
+                reply: aiService.generateCapabilitiesReply().reply,
+                model: 'gemma-4-E2B-it-Q4_K_M',
+                emotion: 'happy'
+            });
+
+            const res = await request(app)
+                .post('/api/ai/chat')
+                .send({ message: 'Что ты умеешь? Расскажи о своем функционале' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.reply).toContain('Управление картой');
+            expect(res.body.reply).toContain('Режим цветовой слепоты');
+            expect(res.body.reply).not.toContain('режим дальтонизма');
+            expect(res.body.emotion).toBe('happy');
+            spy.mockRestore();
+        });
+
+        it('обрабатывает команду включения режима цветовой слепоты Окабе через POST /api/ai/chat', async () => {
+            const spy = jest.spyOn(aiService, 'sendChatMessage').mockResolvedValueOnce({
+                reply: 'Секундочку! Включаю режим доступности для людей с нарушением цветовосприятия с палитрой Окабе по умолчанию, ня! ✨',
+                action: { type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' },
+                emotion: 'happy',
+                model: 'jev-system1'
+            });
+
+            const res = await request(app)
+                .post('/api/ai/chat')
+                .send({ message: 'Включи режим цветовой слепоты Окабе' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' });
+            expect(res.body.reply).not.toContain('режим дальтонизма');
+            spy.mockRestore();
+        });
     });
 
     describe('POST /api/ai/transcribe', () => {
@@ -467,7 +504,7 @@ describe('AI Module & Local LLM endpoints', () => {
                 }
             });
 
-            const result = await aiService.sendChatMessage({ userMessage: 'Включи режим дальтонизма' });
+            const result = await aiService.sendChatMessage({ userMessage: 'Включи режим цветовой слепоты' });
             expect(result.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'okabe' });
 
             axiosSpy.mockRestore();
@@ -516,7 +553,7 @@ describe('AI Module & Local LLM endpoints', () => {
 
             const result = await aiService.sendChatMessage({ userMessage: 'Включи ахроматопсию' });
             expect(result.action).toBeNull();
-            expect(result.reply).toContain('Такого режима дальтонизма у нас нет');
+            expect(result.reply).toContain('Такого режима цветовой слепоты у нас нет');
             expect(result.reply).toContain('Окабе');
             expect(result.reply).toContain('Дейтеранопия');
             expect(result.reply).toContain('Протанопия');
@@ -526,12 +563,12 @@ describe('AI Module & Local LLM endpoints', () => {
             axiosSpy.mockRestore();
         });
 
-        it('корректно выключает режим дальтонизма по запросу пользователя', async () => {
+        it('корректно выключает режим цветовой слепоты по запросу пользователя', async () => {
             const axiosSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce({
                 data: {
                     choices: [{
                         message: {
-                            content: '[mood:happy] [action:set_colorblind:off] Выключаю дальтонизм, ня! ✨'
+                            content: '[mood:happy] [action:set_colorblind:off] Выключаю цветовую слепоту, ня! ✨'
                         }
                     }]
                 }
@@ -554,7 +591,7 @@ describe('AI Module & Local LLM endpoints', () => {
                 }
             });
 
-            const res1 = await aiService.sendChatMessage({ userMessage: 'выключи пожалуйста режим дальтонизма' });
+            const res1 = await aiService.sendChatMessage({ userMessage: 'выключи пожалуйста режим цветовой слепоты' });
             expect(res1.action).toEqual({ type: 'set_colorblind', enabled: false });
             axiosSpy1.mockRestore();
 
@@ -562,7 +599,7 @@ describe('AI Module & Local LLM endpoints', () => {
                 data: {
                     choices: [{
                         message: {
-                            content: 'Как скажешь! Выключаю режим дальтонизма, ня! ✨'
+                            content: 'Как скажешь! Выключаю режим цветовой слепоты, ня! ✨'
                         }
                     }]
                 }
@@ -572,8 +609,8 @@ describe('AI Module & Local LLM endpoints', () => {
                 userMessage: 'можешь пожалуйста выключить его',
                 isColorBlind: true,
                 history: [
-                    { role: 'user', content: 'включи дальтонизм' },
-                    { role: 'assistant', content: 'Включаю режим дальтонизма' }
+                    { role: 'user', content: 'включи режим цветовой слепоты' },
+                    { role: 'assistant', content: 'Включаю режим цветовой слепоты' }
                 ]
             });
             expect(res2.action).toEqual({ type: 'set_colorblind', enabled: false });
@@ -585,7 +622,7 @@ describe('AI Module & Local LLM endpoints', () => {
                 data: {
                     choices: [{
                         message: {
-                            content: 'Как скажешь! Выключаю режим дальтонизма, ня! ✨'
+                            content: 'Как скажешь! Выключаю режим цветовой слепоты, ня! ✨'
                         }
                     }]
                 }
@@ -605,7 +642,7 @@ describe('AI Module & Local LLM endpoints', () => {
 
             const unsuppResult = await aiService.sendChatMessage({ userMessage: 'Включи монохромазию' });
             expect(unsuppResult.action).toBeNull();
-            expect(unsuppResult.reply).toContain('Такого режима дальтонизма у нас нет');
+            expect(unsuppResult.reply).toContain('Такого режима цветовой слепоты у нас нет');
 
             const offResult = await aiService.sendChatMessage({ userMessage: 'Выключи дальтонизм' });
             expect(offResult.action).toEqual({ type: 'set_colorblind', enabled: false });

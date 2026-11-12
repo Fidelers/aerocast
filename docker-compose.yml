@@ -7,6 +7,8 @@ services:
       - "3000:3000"
     environment:
       - LLM_BASE_URL=http://llama-server:8080/v1
+      - LLM_MAX_TOKENS=2048
+      - LLM_MAX_CHAR_LIMIT=3000
       - JEV_BASE_URL=http://jev-service:8001
       - DB_PATH=/app/data/cache.db
     volumes:
@@ -25,6 +27,7 @@ services:
       - "8001:8001"
     volumes:
       - ./models:/models
+      - ./docker/jev-service/server.py:/app/server.py
     environment:
       - OMP_NUM_THREADS=4
       - JEV_GPU_LAYERS=99
@@ -41,6 +44,7 @@ services:
   llama-server:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
     container_name: llama-server
+    restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
@@ -50,7 +54,9 @@ services:
       --host 0.0.0.0
       --port 8080
       -ngl 99
-      --ctx-size 8192
+      --ctx-size 12288
+      -n 2048
+      -np 1
       --repeat-penalty 1.1
     deploy:
       resources:

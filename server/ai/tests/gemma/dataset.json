@@ -1085,7 +1085,7 @@
   {
     "id": "gemma_cb_qa_settings",
     "category": "colorblind_qa",
-    "name": "Где в настройках переключить режим дальтонизма",
+    "name": "Где в настройках переключить режим цветовой слепоты",
     "input": {
       "userMessage": "Где в интерфейсе можно переключить палитру доступности?"
     },
@@ -1362,7 +1362,8 @@
       "allowedEmotions": [
         "think",
         "happy",
-        "idle"
+        "idle",
+        "alert"
       ],
       "replyMustContainOneOf": [
         "поиск",
@@ -1651,7 +1652,10 @@
         "могла",
         "готова",
         "подскажу",
-        "рада"
+        "рада",
+        "подсказать",
+        "могу",
+        "смогу"
       ],
       "replyMustNotContain": [
         "я мог бы",
@@ -4146,6 +4150,144 @@
         "период",
         "11",
         "пятниц"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cmd_capabilities",
+    "category": "app_knowledge",
+    "name": "Команда из меню: Что ты умеешь? Расскажи о своем функционале",
+    "input": {
+      "userMessage": "Что ты умеешь? Расскажи о своем функционале"
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "умею",
+        "функционал",
+        "AeroCast",
+        "Ая",
+        "карты",
+        "спутник",
+        "цветовой слепоты",
+        "аналитик"
+      ],
+      "replyMustNotContain": [
+        "режим дальтонизма",
+        "я просто языковая модель"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cmd_point_analytics_structured",
+    "category": "analytics",
+    "name": "Команда из меню: Какая аналитика по текущей точке сейчас с временем и рекомендациями?",
+    "input": {
+      "userMessage": "Какая аналитика по текущей точке сейчас с временем и рекомендациями?",
+      "pointAnalytics": {
+        "locationName": "Москва, Красная площадь",
+        "aqi": 35,
+        "aqiStatus": "Хорошо",
+        "aqiRec": "Воздух чистый, можно гулять",
+        "pm25": 12,
+        "pm10": 20,
+        "time": "19:00"
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "idle",
+        "think"
+      ],
+      "replyMustContainOneOf": [
+        "35",
+        "хорошо",
+        "pm2.5",
+        "12",
+        "рекомендаци",
+        "гулять"
+      ],
+      "replyMustNotContain": [
+        "режим дальтонизма"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cmd_archive_peak_time",
+    "category": "analytics",
+    "name": "Команда из меню: Какой был пик загрязнения в архиве и в какое время?",
+    "input": {
+      "userMessage": "Какой был пик загрязнения в архиве и в какое время?",
+      "pointAnalytics": {
+        "historySummary": {
+          "maxAqi": 95,
+          "maxAqiLabel": "среда, 11 ноября в 18:00",
+          "minAqi": 20,
+          "avgAqi": 45
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "alert",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "95",
+        "18:00",
+        "среда",
+        "пик"
+      ],
+      "replyMustNotContain": [
+        "режим дальтонизма"
+      ]
+    }
+  },
+  {
+    "id": "gemma_cmd_forecast_advice",
+    "category": "analytics",
+    "name": "Команда из меню: Дай прогноз качества воздуха на 3 дня и рекомендации по прогулкам",
+    "input": {
+      "userMessage": "Дай прогноз качества воздуха на 3 дня и рекомендации по прогулкам",
+      "pointAnalytics": {
+        "forecast3Days": {
+          "periodAvgAqi": 28,
+          "periodMinAqi": 18,
+          "periodMaxAqi": 42,
+          "periodAvgPm25": 14,
+          "days": [
+            {
+              "dayLabel": "Завтра",
+              "avgAqi": 25,
+              "status": "Хорошо"
+            }
+          ]
+        }
+      }
+    },
+    "expectations": {
+      "allowedEmotions": [
+        "happy",
+        "think",
+        "idle"
+      ],
+      "replyMustContainOneOf": [
+        "прогноз",
+        "28",
+        "прогул",
+        "дня",
+        "дней",
+        "хорошо"
+      ],
+      "replyMustNotContain": [
+        "режим дальтонизма"
       ]
     }
   }

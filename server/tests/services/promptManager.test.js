@@ -133,5 +133,37 @@ describe('promptManager', () => {
             expect(prompt).toContain('Томск');
             expect(prompt).toContain('18');
         });
+
+        it('содержит полный блок возможностей и функционала маскота Аи', () => {
+            const prompt = getSystemPrompt(null);
+            expect(prompt).toContain('ФУНКЦИОНАЛ И ВОЗМОЖНОСТИ АИ (ЧТО УМЕЕТ АЯ)');
+            expect(prompt).toContain('Управление картой');
+            expect(prompt).toContain('Оформление интерфейса');
+            expect(prompt).toContain('Режим цветовой слепоты');
+            expect(prompt).toContain('Навигация по городам');
+            expect(prompt).toContain('Экологическая аналитика');
+            expect(prompt).toContain('Архив и прогноз');
+            expect(prompt).toContain('Экспертные советы по здоровью');
+        });
+
+        it('содержит строгую структуру аналитических ответов из 4 секций', () => {
+            const prompt = getSystemPrompt(null);
+            expect(prompt).toContain('СТРУКТУРА АНАЛИТИЧЕСКИХ ОТВЕТОВ:');
+            expect(prompt).toContain('1. Статус и индекс');
+            expect(prompt).toContain('2. Загрязнители');
+            expect(prompt).toContain('3. Динамика, архив и прогноз');
+            expect(prompt).toContain('4. Рекомендации по здоровью');
+            expect(prompt).toContain('Всегда завершай мысль');
+        });
+
+        it('использует только формулировку "режим цветовой слепоты" и 4 палитры', () => {
+            const prompt = getSystemPrompt(null);
+            expect(prompt).toContain('режим цветовой слепоты');
+            expect(prompt).not.toContain('режим дальтонизма');
+            expect(prompt).toContain('Окабе');
+            expect(prompt).toContain('Дейтеранопия');
+            expect(prompt).toContain('Протанопия');
+            expect(prompt).toContain('Тританопия');
+        });
     });
 });

@@ -265,10 +265,10 @@ launch.bat stop-all
 | `LLM_BASE_URL` | URL OpenAI-совместимого эндпоинта llama-server | `http://llama-server:8080/v1` (или `http://localhost:8080/v1`) |
 | `LLM_API_KEY` | Токен авторизации LLM | `not-needed` |
 | `LLM_MODEL` | Имя языковой модели | `gemma-4-E2B-it-Q4_K_M` |
-| `LLM_MAX_TOKENS` | Максимальное число генерируемых токенов | `1500` |
+| `LLM_MAX_TOKENS` | Максимальное число генерируемых токенов | `2048` |
 | `LLM_TEMPERATURE` | Температура выборки генерации ответа | `0.8` |
 | `LLM_TIMEOUT_MS` | Таймаут ожидания ответа языковой модели | `75000` (мс) |
-| `LLM_MAX_CHAR_LIMIT` | Максимальная длина сообщения пользователя для ИИ | `1000` |
+| `LLM_MAX_CHAR_LIMIT` | Максимальная длина сообщения пользователя для ИИ | `1500` |
 | `JEV_BASE_URL` | URL микросервиса быстрых решений Jev-Style | `http://localhost:8001` (или `http://jev-service:8001`) |
 | `JEV_TIMEOUT_MS` | Таймаут обращения к System 1 | `3500` (мс) |
 

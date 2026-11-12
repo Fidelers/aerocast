@@ -71,7 +71,7 @@ describe('AiChatModalCoverage', () => {
       expect(handleCBType).toHaveBeenCalledWith('tritanopia');
     });
 
-    await userEvent.type(input, 'включи режим дальтонизма{enter}');
+    await userEvent.type(input, 'включи режим цветовой слепоты{enter}');
     await waitFor(() => {
       expect(handleCB).toHaveBeenCalledWith(true);
     });
@@ -405,7 +405,7 @@ describe('AiChatModalCoverage', () => {
 
     await userEvent.type(input, 'палитра странныйвид{enter}');
     await waitFor(() => {
-      expect(screen.getByText(/такого режима дальтонизма у нас нет/i)).toBeDefined();
+      expect(screen.getByText(/такого режима (?:цветовой слепоты|дальтонизма) у нас нет/i)).toBeDefined();
     });
   });
 });
