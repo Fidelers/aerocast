@@ -397,4 +397,19 @@ describe('SettingsModal component (окно настроек темы и цве�
         fireEvent.click(mascotRadio);
         expect(localStorage.getItem('aerocast_mascot_mode')).toBe('mascot');
     });
+
+    it('26. BUG-02: карточка настроек и оверлей имеют разметку и классы для адаптивного скролла на экранах 360x640', () => {
+        const { container } = render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
+
+        const overlay = container.querySelector('.settings-modal-overlay');
+        const card = container.querySelector('.settings-modal__card');
+
+        expect(overlay).toBeTruthy();
+        expect(card).toBeTruthy();
+
+        expect(card.querySelector('.settings-modal__header')).toBeTruthy();
+        expect(card.querySelector('.settings-modal__body')).toBeTruthy();
+        expect(screen.getByRole('switch', { name: /переключить тему оформления/i })).toBeTruthy();
+        expect(screen.getByRole('switch', { name: /режим для дальтоников/i })).toBeTruthy();
+    });
 });

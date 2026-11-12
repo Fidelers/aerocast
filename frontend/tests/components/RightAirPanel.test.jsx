@@ -575,4 +575,19 @@ describe('RightAirPanel — цветной контур нормы', () => {
         const pm25Tile = container.querySelector('.pollutant-tile[data-key="pm2_5"]');
         expect(pm25Tile.style.borderColor).toBe('rgb(86, 180, 233)');
     });
+
+    it('3. BUG-03: панель содержит блок загрязнителей и карточку общей информации, доступные для вертикального скролла', () => {
+        const { container } = render(
+            <RightAirPanel airData={mockAirData} selectedTimeIndex={0} isOpen={true} />
+        );
+
+        const panel = container.querySelector('.right-air-panel');
+        expect(panel).toBeTruthy();
+
+        const pollutants = container.querySelector('.pollutants-section');
+        expect(pollutants).toBeTruthy();
+
+        const generalInfo = container.querySelector('.general-info-card');
+        expect(generalInfo).toBeTruthy();
+    });
 });

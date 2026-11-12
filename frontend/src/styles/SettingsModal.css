@@ -10,6 +10,9 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   animation: settingsFadeIn 0.2s ease-out;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 @keyframes settingsFadeIn {
@@ -25,6 +28,11 @@
   position: relative;
   width: 100%;
   max-width: 380px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg, #ffffff);
   color: var(--text, #374151);
   border: 1px solid var(--border, #e5e7eb);
@@ -34,6 +42,19 @@
   animation: settingsScaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--inter, system-ui, sans-serif);
   box-sizing: border-box;
+}
+
+.settings-modal__card::-webkit-scrollbar {
+  width: 5px;
+}
+
+.settings-modal__card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-modal__card::-webkit-scrollbar-thumb {
+  background: var(--border-input, #cbd5e1);
+  border-radius: 4px;
 }
 
 @keyframes settingsScaleUp {
@@ -378,10 +399,43 @@
   color: var(--text-muted, #6b7280);
 }
 
-@media (max-width: 480px) {
+@media (max-height: 680px) {
+  .settings-modal-overlay {
+    padding: 8px;
+    align-items: flex-start;
+  }
+
   .settings-modal__card {
-    padding: 18px 16px;
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 16px 14px;
+    margin: auto 0;
+  }
+
+  .settings-modal__header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .settings-modal__body {
+    gap: 10px;
+  }
+
+  .settings-item {
+    padding: 9px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-modal-overlay {
+    padding: 8px;
+  }
+
+  .settings-modal__card {
+    padding: 16px 14px;
     max-width: 100%;
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
     border-radius: 16px;
   }
 

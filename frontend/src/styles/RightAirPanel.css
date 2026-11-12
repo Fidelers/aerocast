@@ -6,8 +6,10 @@
   
   width: 300px;
   max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   
   background-color: var(--bg);
   border: 1px solid var(--border);
@@ -17,7 +19,6 @@
   
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   z-index: 900;
   
   font-family: var(--inter);
@@ -27,6 +28,17 @@
   will-change: transform;
   transform: translateX(0);
   animation: slideInRight 0.3s ease-out;
+}
+
+.right-air-panel::-webkit-scrollbar {
+  width: 5px;
+}
+.right-air-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.right-air-panel::-webkit-scrollbar-thumb {
+  background: var(--border-input, #c6cbd2);
+  border-radius: 4px;
 }
 
 
@@ -1003,6 +1015,39 @@
     border-radius: 24px;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
     min-height: 46px;
+  }
+}
+
+@media (max-height: 500px), (orientation: landscape) and (max-height: 600px) {
+  .right-air-panel {
+    max-height: calc(100vh - 8px) !important;
+    max-height: calc(100dvh - 8px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .panel-header {
+    padding: 6px 14px;
+  }
+
+  .panel-meta {
+    padding: 4px 14px;
+  }
+
+  .aqi-summary {
+    padding: 6px 14px;
+  }
+
+  .pollutants-section {
+    padding: 6px 14px;
+  }
+
+  .general-info-card {
+    height: auto !important;
+    min-height: unset !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 }
 

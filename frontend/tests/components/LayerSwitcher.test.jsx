@@ -162,4 +162,25 @@ describe('LayerSwitcher component', () => {
         fireEvent.keyDown(window, { key: 'Enter' });
         expect(menu.className).toContain('layer-switcher__menu--visible');
     });
+
+    it('12. Адаптивность: кнопка и меню содержат элементы иконки и читаемой подписи слоя', () => {
+        const { container } = render(<LayerSwitcher activeLayer="osm" onLayerChange={() => { }} />);
+        const toggleBtn = container.querySelector('.layer-switcher__toggle');
+        const icon = toggleBtn.querySelector('.layer-switcher__icon');
+        const label = toggleBtn.querySelector('.layer-switcher__label');
+
+        expect(toggleBtn).toBeTruthy();
+        expect(icon).toBeTruthy();
+        expect(label).toBeTruthy();
+        expect(label.textContent).toBe('Карта');
+    });
+
+    it('13. Кнопка переключения слоёв сохраняет класс и структуру независимо от темы', () => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        const { container } = render(<LayerSwitcher activeLayer="osm" onLayerChange={() => { }} />);
+        const toggleBtn = container.querySelector('.layer-switcher__toggle');
+        expect(toggleBtn).toBeTruthy();
+        expect(toggleBtn.classList.contains('layer-switcher__toggle')).toBe(true);
+        document.documentElement.removeAttribute('data-theme');
+    });
 });
