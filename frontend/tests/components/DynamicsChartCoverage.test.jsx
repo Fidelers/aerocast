@@ -147,4 +147,46 @@ describe('DynamicsChartCoverage', () => {
 
     expect(onRangeSelect).toHaveBeenCalled();
   });
+
+  it('отображает сетку точек и маркер при наведении мыши', () => {
+    const onPointClick = vi.fn();
+    const data = [
+      { time: '2026-11-01T00:00', aqi: 15, hourLabel: '00:00' },
+      { time: '2026-11-01T03:00', aqi: 25, hourLabel: '03:00' },
+      { time: '2026-11-01T06:00', aqi: 35, hourLabel: '06:00' },
+    ];
+
+    const { container } = render(
+      <DynamicsChart
+        mode="aqi"
+        data={data}
+        onPointClick={onPointClick}
+      />
+    );
+
+    const svg = container.querySelector('svg');
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 220,
+      right: 720,
+      bottom: 220,
+    });
+
+    expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeNull();
+
+    fireEvent.mouseEnter(svg);
+    fireEvent.mouseMove(svg, { clientX: 200 });
+
+    expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeTruthy();
+
+    const interactiveRects = container.querySelectorAll('rect[role="button"]');
+    if (interactiveRects.length > 0) {
+      fireEvent.mouseEnter(interactiveRects[1]);
+    }
+
+    fireEvent.mouseLeave(svg);
+    expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeNull();
+  });
 });

@@ -564,7 +564,7 @@ export default function PollutionDynamicsModal({
                     isColorBlind={isColorBlind}
                     colorBlindType={colorBlindType}
                     height={90}
-                    onPointClick={handleChartPointClick}
+                    onPointClick={null}
                     isAllDays={isViewingMultiDays}
                     isMain={false}
                   />

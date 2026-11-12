@@ -31,15 +31,18 @@ function buildBezierPath(points) {
   return d;
 }
 
-function formatPointTooltip(item) {
+function formatPointTooltip(item, isMultiDay = false) {
   if (!item || typeof item !== 'object') return '';
   const timeStr = item.time || '';
-  if (!timeStr) return item.hourLabel || '';
-  const [datePart, rawTime] = timeStr.split('T');
+  const rawTime = timeStr ? timeStr.split('T')[1]?.slice(0, 5) : '';
+  const hourFmt = rawTime || item.hourLabel || '';
+  if (!isMultiDay) {
+    return hourFmt;
+  }
+  const datePart = timeStr ? timeStr.split('T')[0] : '';
   const dParts = datePart ? datePart.split('-') : [];
   const dateFmt = dParts.length === 3 ? `${dParts[2]}.${dParts[1]}` : datePart;
-  const hourFmt = rawTime ? rawTime.slice(0, 5) : (item.hourLabel || '');
-  return `${dateFmt} ${hourFmt}`.trim();
+  return dateFmt ? `${dateFmt} ${hourFmt}`.trim() : hourFmt;
 }
 
 export default function DynamicsChart({
@@ -60,13 +63,54 @@ export default function DynamicsChart({
 }) {
   const isMainChart = isMain || (height && height >= 180) || mode === 'aqi';
   const chartHeight = height || (isMainChart ? 220 : 90);
-  const width = isMainChart ? 720 : 320;
+  const defaultWidth = isMainChart ? 720 : 320;
+
+  const containerRef = useRef(null);
   const svgRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(defaultWidth);
+  const width = containerWidth || defaultWidth;
 
   const [dragState, setDragState] = useState(null);
   const isMouseDownRef = useRef(false);
   const dragStartRef = useRef(null);
   const didDragRef = useRef(false);
+
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+
+    const measure = () => {
+      const clientW = el.clientWidth;
+      if (clientW && clientW > 100) {
+        setContainerWidth(Math.round(clientW));
+      }
+    };
+
+    measure();
+
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const w = entry.contentRect?.width;
+          if (w && w > 100) {
+            setContainerWidth(Math.round(w));
+          }
+        }
+      });
+      ro.observe(el);
+    } else {
+      window.addEventListener('resize', measure);
+    }
+
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
 
   const rawValues = data.map((item) => {
     if (typeof item === 'number') return item;
@@ -131,17 +175,46 @@ export default function DynamicsChart({
   const safeActiveIdx = activeIndex >= 0 && activeIndex < points.length ? activeIndex : 0;
   const activePoint = points[safeActiveIdx] || null;
 
-  const getCoordinatesFromClientX = useCallback((clientX) => {
-    if (!svgRef.current) return { svgX: padLeft, idx: 0 };
-    const rect = svgRef.current.getBoundingClientRect();
-    const clampedClientX = Math.max(rect.left, Math.min(rect.right, clientX));
-    const relX = clampedClientX - rect.left;
-    const svgX = (relX / (rect.width || 1)) * width;
+  const hoveredPoint =
+    hoveredIdx !== null && hoveredIdx >= 0 && hoveredIdx < points.length ? points[hoveredIdx] : null;
 
-    const rawIdx = Math.round((svgX - padLeft) / stepX);
-    const idx = Math.max(0, Math.min(data.length - 1, rawIdx));
-    return { svgX, idx };
-  }, [width, stepX, padLeft, data.length]);
+  const getCoordinatesFromClientX = useCallback(
+    (clientX) => {
+      if (!svgRef.current) return { svgX: padLeft, idx: 0 };
+      const svg = svgRef.current;
+      let svgX = null;
+
+      if (typeof svg.getScreenCTM === 'function' && typeof svg.createSVGPoint === 'function') {
+        try {
+          const ctm = svg.getScreenCTM();
+          if (ctm) {
+            const pt = svg.createSVGPoint();
+            pt.x = clientX;
+            pt.y = 0;
+            const transformed = pt.matrixTransform(ctm.inverse());
+            if (!Number.isNaN(transformed.x)) {
+              svgX = transformed.x;
+            }
+          }
+        } catch {
+          // fallback to getBoundingClientRect
+        }
+      }
+
+      if (svgX === null) {
+        const rect = svg.getBoundingClientRect();
+        const clampedClientX = Math.max(rect.left, Math.min(rect.right, clientX));
+        const relX = clampedClientX - rect.left;
+        svgX = (relX / (rect.width || 1)) * width;
+      }
+
+      const clampedSvgX = Math.max(padLeft, Math.min(width - padRight, svgX));
+      const rawIdx = Math.round((clampedSvgX - padLeft) / (stepX || 1));
+      const idx = Math.max(0, Math.min(data.length - 1, rawIdx));
+      return { svgX: clampedSvgX, idx };
+    },
+    [width, stepX, padLeft, padRight, data.length]
+  );
 
   const handleMouseDown = (e) => {
     if (e.button !== 0 || !enableRangeSelection || data.length < 2) return;
@@ -166,7 +239,7 @@ export default function DynamicsChart({
       const diffPixels = Math.abs(e.clientX - dragStartRef.current.clientX);
       const { svgX, idx } = getCoordinatesFromClientX(e.clientX);
 
-      if (diffPixels > 8) {
+      if (diffPixels > 4) {
         didDragRef.current = true;
         setDragState({
           startX: dragStartRef.current.startX,
@@ -188,7 +261,7 @@ export default function DynamicsChart({
       dragStartRef.current = null;
       setDragState(null);
 
-      if (diffPixels > 8 && Math.abs(startIdx - idx) >= 1) {
+      if (diffPixels > 4 && Math.abs(startIdx - idx) >= 1) {
         const fromIdx = Math.min(startIdx, idx);
         const toIdx = Math.max(startIdx, idx);
         onRangeSelect?.(fromIdx, toIdx);
@@ -215,11 +288,30 @@ export default function DynamicsChart({
     }
   };
 
-  const isMultiDay = isAllDays || (data.length > 0 && (() => {
-    const firstDate = data[0]?.time ? data[0].time.split('T')[0] : null;
-    const lastDate = data[data.length - 1]?.time ? data[data.length - 1].time.split('T')[0] : null;
-    return Boolean(firstDate && lastDate && firstDate !== lastDate);
-  })());
+  const handleSvgMouseEnter = () => {
+    setIsHovered(true);
+  };
+
+  const handleSvgMouseLeave = () => {
+    setIsHovered(false);
+    setHoveredIdx(null);
+  };
+
+  const handleSvgMouseMove = (e) => {
+    if (!isMouseDownRef.current && onPointClick) {
+      const { idx } = getCoordinatesFromClientX(e.clientX);
+      setHoveredIdx(idx);
+    }
+  };
+
+  const isMultiDay =
+    isAllDays ||
+    (data.length > 0 &&
+      (() => {
+        const firstDate = data[0]?.time ? data[0].time.split('T')[0] : null;
+        const lastDate = data[data.length - 1]?.time ? data[data.length - 1].time.split('T')[0] : null;
+        return Boolean(firstDate && lastDate && firstDate !== lastDate);
+      })());
 
   const dayTicks = [];
   let currentDayStr = null;
@@ -350,28 +442,36 @@ export default function DynamicsChart({
     );
   };
 
-  const selectionBox = dragState && dragState.isDragging ? {
-    left: Math.max(padLeft, Math.min(dragState.startX, dragState.currentX)),
-    right: Math.min(width - padRight, Math.max(dragState.startX, dragState.currentX)),
-    fromIdx: Math.min(dragState.startIdx, dragState.currentIdx),
-    toIdx: Math.max(dragState.startIdx, dragState.currentIdx),
-  } : null;
+  const selectionBox =
+    dragState && dragState.isDragging
+      ? {
+          left: Math.max(padLeft, Math.min(dragState.startX, dragState.currentX)),
+          right: Math.min(width - padRight, Math.max(dragState.startX, dragState.currentX)),
+          fromIdx: Math.min(dragState.startIdx, dragState.currentIdx),
+          toIdx: Math.max(dragState.startIdx, dragState.currentIdx),
+        }
+      : null;
 
   return (
     <div
+      ref={containerRef}
       className={`dynamics-chart dynamics-chart--${mode}`}
       data-colorblind={isColorBlind ? 'true' : 'false'}
-      style={{ userSelect: 'none', position: 'relative' }}
+      style={{ userSelect: 'none', position: 'relative', width: '100%' }}
     >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${chartHeight}`}
         width="100%"
         height={chartHeight}
+        preserveAspectRatio="none"
         role="img"
         aria-label={`График ${valueKey}`}
         style={{ cursor: enableRangeSelection ? 'crosshair' : 'default', display: 'block' }}
         onMouseDown={handleMouseDown}
+        onMouseEnter={handleSvgMouseEnter}
+        onMouseLeave={handleSvgMouseLeave}
+        onMouseMove={handleSvgMouseMove}
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -380,32 +480,73 @@ export default function DynamicsChart({
           </linearGradient>
         </defs>
 
-        {mode === 'aqi' && EAQI_THRESHOLDS.map((t) => {
-          const yPos = getY(t.val);
-          const lineColor = isColorBlind ? palette[t.level] : getAqiInfo(t.val, { colorBlind: false }).hex;
-          return (
-            <g key={t.val} className="chart-threshold-line">
-              <line
-                x1={padLeft}
-                y1={yPos}
-                x2={width - padRight}
-                y2={yPos}
-                stroke={lineColor}
-                strokeDasharray="4 4"
-                strokeWidth="1"
-                opacity="0.6"
-              />
-              <text x="4" y={yPos + 3} fontSize="10" fill={lineColor} fontWeight="600">{t.val}</text>
-            </g>
-          );
-        })}
+        {mode === 'aqi' &&
+          EAQI_THRESHOLDS.map((t) => {
+            const yPos = getY(t.val);
+            const lineColor = isColorBlind ? palette[t.level] : getAqiInfo(t.val, { colorBlind: false }).hex;
+            return (
+              <g key={t.val} className="chart-threshold-line">
+                <line
+                  x1={padLeft}
+                  y1={yPos}
+                  x2={width - padRight}
+                  y2={yPos}
+                  stroke={lineColor}
+                  strokeDasharray="4 4"
+                  strokeWidth="1"
+                  opacity="0.6"
+                />
+                <text x="4" y={yPos + 3} fontSize="10" fill={lineColor} fontWeight="600">
+                  {t.val}
+                </text>
+              </g>
+            );
+          })}
 
         {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
+
+        {/* Сетка направляющих линий и маркеров точек при наведении мыши (показывает, на какие точки можно нажать) */}
+        {isHovered && onPointClick && (
+          <g className="chart-hover-grid" pointerEvents="none" data-testid="chart-hover-grid">
+            {points.map((p, pIdx) => {
+              const isPHovered = p.idx === hoveredIdx;
+              return (
+                <g key={`grid-col-${pIdx}`}>
+                  <line
+                    x1={p.x}
+                    y1={padTop}
+                    x2={p.x}
+                    y2={chartHeight - padBottom}
+                    stroke={isPHovered ? strokeColor : 'currentColor'}
+                    strokeOpacity={isPHovered ? 0.65 : 0.16}
+                    strokeDasharray={isPHovered ? '3 2' : '2 3'}
+                    strokeWidth={isPHovered ? 1.5 : 1}
+                  />
+                  {p.val !== null && (
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={isPHovered ? 4.5 : 2.5}
+                      fill={isPHovered ? strokeColor : 'currentColor'}
+                      fillOpacity={isPHovered ? 1 : 0.4}
+                      stroke={isPHovered ? '#ffffff' : 'none'}
+                      strokeWidth={isPHovered ? 1.5 : 0}
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </g>
+        )}
 
         {linePath && <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={isMainChart ? '2.5' : '2'} />}
 
         {activePoint && activePoint.val !== null && (
-          <g className="chart-active-marker" data-active-hour={data[safeActiveIdx]?.hourIndex ?? safeActiveIdx} aria-current="time">
+          <g
+            className="chart-active-marker"
+            data-active-hour={data[safeActiveIdx]?.hourIndex ?? safeActiveIdx}
+            aria-current="time"
+          >
             <line
               x1={activePoint.x}
               y1={padTop}
@@ -426,6 +567,44 @@ export default function DynamicsChart({
             >
               {activePoint.val} {unit}
             </text>
+          </g>
+        )}
+
+        {/* Маркер и всплывающая подсказка над текущей точкой под курсором мыши */}
+        {isHovered && onPointClick && hoveredPoint && hoveredPoint.val !== null && !dragState?.isDragging && (
+          <g className="chart-hover-marker" pointerEvents="none" data-testid="chart-hover-marker">
+            {(() => {
+              const item = data[hoveredPoint.idx ?? hoveredIdx];
+              const timeText = formatPointTooltip(item, isMultiDay);
+              const valText = `${hoveredPoint.val} ${unit}`.trim();
+              const tooltipText = `${timeText}: ${valText}`;
+              const badgeX = Math.max(padLeft + 48, Math.min(width - padRight - 48, hoveredPoint.x));
+              const badgeY = Math.max(padTop + 14, Math.min(chartHeight - padBottom - 18, hoveredPoint.y - 12));
+
+              return (
+                <g transform={`translate(${badgeX}, ${badgeY})`}>
+                  <rect
+                    x="-48"
+                    y="-11"
+                    width="96"
+                    height="20"
+                    rx="4"
+                    fill="rgba(15, 23, 42, 0.9)"
+                    stroke={strokeColor}
+                    strokeWidth="1.2"
+                  />
+                  <text
+                    textAnchor="middle"
+                    y="3.5"
+                    fontSize="10"
+                    fontWeight="600"
+                    fill="#ffffff"
+                  >
+                    {tooltipText}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         )}
 
@@ -460,8 +639,8 @@ export default function DynamicsChart({
               strokeWidth="2.5"
             />
             {(() => {
-              const startT = formatPointTooltip(data[selectionBox.fromIdx]);
-              const endT = formatPointTooltip(data[selectionBox.toIdx]);
+              const startT = formatPointTooltip(data[selectionBox.fromIdx], isMultiDay);
+              const endT = formatPointTooltip(data[selectionBox.toIdx], isMultiDay);
               const rangeText = `${startT} — ${endT}`;
               const midX = (selectionBox.left + selectionBox.right) / 2;
               const badgeX = Math.max(75, Math.min(width - 75, midX));
@@ -492,33 +671,35 @@ export default function DynamicsChart({
           </g>
         )}
 
-        {onPointClick && points.map((point, idx) => {
-          const rectWidth = stepX; 
-          const rectX = point.x - rectWidth / 2;
-          const timeLabel = point.idx !== undefined ? (data[point.idx]?.hourLabel || `Точка ${idx}`) : `Точка ${idx}`;
-          
-          return (
-            <rect
-              key={`interactive-${idx}`}
-              x={Math.max(0, rectX)}
-              y={0}
-              width={rectWidth}
-              height={chartHeight}
-              fill="transparent"
-              style={{ cursor: enableRangeSelection ? 'crosshair' : 'pointer', outline: 'none' }}
-              role="button"
-              tabIndex={0}
-              aria-label={`Выбрать время: ${timeLabel}, значение: ${point.val ?? 'нет данных'} ${unit}`}
-              onClick={() => handleInteraction(point.idx ?? idx)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleInteraction(point.idx ?? idx);
-                }
-              }}
-            />
-          );
-        })}
+        {onPointClick &&
+          points.map((point, idx) => {
+            const rectWidth = stepX;
+            const rectX = point.x - rectWidth / 2;
+            const timeLabel = point.idx !== undefined ? data[point.idx]?.hourLabel || `Точка ${idx}` : `Точка ${idx}`;
+
+            return (
+              <rect
+                key={`interactive-${idx}`}
+                x={Math.max(0, rectX)}
+                y={0}
+                width={rectWidth}
+                height={chartHeight}
+                fill="transparent"
+                style={{ cursor: enableRangeSelection ? 'crosshair' : 'pointer', outline: 'none' }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Выбрать время: ${timeLabel}, значение: ${point.val ?? 'нет данных'} ${unit}`}
+                onClick={() => handleInteraction(point.idx ?? idx)}
+                onMouseEnter={() => setHoveredIdx(point.idx ?? idx)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleInteraction(point.idx ?? idx);
+                  }
+                }}
+              />
+            );
+          })}
       </svg>
     </div>
   );

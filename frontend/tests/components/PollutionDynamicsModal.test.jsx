@@ -537,4 +537,92 @@ describe('PollutionDynamicsModal component (поверхностное окно 
         fireEvent.click(resetBtn);
         expect(screen.queryByTestId('reset-range-btn')).toBeNull();
     });
+
+    it('25. При выборе побочного графика (карточки загрязнителя) активная точка времени НЕ перемещается в место клика', () => {
+        const handleSelectTime = vi.fn();
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={12}
+                onSelectTime={handleSelectTime}
+            />
+        );
+
+        // Кликаем по карточке PM2.5 (побочный график)
+        const pm25Card = screen.getByTestId('pollutant-card-pm2_5');
+        fireEvent.click(pm25Card);
+
+        // Активная метрика сменилась на PM2.5
+        expect(screen.getByTestId('reset-to-aqi-btn')).toBeTruthy();
+
+        // onSelectTime НЕ должен был вызываться при клике на побочный график
+        expect(handleSelectTime).not.toHaveBeenCalled();
+    });
+
+    it('26. При наведении мыши на график появляется сетка доступных точек и hover маркер', () => {
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={12}
+            />
+        );
+
+        const svg = container.querySelector('.dynamics-modal-main-chart svg');
+        expect(svg).toBeTruthy();
+
+        // До наведения мыши сетка отсутствует
+        expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeNull();
+
+        // Наводим мышь на svg
+        fireEvent.mouseEnter(svg);
+        fireEvent.mouseMove(svg, { clientX: 150 });
+
+        // Сетка и маркер должны появиться
+        const hoverGrid = container.querySelector('[data-testid="chart-hover-grid"]');
+        expect(hoverGrid).toBeTruthy();
+        expect(hoverGrid.querySelectorAll('line').length).toBeGreaterThan(0);
+
+        // Уводим мышь с графика
+        fireEvent.mouseLeave(svg);
+        expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeNull();
+    });
+
+    it('27. Выделение диапазона начинается строго с координаты клика startX без смещения', () => {
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const svg = container.querySelector('.dynamics-modal-main-chart svg');
+        vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+            left: 0,
+            top: 0,
+            width: 720,
+            height: 220,
+            right: 720,
+            bottom: 220,
+        });
+
+        // Нажимаем мышь в координате 150
+        fireEvent.mouseDown(svg, { button: 0, clientX: 150 });
+        // Тянем в координату 350
+        fireEvent.mouseMove(window, { clientX: 350 });
+
+        const selectionBox = container.querySelector('.chart-selection-box');
+        expect(selectionBox).toBeTruthy();
+
+        // Проверяем, что левая граница выделения равна координате клика 150
+        const rect = selectionBox.querySelector('rect');
+        expect(Number(rect.getAttribute('x'))).toBeCloseTo(150, 0);
+
+        fireEvent.mouseUp(window, { clientX: 350 });
+    });
 });
