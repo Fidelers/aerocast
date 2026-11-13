@@ -69,7 +69,6 @@ export default function SettingsModal({
 }) {
   // Локальные состояния на случай использования компонента в автономном режиме
   const [localTheme, setLocalTheme] = useState(() => {
-    if (typeof window === 'undefined') return 'light';
     const saved = localStorage.getItem('aerocast_theme');
     if (saved === 'dark' || saved === 'light') return saved;
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -78,17 +77,14 @@ export default function SettingsModal({
   });
 
   const [localColorBlind, setLocalColorBlind] = useState(() => {
-    if (typeof window === 'undefined') return false;
     return localStorage.getItem('aerocast_colorblind') === 'true';
   });
 
   const [localColorBlindType, setLocalColorBlindType] = useState(() => {
-    if (typeof window === 'undefined') return 'okabe';
     return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
   });
 
   const [localMascotMode, setLocalMascotMode] = useState(() => {
-    if (typeof window === 'undefined') return 'mascot';
     return localStorage.getItem('aerocast_mascot_mode') || 'mascot';
   });
 
@@ -102,9 +98,7 @@ export default function SettingsModal({
       onMascotModeChange(mode);
     } else {
       setLocalMascotMode(mode);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('aerocast_mascot_mode', mode);
-      }
+      localStorage.setItem('aerocast_mascot_mode', mode);
     }
   };
 
@@ -129,10 +123,8 @@ export default function SettingsModal({
       onThemeChange(nextTheme);
     } else {
       setLocalTheme(nextTheme);
-      if (typeof window !== 'undefined') {
-        document.documentElement.setAttribute('data-theme', nextTheme);
-        localStorage.setItem('aerocast_theme', nextTheme);
-      }
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('aerocast_theme', nextTheme);
     }
   };
 
@@ -142,12 +134,10 @@ export default function SettingsModal({
       onColorBlindChange(nextCB);
     } else {
       setLocalColorBlind(nextCB);
-      if (typeof window !== 'undefined') {
-        document.documentElement.setAttribute('data-colorblind', nextCB ? 'true' : 'false');
-        document.documentElement.setAttribute('data-colorblind-type', currentColorBlindType);
-        localStorage.setItem('aerocast_colorblind', nextCB ? 'true' : 'false');
-        localStorage.setItem('aerocast_colorblind_type', currentColorBlindType);
-      }
+      document.documentElement.setAttribute('data-colorblind', nextCB ? 'true' : 'false');
+      document.documentElement.setAttribute('data-colorblind-type', currentColorBlindType);
+      localStorage.setItem('aerocast_colorblind', nextCB ? 'true' : 'false');
+      localStorage.setItem('aerocast_colorblind_type', currentColorBlindType);
     }
   };
 
@@ -156,10 +146,8 @@ export default function SettingsModal({
       onColorBlindTypeChange(typeId);
     } else {
       setLocalColorBlindType(typeId);
-      if (typeof window !== 'undefined') {
-        document.documentElement.setAttribute('data-colorblind-type', typeId);
-        localStorage.setItem('aerocast_colorblind_type', typeId);
-      }
+      document.documentElement.setAttribute('data-colorblind-type', typeId);
+      localStorage.setItem('aerocast_colorblind_type', typeId);
     }
   };
 

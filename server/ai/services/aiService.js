@@ -1475,5 +1475,8 @@ module.exports = {
     generateCapabilitiesReply,
     cityMatchesLocation,
     isNotCityName,
+    buildPointAnalyticsReply,
+    toAccusativeCity,
+    getCityCandidates,
     isMathQuery: aiRouter.isMathQuery
 };

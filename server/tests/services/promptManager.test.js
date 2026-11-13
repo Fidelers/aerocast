@@ -156,6 +156,49 @@ describe('promptManager', () => {
             expect(prompt).toContain('Всегда завершай мысль');
         });
 
+        it('покрывает граничные случаи и пропущенные поля в pointAnalytics', () => {
+            const res = formatPointAnalyticsContext({
+                aqi: null,
+                uv: null,
+                historyData: {
+                    pastDays: [
+                        { dayLabel: 'Пн', date: '2026-10-26', avgAqi: null, status: 'нет данных', maxAqi: null, maxAqiTime: null, minAqi: null, avgPm25: null }
+                    ],
+                    pastAvgAqi: null
+                },
+                allDaysSummary: {
+                    totalDaysCount: null,
+                    overallAvgAqi: null,
+                    overallMinAqi: null,
+                    overallMaxAqi: null,
+                    overallAvgPm25: null,
+                    days: [
+                        { kindLabel: 'Архив', dayLabel: 'Пн', avgAqi: null, status: '—', maxAqi: null, maxAqiTime: null, minAqi: null, avgPm25: null }
+                    ]
+                },
+                forecast3Days: {
+                    days: [
+                        { dayLabel: 'Ср', avgAqi: null, status: '—', minAqi: null, maxAqi: null, avgPm25: null }
+                    ],
+                    periodAvgAqi: null,
+                    periodMinAqi: null,
+                    periodMaxAqi: null,
+                    periodAvgPm25: null
+                }
+            });
+            expect(res).toContain('нет данных');
+            expect(res).toContain('—');
+
+            const resEmptyHistory = formatPointAnalyticsContext({
+                historyData: {
+                    peakAqi: 50,
+                    peakDate: null,
+                    pastDays: 'not-array'
+                }
+            });
+            expect(resEmptyHistory).toContain('27 октября, 18:00');
+        });
+
         it('использует только формулировку "режим цветовой слепоты" и 4 палитры', () => {
             const prompt = getSystemPrompt(null);
             expect(prompt).toContain('режим цветовой слепоты');

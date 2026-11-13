@@ -32,8 +32,7 @@ export default function AyaMascot({
   const playEmotion = useCallback(async (emotionName) => {
     currentMotionEmotionRef.current = emotionName;
     const model = modelRef.current;
-    if (!model) return;
-    const internalModel = model.internalModel;
+    const internalModel = model?.internalModel;
     const mm = internalModel?.motionManager;
     const coreModel = internalModel?.coreModel;
     if (!mm) return;

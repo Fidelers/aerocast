@@ -35,7 +35,6 @@ function App({ referenceDate } = {}) {
     const handleOpenDynamicsModal = () => setIsDynamicsModalOpen(true);
     const handleCloseDynamicsModal = () => setIsDynamicsModalOpen(false);
 
-    // Реактивное текущее время: авто-синхронизация при смене минут/часов и возврате на вкладку
     const [currentTime, setCurrentTime] = useState(() => referenceDate || new Date());
 
     useEffect(() => {
@@ -59,7 +58,6 @@ function App({ referenceDate } = {}) {
 
         const intervalId = setInterval(updateClock, 30000);
 
-        // Точный таймер на границу следующей минуты (xx:xx:00)
         const nowMs = Date.now();
         const delayToNextMinute = Math.max(500, 60000 - (nowMs % 60000));
         const timeoutId = setTimeout(updateClock, delayToNextMinute);
@@ -154,7 +152,6 @@ function App({ referenceDate } = {}) {
         }
     }, [mascotMode]);
 
-    // Высокоточная макросетка качества воздуха (500 точек)
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });
 
     const selectedIsoTime =
@@ -201,7 +198,6 @@ function App({ referenceDate } = {}) {
                 setAirData(data);
                 setIsLoading(false);
 
-                // Восстановление выбранного пользователем времени или инициализация текущим часом
                 if (data?.hourly?.time?.length) {
                     let targetIndex = null;
                     const prevIndex = selectedTimeIndexRef.current;
@@ -248,7 +244,6 @@ function App({ referenceDate } = {}) {
         };
     }, [coords.lat, coords.lon]);
 
-    // Переключение времени работает со срезом в памяти и не вызывает сетевых запросов
     const handleSelectTime = (newIndex) => {
         setSelectedTimeIndex(newIndex);
     };

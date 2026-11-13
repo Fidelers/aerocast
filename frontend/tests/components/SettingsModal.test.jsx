@@ -412,4 +412,45 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(screen.getByRole('switch', { name: /переключить тему оформления/i })).toBeTruthy();
         expect(screen.getByRole('switch', { name: /режим цветовой слепоты/i })).toBeTruthy();
     });
+
+    it('27. Переключает вид AI-ассистента и вызывает onMascotModeChange', () => {
+        const handleMascotModeChange = vi.fn();
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                mascotMode="mascot"
+                onMascotModeChange={handleMascotModeChange}
+            />
+        );
+
+        const buttonMode = screen.getByTestId('settings-mascot-mode-button');
+        fireEvent.click(buttonMode);
+        expect(handleMascotModeChange).toHaveBeenCalledWith('button');
+    });
+
+    it('28. В автономном режиме сохраняет выбор mascotMode в localStorage', () => {
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+            />
+        );
+
+        const buttonMode = screen.getByTestId('settings-mascot-mode-button');
+        fireEvent.click(buttonMode);
+        expect(localStorage.getItem('aerocast_mascot_mode')).toBe('button');
+    });
+
+    it('29. Использует дефолтную палитру okabe при некорректном colorBlindType', () => {
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="invalid_type"
+            />
+        );
+        expect(screen.getByText(/Режим доступности: Окабе/)).toBeTruthy();
+    });
 });

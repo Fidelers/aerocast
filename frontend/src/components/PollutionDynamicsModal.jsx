@@ -25,7 +25,7 @@ const METRICS_METADATA = {
 
 const STEP_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24];
 
-const formatDate = (dateStr) => {
+export const formatDate = (dateStr) => {
   if (!dateStr) return '';
   try {
     const date = new Date(`${dateStr}`);
@@ -39,7 +39,7 @@ const formatDate = (dateStr) => {
   }
 };
 
-const formatDateShort = (dateStr) => {
+export const formatDateShort = (dateStr) => {
   if (!dateStr) return '';
   try {
     const date = new Date(`${dateStr}`);
@@ -52,7 +52,7 @@ const formatDateShort = (dateStr) => {
   }
 };
 
-const buildHourRecord = (isoTime, idx, hourlyData, isCurrent, hourIndex = 0) => {
+export const buildHourRecord = (isoTime, idx, hourlyData, isCurrent, hourIndex = 0) => {
   const parsed = parseIsoTimeString(isoTime);
   return {
     time: isoTime,
@@ -109,12 +109,6 @@ export default function PollutionDynamicsModal({
   const handleStepHoursChange = (e) => {
     const nextStep = Math.max(1, Math.min(24, Number(e.target.value) || 1));
     setStepHours(nextStep);
-    if (nextStep > 12) {
-      setIsAllDays(true);
-      if (rangePreset === 'day') {
-        setRangePreset('all');
-      }
-    }
   };
 
   useEffect(() => {
@@ -133,7 +127,7 @@ export default function PollutionDynamicsModal({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isExportModalOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -182,12 +176,12 @@ export default function PollutionDynamicsModal({
       visibleSlice = allRecords.slice(0, Math.min(24, allRecords.length));
     }
   } else if (rangePreset === '3days') {
-    const centerIdx = safeIdx >= 0 ? safeIdx : 0;
+    const centerIdx = safeIdx;
     const startG = Math.max(0, centerIdx - 24);
     const endG = Math.min(allRecords.length - 1, startG + 71);
     visibleSlice = allRecords.slice(startG, endG + 1);
   } else if (rangePreset === 'week') {
-    const centerIdx = safeIdx >= 0 ? safeIdx : 0;
+    const centerIdx = safeIdx;
     const startG = Math.max(0, centerIdx - 72);
     const endG = Math.min(allRecords.length - 1, startG + 167);
     visibleSlice = allRecords.slice(startG, endG + 1);

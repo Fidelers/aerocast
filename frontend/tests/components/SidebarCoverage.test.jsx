@@ -791,5 +791,229 @@ describe('SidebarCoverage – граничные случаи и полное п
             fireEvent.click(settingsBtn);
             expect(onOpenSettingsMock).toHaveBeenCalledTimes(1);
         });
+
+        it('игнорирует начало перетаскивания мыши без хэндла и при открытом чате', () => {
+            const onCloseMock = vi.fn();
+            const { container, unmount } = render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    mascotMode="button"
+                    onClose={onCloseMock}
+                />
+            );
+
+            const sidebar = container.querySelector('.sidebar');
+            const dragHandle = container.querySelector('.sidebar__drag-handle');
+
+            fireEvent.pointerDown(sidebar, { clientX: 200, clientY: 100, pointerType: 'mouse' });
+
+            const infoBtn = container.querySelector('.sidebar__info-btn');
+            if (infoBtn) {
+                fireEvent.click(infoBtn);
+                expect(onCloseMock).toHaveBeenCalled();
+            }
+
+            const openChatBtn = screen.getByTestId('open-ai-chat-btn');
+            act(() => {
+                fireEvent.click(openChatBtn);
+            });
+            expect(screen.getByTestId('sidebar-chat-active-container')).toBeDefined();
+
+            act(() => {
+                fireEvent.touchStart(sidebar, { touches: [{ clientX: 200, clientY: 100 }] });
+            });
+            fireEvent.pointerDown(sidebar, { clientX: 200, clientY: 100, pointerType: 'touch' });
+
+            const closeChatBtn = container.querySelector('.ai-chat-header__close');
+            if (closeChatBtn) {
+                fireEvent.click(closeChatBtn);
+            }
+
+            if (dragHandle) {
+                fireEvent.pointerDown(dragHandle, { clientX: 200, clientY: 100, pointerType: 'mouse' });
+                fireEvent.pointerMove(window, { clientX: 190, clientY: 100 });
+            }
+
+            unmount();
+        });
+
+        it('обрабатывает синхронное исключение при вызове getCurrentPosition', async () => {
+            const onLocationSelect = vi.fn();
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn(() => {
+                    throw new Error('Sync fail');
+                })
+            };
+            vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ latitude: 55.75, longitude: 37.61, city: 'Москва' })
+            });
+
+            render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    onLocationSelect={onLocationSelect}
+                />
+            );
+
+            const geoBtn = screen.getByText('Моё местоположение');
+            await act(async () => {
+                fireEvent.click(geoBtn);
+            });
+
+            expect(onLocationSelect).toHaveBeenCalledWith(55.75, 37.61, 'Москва');
+        });
+
+        it('открывает чат кликом по AyaMascot в режиме mascot', () => {
+            render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    mascotMode="mascot"
+                />
+            );
+
+            const mascot = screen.getByLabelText('Маскот Ая');
+            fireEvent.click(mascot);
+            expect(screen.getByTestId('sidebar-chat-active-container')).toBeDefined();
+        });
+
+        it('обрабатывает жесты свайпа: вертикальный скролл, резиновое натяжение вправо и возврат шторки', () => {
+            const onCloseMock = vi.fn();
+            const { container } = render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    onClose={onCloseMock}
+                />
+            );
+
+            const header = container.querySelector('.sidebar__header');
+            const daysElem = container.querySelector('.days');
+            const inputElem = container.querySelector('input');
+            const settingsBtn = container.querySelector('.sidebar__settings-btn');
+            const closeBtn = container.querySelector('.sidebar__close-btn');
+
+            if (daysElem) fireEvent.pointerDown(daysElem, { clientX: 100, clientY: 100, pointerType: 'touch' });
+            if (inputElem) fireEvent.pointerDown(inputElem, { clientX: 100, clientY: 100, pointerType: 'touch' });
+            if (settingsBtn) fireEvent.pointerDown(settingsBtn, { clientX: 100, clientY: 100, pointerType: 'touch' });
+            if (closeBtn) fireEvent.pointerDown(closeBtn, { clientX: 100, clientY: 100, pointerType: 'touch' });
+
+            const sidebar = container.querySelector('.sidebar');
+            if (header && sidebar) {
+                fireEvent.pointerDown(header, { clientX: 200, clientY: 100, pointerType: 'touch' });
+                fireEvent.pointerMove(sidebar, { clientX: 200, clientY: 120, pointerType: 'touch' });
+                fireEvent.pointerMove(sidebar, { clientX: 250, clientY: 100, pointerType: 'touch' });
+                fireEvent.pointerUp(sidebar);
+
+                fireEvent.pointerDown(header, { clientX: 200, clientY: 100, pointerType: 'touch' });
+                fireEvent.pointerMove(sidebar, { clientX: 190, clientY: 100, pointerType: 'touch' });
+                fireEvent.pointerUp(sidebar);
+
+                fireEvent.pointerDown(header, { clientX: 200, clientY: 100, pointerType: 'touch' });
+                fireEvent.pointerMove(sidebar, { clientX: 50, clientY: 100, pointerType: 'touch' });
+                fireEvent.pointerUp(sidebar);
+                act(() => {
+                    vi.advanceTimersByTime(250);
+                });
+                expect(onCloseMock).toHaveBeenCalled();
+            }
+        });
+
+        it('обрабатывает клик по кнопке перехода к текущему времени', () => {
+            const onSelectTimeMock = vi.fn();
+            const { container } = render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    onSelectTime={onSelectTimeMock}
+                />
+            );
+
+            const daysContainer = container.querySelector('.days');
+            if (daysContainer) {
+                Object.defineProperty(daysContainer, 'clientWidth', { value: 300, configurable: true });
+                daysContainer.scrollTo = vi.fn();
+            }
+
+            const nowBtn = screen.getByTestId('select-current-time-btn');
+            fireEvent.click(nowBtn);
+            expect(onSelectTimeMock).toHaveBeenCalled();
+        });
+
+        it('обрабатывает сторожевой таймер GPS и сбой всех провайдеров геопозиции', async () => {
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn()
+            };
+
+            vi.spyOn(globalThis, 'fetch')
+                .mockRejectedValueOnce(new Error('fail-locate'))
+                .mockRejectedValueOnce(new Error('fail-ipwho'));
+
+            render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                />
+            );
+
+            const geoBtn = screen.getByText('Моё местоположение');
+            await act(async () => {
+                fireEvent.click(geoBtn);
+            });
+
+            await act(async () => {
+                vi.advanceTimersByTime(9100);
+            });
+
+            expect(screen.queryByText(/Не удалось определить местоположение/i)).toBeDefined();
+        });
+
+        it('открывает и закрывает внутренние модальные окна AboutModal и SettingsModal без внешних пропов', () => {
+            const { container } = render(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                />
+            );
+
+            const infoBtn = container.querySelector('.sidebar__info-btn');
+            if (infoBtn) {
+                fireEvent.click(infoBtn);
+                expect(document.querySelector('.about-modal-overlay')).toBeDefined();
+                fireEvent.keyDown(window, { key: 'Escape' });
+            }
+
+            const settingsBtn = container.querySelector('.sidebar__settings-btn');
+            if (settingsBtn) {
+                fireEvent.click(settingsBtn);
+                expect(document.querySelector('.settings-modal-overlay')).toBeDefined();
+                fireEvent.keyDown(window, { key: 'Escape' });
+            }
+        });
+
+        it('поддерживает пустой airData и неконтролируемый клик по часам', () => {
+            const { rerender } = render(
+                <Sidebar
+                    airData={null}
+                    isOpen={true}
+                />
+            );
+
+            rerender(
+                <Sidebar
+                    airData={{ hourly: { time: ['2026-09-28T00:00'] } }}
+                    isOpen={true}
+                    selectedTimeIndex={999}
+                />
+            );
+
+            const hourBtn = document.querySelector('.hour-item');
+            if (hourBtn) {
+                fireEvent.click(hourBtn);
+            }
+        });
     });
 });

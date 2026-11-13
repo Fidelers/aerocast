@@ -12,7 +12,7 @@ const EAQI_THRESHOLDS = [
   { val: 100, level: 'very-poor' },
 ];
 
-function buildBezierPath(points) {
+export function buildBezierPath(points) {
   if (!points || points.length === 0) return '';
   if (points.length === 1) {
     return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
@@ -31,7 +31,7 @@ function buildBezierPath(points) {
   return d;
 }
 
-function formatPointTooltip(item, isMultiDay = false) {
+export function formatPointTooltip(item, isMultiDay = false) {
   if (!item || typeof item !== 'object') return '';
   const timeStr = item.time || '';
   const rawTime = timeStr ? timeStr.split('T')[1]?.slice(0, 5) : '';
@@ -196,9 +196,7 @@ export default function DynamicsChart({
               svgX = transformed.x;
             }
           }
-        } catch {
-          // fallback to getBoundingClientRect
-        }
+        } catch {}
       }
 
       if (svgX === null) {
@@ -505,7 +503,6 @@ export default function DynamicsChart({
 
         {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
 
-        {/* Сетка направляющих линий и маркеров точек при наведении мыши (показывает, на какие точки можно нажать) */}
         {isHovered && onPointClick && (
           <g className="chart-hover-grid" pointerEvents="none" data-testid="chart-hover-grid">
             {points.map((p, pIdx) => {
@@ -570,7 +567,6 @@ export default function DynamicsChart({
           </g>
         )}
 
-        {/* Маркер и всплывающая подсказка над текущей точкой под курсором мыши */}
         {isHovered && onPointClick && hoveredPoint && hoveredPoint.val !== null && !dragState?.isDragging && (
           <g className="chart-hover-marker" pointerEvents="none" data-testid="chart-hover-marker">
             {(() => {

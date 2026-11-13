@@ -1,4 +1,3 @@
-// frontend/src/components/AiChat/AiChatModal.jsx
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AyaMascot from './AyaMascot';
@@ -13,8 +12,48 @@ const INITIAL_GREETING = {
   timestamp: Date.now()
 };
 
-// Безопасное форматирование текста (**жирный**, *курсив*, переносы строк)
-function formatMessageContent(text) {
+const COMMAND_GROUPS = [
+  {
+    title: 'Карта и спутник',
+    items: [
+      { text: '🛰️ Переключи на спутник', cmd: 'Переключи на спутник' },
+      { text: '🗺️ Верни обычную карту', cmd: 'Верни обычную карту' },
+    ],
+  },
+  {
+    title: 'Светлый / темный режим',
+    items: [
+      { text: '🌙 Включи тёмную тему', cmd: 'Включи тёмную тему' },
+      { text: '☀️ Включи светлую тему', cmd: 'Включи светлую тему' },
+    ],
+  },
+  {
+    title: 'Режим цветовой слепоты',
+    items: [
+      { text: '👁️ Окабе (по умолчанию)', cmd: 'Включи режим цветовой слепоты Окабе' },
+      { text: '🔵 Дейтеранопия', cmd: 'Включи режим цветовой слепоты Дейтеранопия' },
+      { text: '🔴 Протанопия', cmd: 'Включи режим цветовой слепоты Протанопия' },
+      { text: '🟢 Тританопия', cmd: 'Включи режим цветовой слепоты Тританопия' },
+      { text: '✖️ Отключить режим цветовой слепоты', cmd: 'Отключи режим цветовой слепоты', isOff: true },
+    ],
+  },
+  {
+    title: 'Аналитика и рекомендации',
+    items: [
+      { text: '📍 Аналитика по точке с рекомендациями', cmd: 'Какая аналитика по текущей точке сейчас с временем и рекомендациями?' },
+      { text: '📈 Пик в архиве по времени', cmd: 'Какой был пик загрязнения в архиве и в какое время?' },
+      { text: '🔮 Прогноз на 3 дня с советами', cmd: 'Дай прогноз качества воздуха на 3 дня и рекомендации по прогулкам' },
+    ],
+  },
+  {
+    title: 'Возможности маскота',
+    items: [
+      { text: '✨ Что ты умеешь? Функционал Аи', cmd: 'Что ты умеешь? Расскажи о своем функционале' },
+    ],
+  },
+];
+
+export function formatMessageContent(text) {
   if (!text) return null;
   const lines = String(text).split('\n');
 
@@ -60,7 +99,7 @@ function formatMessageContent(text) {
 }
 
 
-function detectClientMapLayerIntent(text) {
+export function detectClientMapLayerIntent(text) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
 
@@ -81,12 +120,10 @@ function detectClientMapLayerIntent(text) {
   return null;
 }
 
-// Распознавание команд переключения режима цветовой слепоты и палитр на клиенте
-function detectClientColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
+export function detectClientColorBlindIntent(text, { isColorBlind = false, history = [] } = {}) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
 
-  // Вопросы о дальтонизме и цветовой слепоте не должны триггерить действие
   const IS_QUESTION_REGEX = /(?:^(?:какие|какой|какая|какую|что\s+такое|расскажи|как|где|почему|зачем)\b|\?$)/i;
   if (IS_QUESTION_REGEX.test(clean)) return null;
 
@@ -111,13 +148,11 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
     return { enabled: false };
   }
 
-  // Известные медицинские термины, не реализованные в приложении
   const KNOWN_UNSUPPORTED = /(?:ахроматопс[а-я]*|монохромаз[а-я]*|дихромаз[а-я]*|тетрахромат[а-я]*|трихромат[а-я]*|блютоп[а-я]*|редтоп[а-я]*|монохром\b)/i;
   if (KNOWN_UNSUPPORTED.test(clean)) {
     return { unsupported: true };
   }
 
-  // Проверяем паттерны вида: "режим цветовой слепоты [название]", "палитра [название]", "цветовая слепота [название]"
   const SPECIFIED_TYPE_REGEX = /(?:режим(?:а|е)?\s+(?:цветовой\s+слепоты|дальтонизма)\s+|цветов(?:ой|ая)?\s+слепот[а-я]*\s+|дальтонизм(?:а|е)?\s+|палитр[а-я]\s+|вид(?:а)?\s+(?:цветовой\s+слепоты|дальтонизма)\s+)([а-яa-z0-9_-]+)/i;
   const specMatch = clean.match(SPECIFIED_TYPE_REGEX);
   if (specMatch) {
@@ -136,7 +171,6 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
   if (/(?:тританоп[а-я]*|tritanop[a-z]*)/i.test(clean)) return { enabled: true, colorBlindType: 'tritanopia' };
   if (/(?:окабе|okabe)/i.test(clean)) return { enabled: true, colorBlindType: 'okabe' };
 
-  // 3. Запрос на включение цветовой слепоты без типа -> Окабе по умолчанию
   if ((hasOnWord && hasCbWord) || /^(?:цветовая\s+слепота|режим\s+цветовой\s+слепоты|дальтонизм|режим\s+дальтонизма)$/i.test(clean)) {
     return { enabled: true, colorBlindType: 'okabe' };
   }
@@ -144,8 +178,7 @@ function detectClientColorBlindIntent(text, { isColorBlind = false, history = []
   return null;
 }
 
-// Распознает команду переключения темы оформления на клиенте ('dark' / 'light')
-function detectClientThemeIntent(text) {
+export function detectClientThemeIntent(text) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.toLowerCase().trim();
 
@@ -201,13 +234,13 @@ const KNOWN_CLIENT_CITIES = {
   'ярославль': { lat: 57.62987, lon: 39.87368, name: 'Ярославль, Россия' }
 };
 
-function toAccusativeCity(name) {
+export function toAccusativeCity(name) {
   if (!name || typeof name !== 'string') return 'выбранный город';
   const base = name.split(',')[0].trim();
   return base.replace(/а$/i, 'у').replace(/я$/i, 'ю');
 }
 
-function isClientNotCityName(str) {
+export function isClientNotCityName(str) {
   if (!str) return true;
   const s = str.trim().toLowerCase();
   if (/^(?:точк[а-яё]*|тачк[а-яё]*|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*|карт[а-яё]*|тут|здесь|сейчас|сегодня)$/i.test(s)) return true;
@@ -218,12 +251,12 @@ function isClientNotCityName(str) {
   return false;
 }
 
-function detectClientCityIntent(text) {
+export function detectClientCityIntent(text) {
   if (!text || typeof text !== 'string') return null;
   const clean = text.trim();
 
-  if (/^(?:какие\s+города|как\s+найти|где\s+найти|кто\s+ты|кто\s+тебя)\b/i.test(clean)) return null;
-  if (/(?:т[её]мн|светл|ночн|дневн)\s+(?:тем[ау]|режим)/i.test(clean)) return null;
+  if (/^(?:какие\s+города|как\s+найти|где\s+найти|кто\s+ты|кто\s+тебя)(?:\s|$|[.,!?;:])/i.test(clean)) return null;
+  if (/(?:т[её]мн[а-яё]*|светл[а-яё]*|ночн[а-яё]*|дневн[а-яё]*)\s+(?:тем[а-яё]*|режим[а-яё]*)/i.test(clean)) return null;
   if (/(?:спутник|схем|дальтонизм|окабе|дейтераноп|протаноп|тританоп)/i.test(clean)) return null;
   if (/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/i.test(clean)) {
     const withoutPoint = clean.replace(/(?:по|в|на)\s+(?:текущ[а-яё]*|выбранн[а-яё]*|эт[а-яё]*|данн[а-яё]*|сво[её]|мо[её])?\s*(?:точке?|тачке?|мест[а-яё]*|локаци[а-яё]*|координат[а-яё]*)/gi, '').trim();
@@ -232,10 +265,8 @@ function detectClientCityIntent(text) {
     }
   }
 
-  // Снимаем вежливые вводные слова в начале («можешь пожалуйста сказать», «подскажи пожалуйста», «скажи», «хочу узнать»)
   const stripped = clean.replace(/^(?:(?:можешь|можете)(?:\s+ли)?(?:\s+пожалуйста|\s+пж|\s+плиз)?\s+(?:сказать|подсказать|рассказать|узнать|проверить|глянуть|посмотреть|показать)|подскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|скажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|расскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|пожалуйста\s+|пж\s+|плиз\s+|хочу\s+узнать|интересно|дай\s+знать|проверь(?:те)?)\s+/i, '').trim();
 
-  // Запросы вида «покажи полную аналитику по Новосибирску», «сводка по Казани», «подробная аналитика по Москве»
   const ANALYTICS_CITY_REGEX = /(?:(?:покажи(?:те)?|дай(?:те)?|выведи(?:те)?|открой(?:те)?|предоставь(?:те)?|сделай(?:те)?|глянь(?:те)?|посмотри(?:те)?|хочу)?\s*(?:полн[а-яё]*|кратк[а-яё]*|подробн[а-яё]*|общ[а-яё]*|вс[её]|всю)?\s*(?:аналитик[а-яё]*|сводк[а-яё]*|анализ[а-яё]*|данн[а-яё]*|картин[а-яё]*|информаци[а-яё]*)\s+(?:по|в|во|для|о|про)\s+(?:город[а-яё]*\s+)?)(.+)$/i;
   const analyticsMatch = stripped.match(ANALYTICS_CITY_REGEX) || clean.match(ANALYTICS_CITY_REGEX);
   let cityRaw = analyticsMatch ? analyticsMatch[1] : null;
@@ -301,7 +332,7 @@ function detectClientCityIntent(text) {
   return null;
 }
 
-function detectClientCityFromReply(replyText) {
+export function detectClientCityFromReply(replyText) {
   if (!replyText || typeof replyText !== 'string') return null;
   const clean = replyText.trim();
   const replyMatch = clean.match(/(?:перемещаюсь|перемещаемся|открываю|летим|перелетаем|перехожу|переходим|показываю)\s+(?:в|во|на)?\s*(?:город\s+)?([а-яёА-ЯЁa-zA-Z0-9\s-]+?)(?:,|\.|\!|\?|\s+смотрю|\s+проверяю|\s+глянем|\s+на\s+карте)/i);
@@ -316,6 +347,13 @@ function detectClientCityFromReply(replyText) {
     if (KNOWN_CLIENT_CITIES[normA]) return { raw: rawCity, ...KNOWN_CLIENT_CITIES[normA] };
   }
   return null;
+}
+
+export function formatTargetAnalyticsReply(cityName, analytics) {
+  if (!analytics || analytics.aqi === null || analytics.aqi === undefined) return null;
+  const pm25Str = analytics.pm2_5 != null ? `${analytics.pm2_5} мкг/м³` : 'в норме';
+  const pm10Str = analytics.pm10 != null ? `${analytics.pm10} мкг/м³` : 'в норме';
+  return `Смотри, в ${cityName} индекс EAQI равен ${analytics.aqi}! PM2.5: ${pm25Str}, PM10: ${pm10Str}. Данные свежие, ня! ✨`;
 }
 
 export default function AiChatModal({
@@ -342,13 +380,6 @@ export default function AiChatModal({
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showCommandsMenu, setShowCommandsMenu] = useState(false);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(() => {
-    try {
-      return localStorage.getItem('aerocast_sound_enabled') !== 'false';
-    } catch {
-      return true;
-    }
-  });
 
   const currentEmotion = useMemo(() => {
     if (isLoading) return 'think';
@@ -400,7 +431,6 @@ export default function AiChatModal({
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Скролл вниз при добавлении сообщений строго внутри контейнера сообщений (не дергая сайдбар и экран)
   const scrollToBottom = useCallback((smooth = true) => {
     const el = messagesContainerRef.current;
     if (el) {
@@ -418,7 +448,6 @@ export default function AiChatModal({
     }
   }, [isOpen, messages, isLoading, scrollToBottom]);
 
-  // Фокус поля ввода ТОЛЬКО при первичном открытии на десктопе (не на мобильных тач-устройствах)
   useEffect(() => {
     if (!isOpen || embedded) return;
     const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -544,14 +573,11 @@ export default function AiChatModal({
     pointAnalyticsRef.current = pointAnalytics;
   }, [pointAnalytics]);
 
-  // Единая точка добавления сообщений: ref обновляется сразу, чтобы история
-  // для следующего запроса была актуальной без ожидания рендера.
   const appendMessage = useCallback((message) => {
     messagesRef.current = [...messagesRef.current, message];
     setMessages(messagesRef.current);
   }, []);
 
-  // Сброс эмоции маскота обратно в idle через 7 секунд после ответа
   useEffect(() => {
     if (isLoading) {
       if (emotionResetTimerRef.current) {
@@ -585,19 +611,6 @@ export default function AiChatModal({
     };
   }, [isLoading, messages]);
 
-  const toggleSound = () => {
-    setIsSoundEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('aerocast_sound_enabled', String(next));
-      } catch (err) {
-        console.warn('Could not save sound pref:', err);
-      }
-      return next;
-    });
-  };
-
-  // Второй шаг двухэтапного сценария: подгрузка и озвучивание аналитики по новому городу
   const triggerFollowUpAnalytics = useCallback(async (targetLat, targetLon, cityName, generation, originalUserMessage = '') => {
     if (generation !== dialogGenerationRef.current) return;
     setIsLoading(true);
@@ -674,11 +687,11 @@ export default function AiChatModal({
       if (generation !== dialogGenerationRef.current) return;
 
       if (followUpRes.ok) {
-        const step2Data = await followUpRes.json();
+        const step2Data = await followUpRes.json().catch(() => ({}));
         const isRepeatMove = step2Data.reply && /перемеща(?:емся|юсь)|перехожу|летим/i.test(step2Data.reply);
         let finalReply = (!isRepeatMove && step2Data.reply) ? step2Data.reply : null;
-        if (!finalReply && targetAnalytics && targetAnalytics.aqi !== null) {
-          finalReply = `Смотри, в ${cityName} индекс EAQI равен ${targetAnalytics.aqi}! PM2.5: ${targetAnalytics.pm2_5 != null ? targetAnalytics.pm2_5 + ' мкг/м³' : 'в норме'}, PM10: ${targetAnalytics.pm10 != null ? targetAnalytics.pm10 + ' мкг/м³' : 'в норме'}. Данные свежие, ня! ✨`;
+        if (!finalReply) {
+          finalReply = formatTargetAnalyticsReply(cityName, targetAnalytics);
         }
 
         appendMessage({
@@ -689,26 +702,29 @@ export default function AiChatModal({
           timestamp: Date.now()
         });
       } else {
-        if (targetAnalytics && targetAnalytics.aqi !== null) {
+        const fallbackContent = formatTargetAnalyticsReply(cityName, targetAnalytics);
+        if (fallbackContent) {
           appendMessage({
             id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             role: 'assistant',
-            content: `Смотри, в ${cityName} индекс EAQI равен ${targetAnalytics.aqi}! PM2.5: ${targetAnalytics.pm2_5 != null ? targetAnalytics.pm2_5 + ' мкг/м³' : 'в норме'}, PM10: ${targetAnalytics.pm10 != null ? targetAnalytics.pm10 + ' мкг/м³' : 'в норме'}. Данные свежие, ня! ✨`,
+            content: fallbackContent,
             emotion: 'happy',
             timestamp: Date.now()
           });
         }
       }
     } catch (e) {
-      if (generation !== dialogGenerationRef.current) return;
-      if (targetAnalytics && targetAnalytics.aqi !== null) {
-        appendMessage({
-          id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          role: 'assistant',
-          content: `Смотри, в ${cityName} индекс EAQI равен ${targetAnalytics.aqi}! PM2.5: ${targetAnalytics.pm2_5 != null ? targetAnalytics.pm2_5 + ' мкг/м³' : 'в норме'}, PM10: ${targetAnalytics.pm10 != null ? targetAnalytics.pm10 + ' мкг/м³' : 'в норме'}. Данные свежие, ня! ✨`,
-          emotion: 'happy',
-          timestamp: Date.now()
-        });
+      if (generation === dialogGenerationRef.current) {
+        const fallbackContent = formatTargetAnalyticsReply(cityName, targetAnalytics);
+        if (fallbackContent) {
+          appendMessage({
+            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            role: 'assistant',
+            content: fallbackContent,
+            emotion: 'happy',
+            timestamp: Date.now()
+          });
+        }
       }
     } finally {
       if (generation === dialogGenerationRef.current) {
@@ -717,8 +733,6 @@ export default function AiChatModal({
     }
   }, [appendMessage]);
 
-  // Последовательная обработка очереди: даже если пользователь отправил
-  // несколько сообщений подряд, ответы придут в том же порядке.
   const processQueue = useCallback(async () => {
     if (isRequestingRef.current) return;
     isRequestingRef.current = true;
@@ -727,7 +741,6 @@ export default function AiChatModal({
       while (requestQueueRef.current.length > 0) {
         const job = requestQueueRef.current.shift();
 
-        // Задачи из старого диалога после «Начать новый диалог» игнорируем
         if (job.generation !== dialogGenerationRef.current) continue;
 
         const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -735,7 +748,6 @@ export default function AiChatModal({
 
         setIsLoading(true);
 
-        // Собираем последние реплики для контекста (ровно до 4 реплик: 2 пары вопрос-ответ)
         const historyPayload = messagesRef.current
           .filter((m) => m.id !== 'init-1' && !m.isError && m.id !== job.userMessageId)
           .slice(-4)
@@ -757,7 +769,6 @@ export default function AiChatModal({
             ...(controller ? { signal: controller.signal } : {})
           });
 
-          // Пока ждали ответ, пользователь начал новый диалог – ответ не нужен
           if (job.generation !== dialogGenerationRef.current) continue;
 
           if (!response.ok) {
@@ -817,7 +828,6 @@ export default function AiChatModal({
               };
             }
           } else if (!data?.action) {
-            // Клиентская страховка: если в тексте ответа или вопросе подтвержден переход к городу
             const clientCity = detectClientCityIntent(job.text) || (data?.reply ? detectClientCityFromReply(data.reply) : null);
             if (clientCity && clientCity.lat != null && clientCity.lon != null) {
               const targetLat = Number(clientCity.lat);
@@ -861,7 +871,6 @@ export default function AiChatModal({
           if (err?.name === 'AbortError') continue;
           if (job.generation !== dialogGenerationRef.current) continue;
 
-          // Клиентский fallback: переключение карты при сбое сетевого запроса
           const fallbackLayer = detectClientMapLayerIntent(job.text);
           if (fallbackLayer) {
             if (typeof onBaseLayerChangeRef.current === 'function') {
@@ -879,7 +888,6 @@ export default function AiChatModal({
             continue;
           }
 
-          // Клиентский fallback: переключение режима цветовой слепоты при сбое сетевого запроса
           const fallbackCB = detectClientColorBlindIntent(job.text, {
             isColorBlind: isColorBlindRef.current,
             history: historyPayload
@@ -930,7 +938,6 @@ export default function AiChatModal({
             }
           }
 
-          // Клиентский fallback: переключение темы оформления при сбое сетевого запроса
           const fallbackTheme = detectClientThemeIntent(job.text);
           if (fallbackTheme) {
             if (typeof onThemeChangeRef.current === 'function') {
@@ -948,7 +955,6 @@ export default function AiChatModal({
             continue;
           }
 
-          // Клиентский fallback: переход к городу при сбое сетевого запроса
           const fallbackCity = detectClientCityIntent(job.text);
           if (fallbackCity && fallbackCity.lat != null && fallbackCity.lon != null) {
             const targetLat = Number(fallbackCity.lat);
@@ -964,7 +970,7 @@ export default function AiChatModal({
             appendMessage({
               id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               role: 'assistant',
-              content: `Секундочку! Перемещаемся в ${toAccusativeCity(fallbackCity.name || fallbackCity.raw)}, смотрю свежие замеры воздуха, ня! ✨`,
+              content: `Секундочку! Перемещаемся в ${toAccusativeCity(targetName)}, смотрю свежие замеры воздуха, ня! ✨`,
               emotion: 'happy',
               timestamp: Date.now()
             });
@@ -1032,8 +1038,6 @@ export default function AiChatModal({
       timestamp: Date.now()
     };
 
-    // Сообщение сразу показываем в чате, а запрос ставим в очередь,
-    // чтобы можно было писать следующее, не дожидаясь ответа.
     appendMessage(userMsg);
     setInputMessage('');
     inputMessageRef.current = '';
@@ -1052,8 +1056,6 @@ export default function AiChatModal({
     handleSendMessage(null, cmdText);
   }, [handleSendMessage]);
 
-  // Новый диалог: сбрасываем очередь и отменяем незавершенный запрос,
-  // чтобы его ответ не попал в новый чат.
   const handleNewDialog = useCallback(() => {
     dialogGenerationRef.current += 1;
     requestQueueRef.current = [];
@@ -1089,32 +1091,9 @@ export default function AiChatModal({
     });
   }, []);
 
-  // Отправка аудио на бэкенд для распознавания (fallback для Firefox и браузеров без SpeechRecognition)
   const sendVoiceBlobToBackend = useCallback(async (blob) => {
     setIsTranscribing(true);
     try {
-      // Попытка использовать локальный транскриптор, если нативный отсутствует
-      if (typeof window !== 'undefined' && !window.SpeechRecognition && !window.webkitSpeechRecognition) {
-        try {
-          const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm');
-          env.allowLocalModels = false;
-          const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
-          
-          const arrayBuffer = await blob.arrayBuffer();
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          const result = await transcriber(audioBuffer.getChannelData(0));
-          
-          if (result && result.text) {
-            setInputMessage(result.text);
-            await handleSendMessage(null, result.text);
-            return;
-          }
-        } catch (localErr) {
-          console.warn('Local WASM transcription failed, falling back:', localErr);
-        }
-      }
-
       const base64 = await blobToBase64(blob);
       if (!base64) {
         throw new Error('Пустая аудиозапись');
@@ -1261,7 +1240,6 @@ export default function AiChatModal({
         : null;
 
     if (SpeechRecognition) {
-      // Освобождаем временный поток getUserMedia: SpeechRecognition использует аудиоканал автономно
       try {
         stream.getTracks().forEach((track) => track.stop());
       } catch {}
@@ -1269,8 +1247,6 @@ export default function AiChatModal({
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
-        // continuous = true позволяет пользователю делать естественные паузы между фразами
-        // и договаривать предложения без преждевременного обрыва
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
@@ -1280,7 +1256,6 @@ export default function AiChatModal({
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
           }
-          // Если уже есть надиктованный текст, даем пользователю 3 секунды спокойной тишины перед автоотправкой
           if (transcriptRef.current.trim().length > 0) {
             silenceTimerRef.current = setTimeout(() => {
               if (isListeningRef.current && recognitionRef.current) {
@@ -1297,7 +1272,6 @@ export default function AiChatModal({
           isListeningRef.current = true;
         };
 
-        // Сброс таймера при обнаружении звука или речи пользователя
         recognition.onsoundstart = () => {
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
@@ -1382,8 +1356,6 @@ export default function AiChatModal({
       return;
     }
 
-    // ВАРИАНТ Б: Браузер НЕ поддерживает Web Speech API (например, Mozilla Firefox),
-    // но доступ к микрофону пользователь уже разрешил! Записываем через MediaRecorder и отправляем на бэкенд
     if (typeof MediaRecorder !== 'undefined') {
       try {
         mediaStreamRef.current = stream;
@@ -1463,7 +1435,6 @@ export default function AiChatModal({
     }
   }, [isOpen, isListening, handleCancelVoice]);
 
-  // Закрытие по клавише Escape (меню команд -> отмена голосового ввода -> закрытие чата)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -1604,126 +1575,23 @@ export default function AiChatModal({
           </div>
 
           <div className="ai-chat-commands-popover__list">
-            <div className="ai-chat-commands-popover__group">
-              <span className="ai-chat-commands-popover__group-title">Карта и спутник</span>
-              <div className="ai-chat-commands-popover__buttons">
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Переключи на спутник')}
-                >
-                  🛰️ Переключи на спутник
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Верни обычную карту')}
-                >
-                  🗺️ Верни обычную карту
-                </button>
+            {COMMAND_GROUPS.map((group) => (
+              <div key={group.title} className="ai-chat-commands-popover__group">
+                <span className="ai-chat-commands-popover__group-title">{group.title}</span>
+                <div className="ai-chat-commands-popover__buttons">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.cmd}
+                      type="button"
+                      className={`ai-chat-commands-popover__item ${item.isOff ? 'ai-chat-commands-popover__item--off' : ''}`}
+                      onClick={() => handleCommandClick(item.cmd)}
+                    >
+                      {item.text}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            <div className="ai-chat-commands-popover__group">
-              <span className="ai-chat-commands-popover__group-title">Светлый / темный режим</span>
-              <div className="ai-chat-commands-popover__buttons">
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Включи тёмную тему')}
-                >
-                  🌙 Включи тёмную тему
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Включи светлую тему')}
-                >
-                  ☀️ Включи светлую тему
-                </button>
-              </div>
-            </div>
-
-            <div className="ai-chat-commands-popover__group">
-              <span className="ai-chat-commands-popover__group-title">Режим цветовой слепоты</span>
-              <div className="ai-chat-commands-popover__buttons">
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Окабе')}
-                >
-                  👁️ Окабе (по умолчанию)
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Дейтеранопия')}
-                >
-                  🔵 Дейтеранопия
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Протанопия')}
-                >
-                  🔴 Протанопия
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Включи режим цветовой слепоты Тританопия')}
-                >
-                  🟢 Тританопия
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item ai-chat-commands-popover__item--off"
-                  onClick={() => handleCommandClick('Отключи режим цветовой слепоты')}
-                >
-                  ✖️ Отключить режим цветовой слепоты
-                </button>
-              </div>
-            </div>
-
-            <div className="ai-chat-commands-popover__group">
-              <span className="ai-chat-commands-popover__group-title">Аналитика и рекомендации</span>
-              <div className="ai-chat-commands-popover__buttons">
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Какая аналитика по текущей точке сейчас с временем и рекомендациями?')}
-                >
-                  📍 Аналитика по точке с рекомендациями
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Какой был пик загрязнения в архиве и в какое время?')}
-                >
-                  📈 Пик в архиве по времени
-                </button>
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Дай прогноз качества воздуха на 3 дня и рекомендации по прогулкам')}
-                >
-                  🔮 Прогноз на 3 дня с советами
-                </button>
-              </div>
-            </div>
-
-            <div className="ai-chat-commands-popover__group">
-              <span className="ai-chat-commands-popover__group-title">Возможности маскота</span>
-              <div className="ai-chat-commands-popover__buttons">
-                <button
-                  type="button"
-                  className="ai-chat-commands-popover__item"
-                  onClick={() => handleCommandClick('Что ты умеешь? Расскажи о своем функционале')}
-                >
-                  ✨ Что ты умеешь? Функционал Аи
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       )}

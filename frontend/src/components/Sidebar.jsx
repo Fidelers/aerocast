@@ -63,7 +63,6 @@ function Sidebar({
     }
   };
 
-  // Страховочный таймер на случай, если браузер не вызвал ни success, ни error
   const clearGeoWatchdog = () => {
     if (geoWatchdogRef.current) {
       clearTimeout(geoWatchdogRef.current);
@@ -103,17 +102,11 @@ function Sidebar({
 
   const [selectedDayStr, setSelectedDayStr] = useState(null);
 
-  // Внутреннее состояние выбранного часа на случай неконтролируемого использования
   const [internalTimeIndex, setInternalTimeIndex] = useState(null);
   const activeTimeIndex = selectedTimeIndex !== null && selectedTimeIndex !== undefined
     ? selectedTimeIndex
     : internalTimeIndex;
 
-  // Определение текущего отображаемого дня:
-  // 1. Если пользователь явно кликнул на день и он есть в списке
-  // 2. Иначе, если выбран час activeTimeIndex – день, содержащий этот час
-  // 3. Иначе – сегодняшний день (isToday)
-  // 4. Иначе – первый доступный день
   const currentDay = useMemo(() => {
     if (days.length === 0) return null;
 
@@ -133,7 +126,6 @@ function Sidebar({
     return todayDay || days[0];
   }, [days, selectedDayStr, activeTimeIndex]);
 
-  // Автоматическая прокрутка к сегодняшнему (или активному) дню при начальной загрузке
   useEffect(() => {
     if (days.length === 0) return;
     if (hasInitialScrolledRef.current) return;
@@ -234,9 +226,7 @@ function Sidebar({
     }
   };
 
-  // Определение приблизительного местоположения по IP (при отсутствии GPS / на небезопасном HTTP)
   const fetchIpLocation = async () => {
-    // 1. Собственный бекенд через /api/locate-me (проксируется Vite без проблем с CORS и блокировщиками)
     try {
       const res = await fetch('/api/locate-me');
       if (res.ok) {
@@ -253,7 +243,6 @@ function Sidebar({
       }
     } catch {}
 
-    // 2. Резервный опрос внешнего сервиса ipwho.is
     try {
       const res = await fetch('https://ipwho.is/');
       if (res.ok) {
@@ -283,7 +272,6 @@ function Sidebar({
 
     setIsGeoLoading(true);
 
-    // Идентификатор попытки: защищает от «гонки» GPS и IP-фоллбэка
     const attemptId = ++geoAttemptIdRef.current;
     let finished = false;
 
@@ -303,7 +291,6 @@ function Sidebar({
       }
     };
 
-    // Фоллбэк по IP запускается только если GPS недоступен, запрещён или не ответил
     const fallbackToIp = async (gpsErrorMessage) => {
       if (finished || attemptId !== geoAttemptIdRef.current) return;
       finished = true;
@@ -323,13 +310,8 @@ function Sidebar({
       }
 
       setIsGeoLoading(false);
-      if (!gpsErrorMessage) {
-        setGeoErrorWithTimeout('Не удалось определить местоположение. Попробуйте поиск города.');
-      }
     };
 
-    // 1. Всегда сначала пробуем GPS браузера, даже в небезопасном контексте:
-    //    если браузер запретит геолокацию – автоматически перейдём на IP.
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       await fallbackToIp('Не удалось определить местоположение. Попробуйте поиск города. Геолокация не поддерживается вашим браузером.');
       return;
@@ -363,7 +345,6 @@ function Sidebar({
         { timeout: 8000, maximumAge: 0, enableHighAccuracy: true }
       );
     } catch {
-      // Некоторые браузеры бросают исключение в небезопасном контексте
       await fallbackToIp(
         isInsecure
           ? 'Геолокация недоступна по HTTP. Для точного определения откройте сайт по HTTPS или на localhost.'
@@ -372,7 +353,6 @@ function Sidebar({
       return;
     }
 
-    // 2. Страховка: если браузер не вызвал ни success, ни error
     if (!finished) {
       geoWatchdogRef.current = setTimeout(() => {
         fallbackToIp('Браузер не ответил на запрос геолокации. Используем приблизительное местоположение по IP.');
@@ -405,30 +385,21 @@ function Sidebar({
         backdrop.style.transition = '';
       }
     }
-  }, [isOpen]);
+  }, [isOpen, isAiChatOpen]);
 
-  // При открытии чата сбрасываем скролл сайдбара, чтобы окно чата не сдвигалось наверх
   useEffect(() => {
     if (isAiChatOpen && sidebarRef.current) {
       sidebarRef.current.scrollTop = 0;
     }
   }, [isAiChatOpen]);
 
-  // Обработка жеста утягивания сайдбара влево (за край, как шторки в мобильных приложениях)
   const startDrag = useCallback((clientX, clientY, target, pointerType = '') => {
     if (!isOpen || isClosingRef.current) return;
 
-    // При открытом чате перетаскивание сайдбара разрешено только за специальный хэндл
     if (isAiChatOpen && !target?.closest?.('.sidebar__drag-handle')) {
       return;
     }
 
-    // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО при целенаправленном захвате хэндла на краю
-    if (pointerType === 'mouse' && !target?.closest?.('.sidebar__drag-handle')) {
-      return;
-    }
-
-    // Не перехватываем жест, если пользователь взаимодействует со слайдером дней, поиском или кнопками закрытия
     if (
       target?.closest?.('.days') ||
       target?.closest?.('input') ||
@@ -458,7 +429,7 @@ function Sidebar({
     } else {
       isDraggingRef.current = false;
     }
-  }, [isOpen]);
+  }, [isOpen, isAiChatOpen]);
 
   const moveDrag = useCallback((clientX, clientY, e) => {
     if (!isOpen || isClosingRef.current) return;
@@ -466,11 +437,6 @@ function Sidebar({
     const deltaY = clientY - dragStartYRef.current;
 
     if (!isDraggingRef.current) {
-      // Для указателя мыши/тачпада запрещаем автозахват из контента
-      if (dragPointerTypeRef.current === 'mouse') {
-        return;
-      }
-      // Начинаем drag, если движение явно горизонтальное влево
       if (deltaX < -6 && Math.abs(deltaX) > Math.abs(deltaY)) {
         isDraggingRef.current = true;
         dragStartXRef.current = clientX;
@@ -479,7 +445,6 @@ function Sidebar({
           sidebarRef.current.style.transition = 'none';
         }
       } else if (Math.abs(deltaY) > 8) {
-        // Вертикальный скролл списка сайдбара - не перехватываем
         return;
       }
     }
@@ -496,14 +461,12 @@ function Sidebar({
       if (deltaX <= 0) {
         translateX = deltaX;
       } else {
-        // Резиновое сопротивление при попытке тянуть вправо
         translateX = deltaX * 0.1;
       }
 
       currentTranslateXRef.current = translateX;
       sidebar.style.transform = `translateX(${translateX}px)`;
 
-      // Синхронное затухание затемняющего бэкдропа
       const backdrop = document.querySelector('.sidebar-backdrop');
       if (backdrop) {
         const width = sidebar.offsetWidth || 300;
@@ -511,7 +474,7 @@ function Sidebar({
         backdrop.style.opacity = String(progress);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, isAiChatOpen]);
 
   const endDrag = useCallback(() => {
     if (!isDraggingRef.current) {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   calculateMetricStats,
   buildExportDataset,
@@ -7,6 +7,9 @@ import {
   generateJson,
   formatExportFilename,
   copyTextToClipboard,
+  downloadBlob,
+  renderMultiChartPngBlob,
+  renderSvgToPngBlob,
   AVAILABLE_METRICS,
 } from '../../src/utils/exportUtils';
 
@@ -64,9 +67,10 @@ describe('exportUtils', () => {
       expect(formatIsoToReadable('2026-10-22T08:00')).toBe('2026-10-22 08:00');
     });
 
-    it('returns empty string on empty input', () => {
+    it('returns empty string on empty input and returns raw on non-iso input', () => {
       expect(formatIsoToReadable('')).toBe('');
       expect(formatIsoToReadable(null)).toBe('');
+      expect(formatIsoToReadable('simple-date')).toBe('simple-date');
     });
   });
 
@@ -217,6 +221,270 @@ describe('exportUtils', () => {
       const result = await copyTextToClipboard('test text');
       expect(result).toBe(true);
       expect(writeTextMock).toHaveBeenCalledWith('test text');
+    });
+
+    it('returns false on empty text', async () => {
+      expect(await copyTextToClipboard('')).toBe(false);
+      expect(await copyTextToClipboard(null)).toBe(false);
+    });
+
+    it('falls back to execCommand when navigator.clipboard throws', async () => {
+      Object.assign(navigator, {
+        clipboard: { writeText: vi.fn().mockRejectedValue(new Error('fail')) },
+      });
+      document.execCommand = vi.fn().mockReturnValue(true);
+      const res = await copyTextToClipboard('fallback text');
+      expect(res).toBe(true);
+      expect(document.execCommand).toHaveBeenCalledWith('copy');
+    });
+
+    it('returns false when execCommand also fails', async () => {
+      Object.assign(navigator, {
+        clipboard: { writeText: vi.fn().mockRejectedValue(new Error('fail')) },
+      });
+      document.execCommand = vi.fn().mockImplementation(() => { throw new Error('exec failed'); });
+      const res = await copyTextToClipboard('fallback text');
+      expect(res).toBe(false);
+    });
+  });
+
+  describe('downloadBlob', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('returns early when blob is null or undefined', () => {
+      expect(() => downloadBlob(null, 'test.csv')).not.toThrow();
+    });
+
+    it('creates anchor, appends to body, clicks and cleans up', () => {
+      const mockUrl = 'blob:test';
+      const createObjectURL = vi.spyOn(window.URL, 'createObjectURL').mockReturnValue(mockUrl);
+      const revokeObjectURL = vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(() => {});
+      const clickSpy = vi.fn();
+      const origCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+        const el = origCreateElement(tag);
+        if (tag === 'a') {
+          el.click = clickSpy;
+        }
+        return el;
+      });
+
+      const blob = new Blob(['data'], { type: 'text/csv' });
+      downloadBlob(blob, 'export.csv');
+
+      expect(createObjectURL).toHaveBeenCalledWith(blob);
+      expect(clickSpy).toHaveBeenCalled();
+
+      vi.advanceTimersByTime(150);
+      expect(revokeObjectURL).toHaveBeenCalledWith(mockUrl);
+
+      createObjectURL.mockRestore();
+      revokeObjectURL.mockRestore();
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe('renderMultiChartPngBlob and renderSvgToPngBlob', () => {
+    it('throws error when chartItems is empty', async () => {
+      await expect(renderMultiChartPngBlob([])).rejects.toThrow('Графики не найдены');
+    });
+
+    it('throws error when 2d context is unavailable', async () => {
+      const origGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(null);
+      await expect(renderMultiChartPngBlob([{ svgElement: document.createElementNS('http://www.w3.org/2000/svg', 'svg') }])).rejects.toThrow('Canvas 2D context недоступен');
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+    });
+
+    it('renders multi-chart png blob with light and dark themes', async () => {
+      const mockCtx = {
+        save: vi.fn(),
+        restore: vi.fn(),
+        scale: vi.fn(),
+        fillText: vi.fn(),
+        fillRect: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        rect: vi.fn(),
+        roundRect: vi.fn(),
+        drawImage: vi.fn(),
+      };
+      const origGetContext = HTMLCanvasElement.prototype.getContext;
+      const origToBlob = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx);
+      HTMLCanvasElement.prototype.toBlob = vi.fn((cb) => cb(new Blob(['png-data'], { type: 'image/png' })));
+
+      const origImage = global.Image;
+      global.Image = class {
+        set src(v) {
+          setTimeout(() => { if (this.onload) this.onload(); }, 5);
+        }
+      };
+
+      const svg1 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+
+      const blob1 = await renderMultiChartPngBlob([
+        { svgElement: svg1, label: 'AQI', unit: 'EAQI', statsText: 'мин: 10' },
+        { svgElement: svg2, label: 'PM2.5', unit: 'мкг/м³', statsText: '' },
+      ], { theme: 'dark', subtitle: 'г. Москва' });
+      expect(blob1).toBeInstanceOf(Blob);
+
+      delete mockCtx.roundRect;
+      const blob2 = await renderMultiChartPngBlob([
+        { svgElement: svg1, label: 'AQI', unit: 'EAQI' },
+      ], { theme: 'light' });
+      expect(blob2).toBeInstanceOf(Blob);
+
+      const svgBlob = await renderSvgToPngBlob(svg1, { label: 'Одиночный график' });
+      expect(svgBlob).toBeInstanceOf(Blob);
+
+      HTMLCanvasElement.prototype.toBlob = vi.fn((cb) => cb(null));
+      await expect(renderMultiChartPngBlob([{ svgElement: svg1 }])).rejects.toThrow('Не удалось сгенерировать PNG');
+
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+      HTMLCanvasElement.prototype.toBlob = origToBlob;
+      global.Image = origImage;
+    });
+
+    it('handles image error and missing svgElement gracefully', async () => {
+      const mockCtx = {
+        save: vi.fn(),
+        restore: vi.fn(),
+        scale: vi.fn(),
+        fillText: vi.fn(),
+        fillRect: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        rect: vi.fn(),
+        drawImage: vi.fn(),
+      };
+      const origGetContext = HTMLCanvasElement.prototype.getContext;
+      const origToBlob = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx);
+      HTMLCanvasElement.prototype.toBlob = vi.fn((cb) => cb(new Blob(['png-data'], { type: 'image/png' })));
+
+      const origImage = global.Image;
+      global.Image = class {
+        set src(v) {
+          setTimeout(() => { if (this.onerror) this.onerror(new Error('img error')); }, 5);
+        }
+      };
+
+      const svg1 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const blob = await renderMultiChartPngBlob([
+        { svgElement: null, label: 'No SVG' },
+        { svgElement: svg1, label: 'Error SVG' },
+      ]);
+      expect(blob).toBeInstanceOf(Blob);
+
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+      HTMLCanvasElement.prototype.toBlob = origToBlob;
+      global.Image = origImage;
+    });
+  });
+
+  describe('buildExportDataset extra branches', () => {
+    it('covers all_raw scope with empty allRecords fallback to finalDayData', () => {
+      const res = buildExportDataset({
+        allRecords: [],
+        finalDayData: mockRecords,
+        scope: 'all_raw',
+      });
+      expect(res.records).toHaveLength(3);
+    });
+
+    it('covers selection_only scope with reversed range and stepHours > 1', () => {
+      const res = buildExportDataset({
+        allRecords: mockRecords,
+        customRange: { startGlobal: 2, endGlobal: 0 },
+        scope: 'selection_only',
+        stepHours: 2,
+      });
+      expect(res.records).toHaveLength(2);
+    });
+
+    it('covers selection_only scope with null customRange', () => {
+      const res = buildExportDataset({
+        allRecords: mockRecords,
+        finalDayData: mockRecords,
+        customRange: null,
+        scope: 'selection_only',
+      });
+      expect(res.records).toHaveLength(3);
+    });
+
+    it('covers selected_day scope with no matching rows or empty allRecords', () => {
+      const res = buildExportDataset({
+        allRecords: mockRecords,
+        finalDayData: mockRecords,
+        selectedDateStr: '2020-01-01',
+        scope: 'selected_day',
+      });
+      expect(res.records).toHaveLength(3);
+
+      const resEmpty = buildExportDataset({
+        allRecords: [],
+        finalDayData: mockRecords,
+        selectedDateStr: '2020-01-01',
+        scope: 'selected_day',
+      });
+      expect(resEmpty.records).toHaveLength(3);
+    });
+
+    it('covers metricMode active_only with falsy key', () => {
+      const res = buildExportDataset({
+        finalDayData: mockRecords,
+        metricMode: 'active_only',
+        activeMetricKey: null,
+      });
+      expect(res.metrics[0].key).toBe('aqi');
+    });
+
+    it('covers metricMode custom with empty array', () => {
+      const res = buildExportDataset({
+        finalDayData: mockRecords,
+        metricMode: 'custom',
+        selectedMetricKeys: [],
+      });
+      expect(res.metrics[0].key).toBe('aqi');
+    });
+
+    it('covers formatExportFilename default params', () => {
+      const filename = formatExportFilename({});
+      expect(filename).toContain('aerocast_analytics_aerocast');
+    });
+
+    it('covers CSV and JSON generation with missing/invalid row values', () => {
+      const sparseRecords = [
+        { time: '2026-10-22T00:00', aqi: null, pm2_5: NaN, pm10: undefined },
+      ];
+      const csv = generateCsv({
+        records: sparseRecords,
+        metrics: AVAILABLE_METRICS.slice(0, 3),
+        metadata: {},
+      });
+      expect(csv).toContain('"2026-10-22 00:00";;;');
+
+      const json = generateJson({
+        records: sparseRecords,
+        metrics: AVAILABLE_METRICS.slice(0, 3),
+        metadata: { lat: null, lon: null },
+      });
+      const parsed = JSON.parse(json);
+      expect(parsed.metadata.coordinates).toBeNull();
+      expect(parsed.items[0].aqi).toBeNull();
     });
   });
 });

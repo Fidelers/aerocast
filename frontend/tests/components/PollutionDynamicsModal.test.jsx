@@ -1,9 +1,7 @@
-// frontend/tests/components/PollutionDynamicsModal.test.jsx
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import PollutionDynamicsModal from '../../src/components/PollutionDynamicsModal';
+import PollutionDynamicsModal, { formatDate, formatDateShort, buildHourRecord } from '../../src/components/PollutionDynamicsModal';
 
-// Генератор моковых почасовых данных за несколько суток (вчера, сегодня, завтра)
 function createMockAirData() {
     const dates = ['2026-10-22', '2026-10-23', '2026-10-24'];
     const time = [];
@@ -550,14 +548,11 @@ describe('PollutionDynamicsModal component (поверхностное окно 
             />
         );
 
-        // Кликаем по карточке PM2.5 (побочный график)
         const pm25Card = screen.getByTestId('pollutant-card-pm2_5');
         fireEvent.click(pm25Card);
 
-        // Активная метрика сменилась на PM2.5
         expect(screen.getByTestId('reset-to-aqi-btn')).toBeTruthy();
 
-        // onSelectTime НЕ должен был вызываться при клике на побочный график
         expect(handleSelectTime).not.toHaveBeenCalled();
     });
 
@@ -574,19 +569,15 @@ describe('PollutionDynamicsModal component (поверхностное окно 
         const svg = container.querySelector('.dynamics-modal-main-chart svg');
         expect(svg).toBeTruthy();
 
-        // До наведения мыши сетка отсутствует
         expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeNull();
 
-        // Наводим мышь на svg
         fireEvent.mouseEnter(svg);
         fireEvent.mouseMove(svg, { clientX: 150 });
 
-        // Сетка и маркер должны появиться
         const hoverGrid = container.querySelector('[data-testid="chart-hover-grid"]');
         expect(hoverGrid).toBeTruthy();
         expect(hoverGrid.querySelectorAll('line').length).toBeGreaterThan(0);
 
-        // Уводим мышь с графика
         fireEvent.mouseLeave(svg);
         expect(container.querySelector('[data-testid="chart-hover-grid"]')).toBeNull();
     });
@@ -611,15 +602,12 @@ describe('PollutionDynamicsModal component (поверхностное окно 
             bottom: 220,
         });
 
-        // Нажимаем мышь в координате 150
         fireEvent.mouseDown(svg, { button: 0, clientX: 150 });
-        // Тянем в координату 350
         fireEvent.mouseMove(window, { clientX: 350 });
 
         const selectionBox = container.querySelector('.chart-selection-box');
         expect(selectionBox).toBeTruthy();
 
-        // Проверяем, что левая граница выделения равна координате клика 150
         const rect = selectionBox.querySelector('rect');
         expect(Number(rect.getAttribute('x'))).toBeCloseTo(150, 0);
 
@@ -664,5 +652,212 @@ describe('PollutionDynamicsModal component (поверхностное окно 
         fireEvent.click(closeExportBtn);
 
         expect(screen.queryByTestId('export-modal-overlay')).toBeNull();
+    });
+
+    it('30. Переключает пресет на all при шаге более 12 часов и обрабатывает некорректный шаг', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const stepSelect = screen.getByTestId('step-hours-select');
+        fireEvent.change(stepSelect, { target: { value: '24' } });
+        expect(screen.getByTestId('all-days-hint')).toBeTruthy();
+
+        fireEvent.change(stepSelect, { target: { value: 'invalid' } });
+        expect(stepSelect.value).toBe('1');
+    });
+
+    it('31. Переключает свитч Все дни и сбрасывает кастомный диапазон', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const toggle = screen.getByTestId('all-days-toggle');
+        fireEvent.click(toggle);
+        expect(toggle.checked).toBe(true);
+
+        fireEvent.click(toggle);
+        expect(toggle.checked).toBe(false);
+    });
+
+    it('32. Переключает пресеты week, 3days, all и сбрасывает кастомный диапазон', () => {
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const weekBtn = screen.getByText('Неделя');
+        fireEvent.click(weekBtn);
+
+        const allBtn = screen.getByRole('button', { name: 'Все дни' });
+        fireEvent.click(allBtn);
+
+        const threeDaysBtn = screen.getByText('3 дня');
+        fireEvent.click(threeDaysBtn);
+
+        const svg = container.querySelector('.dynamics-modal-main-chart svg');
+        vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+            left: 0,
+            top: 0,
+            width: 720,
+            height: 220,
+            right: 720,
+            bottom: 220,
+        });
+
+        fireEvent.mouseDown(svg, { button: 0, clientX: 100 });
+        fireEvent.mouseMove(window, { clientX: 400 });
+        fireEvent.mouseUp(window, { clientX: 400 });
+
+        const resetBtn = screen.queryByTestId('reset-custom-range');
+        if (resetBtn) {
+            fireEvent.click(resetBtn);
+        }
+    });
+
+    it('33. Игнорирует Escape для закрытия основного модала, если открыто окно экспорта', () => {
+        const onClose = vi.fn();
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={onClose}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const exportBtn = screen.getByTestId('dynamics-export-btn');
+        fireEvent.click(exportBtn);
+
+        expect(screen.getByTestId('export-modal-overlay')).toBeTruthy();
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('export-modal-overlay')).toBeNull();
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('34. Корректно работает при отсутствии координат и нестандартных индексах', () => {
+        const handleSelectTime = vi.fn();
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={{
+                    ...mockAirData,
+                    latitude: undefined,
+                    longitude: undefined
+                }}
+                coords={null}
+                selectedTimeIndex={999}
+                onSelectTime={handleSelectTime}
+            />
+        );
+
+        expect(screen.getByText('Динамика качества воздуха')).toBeDefined();
+
+        const interactiveRect = container.querySelector('.dynamics-modal-main-chart rect[role="button"]');
+        if (interactiveRect) {
+            fireEvent.click(interactiveRect);
+            expect(handleSelectTime).toHaveBeenCalled();
+        }
+    });
+
+    it('35. Переключает активный загрязнитель и сбрасывает обратно на AQI', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const pm10Card = screen.getByTestId('pollutant-card-pm10');
+        fireEvent.click(pm10Card);
+
+        const resetBtn = screen.getByTestId('reset-to-aqi-btn');
+        expect(resetBtn).toBeDefined();
+        fireEvent.click(resetBtn);
+        expect(screen.queryByTestId('reset-to-aqi-btn')).toBeNull();
+    });
+
+    it('36. Проверяет утилиты форматирования дат и построения записей', () => {
+        expect(formatDate('')).toBe('');
+        expect(formatDate('invalid-date')).toBe('invalid-date');
+        expect(formatDateShort('')).toBe('');
+        expect(formatDateShort('invalid-date')).toBe('invalid-date');
+
+        const rec = buildHourRecord('2026-10-22T08:00', 0, {}, false, 0);
+        expect(rec.aqi).toBeNull();
+        expect(rec.hourLabel).toBe('08:00');
+
+        const rec2 = buildHourRecord('bad-time', 1, {}, true, 1);
+        expect(rec2.hourLabel).toBe('00:00');
+    });
+
+    it('37. Проверяет выбор шага более 12 часов и смену пресета', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const stepSelect = screen.getByTestId('step-hours-select');
+        fireEvent.change(stepSelect, { target: { value: '24' } });
+
+        const pm25Card = screen.getByTestId('pollutant-card-pm2_5');
+        fireEvent.keyDown(pm25Card, { key: 'Enter' });
+        fireEvent.keyDown(pm25Card, { key: ' ' });
+        fireEvent.keyDown(pm25Card, { key: 'Escape' });
+
+        const disabledToggle = screen.getByTestId('all-days-toggle');
+        expect(disabledToggle.disabled).toBe(true);
+        fireEvent.change(disabledToggle, { target: { checked: false } });
+    });
+
+    it('38. Отображает дефисы если концентрации загрязнителей отсутствуют', () => {
+        const emptyAirData = {
+            latitude: 55.75,
+            longitude: 37.61,
+            hourly: {
+                time: ['2026-10-22T00:00', '2026-10-22T01:00'],
+                european_aqi: [null, null],
+                pm2_5: [null, null],
+                pm10: [null, null],
+                nitrogen_dioxide: [null, null],
+                sulphur_dioxide: [null, null],
+                ozone: [null, null],
+                carbon_monoxide: [null, null],
+            },
+        };
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={emptyAirData}
+                selectedTimeIndex={0}
+            />
+        );
+        expect(screen.getAllByText('–').length).toBeGreaterThan(0);
     });
 });

@@ -536,4 +536,43 @@ describe('Service: spatialCacheService (Пространственное кэш�
             const deleted = await spatialCacheService.clearSpatialCache('micro');
             expect(deleted).toBe(0);
         });
+
+        it('покрывает граничные ветки quantizeCoordinates, getSpatialCacheEntry, isRecordSavedToday и дефолтные аргументы', async () => {
+            const zeroRes = spatialCacheService.quantizeCoordinates(-0, -0);
+            expect(zeroRes.qLat).toBe('0.00');
+            expect(zeroRes.qLon).toBe('0.00');
+
+            mockDb.get.mockResolvedValueOnce({
+                data: '{bad-json}',
+                expires_at: Date.now() + 1000
+            });
+            const badJsonRes = await spatialCacheService.getSpatialCache('test_bad_json', true);
+            expect(badJsonRes).toBeNull();
+
+            mockDb.get.mockResolvedValueOnce(null);
+            const entryNull = await spatialCacheService.getSpatialCacheEntry('non_existent_key_xyz');
+            expect(entryNull).toBeNull();
+
+            mockDb.get.mockRejectedValueOnce(new Error('db down'));
+            await spatialCacheService.setSpatialCache('mem_only_key', { test: 123 }, 3600);
+            const entryMem = await spatialCacheService.getSpatialCacheEntry('mem_only_key');
+            expect(entryMem).toBeDefined();
+            expect(entryMem.data).toEqual({ test: 123 });
+
+            expect(spatialCacheService.isRecordSavedToday(null)).toBe(false);
+            expect(spatialCacheService.isRecordSavedToday({})).toBe(true);
+
+            expect(spatialCacheService.coversForecastHorizon(null)).toBe(false);
+            expect(spatialCacheService.coversForecastHorizon({ time: [] })).toBe(false);
+            expect(spatialCacheService.coversForecastHorizon({ time: [null] })).toBe(false);
+            expect(spatialCacheService.coversForecastHorizon({ time: ['not-a-date'] })).toBe(false);
+
+            mockDb.get.mockResolvedValueOnce(null);
+            const defMacroRes = await spatialCacheService.getTodayMacroGrid();
+            expect(defMacroRes).toBeNull();
+
+            mockDb.get.mockResolvedValueOnce(null);
+            const defSavedRes = await spatialCacheService.isMacroGridSavedToday();
+            expect(defSavedRes).toBe(false);
+        });
     });
