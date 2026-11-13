@@ -325,7 +325,7 @@ describe('Hook: useAirGrid (Управление жизненным циклом
                 result.current.loadMicroGrid(55.75, 37.61);
             });
 
-            // Размонтируем до завершения fetch — должен вызваться abort()
+            // Размонтируем до завершения fetch – должен вызваться abort()
             unmount();
 
             // Завершаем промис (компонент уже размонтирован, mountedRef = false)

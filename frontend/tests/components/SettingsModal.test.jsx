@@ -102,7 +102,7 @@ describe('SettingsModal component (окно настроек темы и цве�
 
         expect(screen.getByText(/стандартная/i)).toBeTruthy();
         const palette = screen.getByTestId('settings-preview-palette');
-        // Стандартный цвет для 0-20 — зеленый #4CAF50
+        // Стандартный цвет для 0-20 – зеленый #4CAF50
         const firstChipStandard = palette.children[0];
         expect(firstChipStandard.textContent).toContain('0–20');
         expect(firstChipStandard.style.backgroundColor).toBe('rgb(76, 175, 80)'); // #4CAF50

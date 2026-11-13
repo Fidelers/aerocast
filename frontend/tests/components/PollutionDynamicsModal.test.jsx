@@ -625,4 +625,44 @@ describe('PollutionDynamicsModal component (поверхностное окно 
 
         fireEvent.mouseUp(window, { clientX: 350 });
     });
+
+    it('28. Рендерит кнопку «Экспорт» в панели управления аналитикой рядом с диапазонами дат', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+            />
+        );
+
+        const exportBtn = screen.getByTestId('dynamics-export-btn');
+        expect(exportBtn).toBeTruthy();
+        expect(exportBtn.textContent).toContain('Экспорт');
+    });
+
+    it('29. При клике на кнопку «Экспорт» открывается окно экспорта и корректно закрывается', () => {
+        render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={0}
+                locationName="Новокузнецк, Россия"
+            />
+        );
+
+        expect(screen.queryByTestId('export-modal-overlay')).toBeNull();
+
+        const exportBtn = screen.getByTestId('dynamics-export-btn');
+        fireEvent.click(exportBtn);
+
+        expect(screen.getByTestId('export-modal-overlay')).toBeTruthy();
+        expect(screen.getByText('Экспорт аналитики качества воздуха')).toBeTruthy();
+
+        const closeExportBtn = screen.getByTestId('export-modal-close-btn');
+        fireEvent.click(closeExportBtn);
+
+        expect(screen.queryByTestId('export-modal-overlay')).toBeNull();
+    });
 });

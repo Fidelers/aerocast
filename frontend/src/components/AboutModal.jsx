@@ -58,7 +58,7 @@ export default function AboutModal({ isOpen, onClose }) {
         <section className="modal-section">
           <h3 className="modal-section__title">Назначение сервиса</h3>
           <p className="modal-section__text">
-            <strong>Aerocast</strong> — это веб-приложение для оценки экологической обстановки
+            <strong>Aerocast</strong> – это веб-приложение для оценки экологической обстановки
             в режиме реального времени и подробный <strong>прогноз</strong> качества воздуха
             на ближайшие 3 дня. Сервис помогает планировать прогулки, занятия спортом на открытом
             воздухе и оценивать риски для здоровья.
@@ -89,25 +89,25 @@ export default function AboutModal({ isOpen, onClose }) {
             <div className="pollutant-card">
               <span className="pollutant-card__name">NO2</span>
               <span className="pollutant-card__desc">
-                Диоксид азота — продукт горения топлива в двигателях автотранспорта и на ТЭЦ.
+                Диоксид азота – продукт горения топлива в двигателях автотранспорта и на ТЭЦ.
               </span>
             </div>
             <div className="pollutant-card">
               <span className="pollutant-card__name">O3</span>
               <span className="pollutant-card__desc">
-                Приземный озон — фотохимический окислитель, образующийся при солнечном свете.
+                Приземный озон – фотохимический окислитель, образующийся при солнечном свете.
               </span>
             </div>
             <div className="pollutant-card">
               <span className="pollutant-card__name">SO2</span>
               <span className="pollutant-card__desc">
-                Диоксид серы — выбросы при сжигании серосодержащего угля, мазута и руд.
+                Диоксид серы – выбросы при сжигании серосодержащего угля, мазута и руд.
               </span>
             </div>
             <div className="pollutant-card">
               <span className="pollutant-card__name">CO</span>
               <span className="pollutant-card__desc">
-                Оксид углерода (угарный газ) — продукт неполного сгорания углеводородного топлива.
+                Оксид углерода (угарный газ) – продукт неполного сгорания углеводородного топлива.
               </span>
             </div>
           </div>
@@ -169,10 +169,10 @@ export default function AboutModal({ isOpen, onClose }) {
           </p>
           <div className="sources-list">
             <div className="source-badge">
-              <strong>Open-Meteo</strong> — основной источник численного моделирования атмосферы
+              <strong>Open-Meteo</strong> – основной источник численного моделирования атмосферы
             </div>
             <div className="source-badge">
-              <strong>OpenWeatherMap</strong> — резервный источник станционных замеров
+              <strong>OpenWeatherMap</strong> – резервный источник станционных замеров
             </div>
           </div>
         </section>

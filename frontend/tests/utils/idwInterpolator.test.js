@@ -1,4 +1,4 @@
-// frontend/tests/utils/idwInterpolator.test.js — TDD тесты математической модели IDW
+// frontend/tests/utils/idwInterpolator.test.js – TDD тесты математической модели IDW
 import { describe, it, expect } from 'vitest';
 import {
     interpolatePoint,
@@ -106,12 +106,12 @@ describe('idwInterpolator (Математическая модель IDW)', () =
         const height = 100;
 
         it('линейно преобразует угловые пиксели в границы Bounding Box', () => {
-            // (0, 0) — левый верхний угол: maxLat, minLon
+            // (0, 0) – левый верхний угол: maxLat, minLon
             const topLeft = projectPixelToGeo(0, 0, width, height, bbox, false);
             expect(topLeft.lat).toBeCloseTo(60.0);
             expect(topLeft.lon).toBeCloseTo(30.0);
 
-            // (width, height) — правый нижний угол: minLat, maxLon
+            // (width, height) – правый нижний угол: minLat, maxLon
             const bottomRight = projectPixelToGeo(width, height, width, height, bbox, false);
             expect(bottomRight.lat).toBeCloseTo(50.0);
             expect(bottomRight.lon).toBeCloseTo(40.0);
@@ -303,11 +303,11 @@ describe('idwInterpolator (Математическая модель IDW)', () =
             expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [] }])).toBeNull();
         });
 
-        it('возвращает null если european_aqi[0] — NaN', () => {
+        it('возвращает null если european_aqi[0] – NaN', () => {
             expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [NaN] }])).toBeNull();
         });
 
-        it('возвращает null если european_aqi[timeIndex] — NaN', () => {
+        it('возвращает null если european_aqi[timeIndex] – NaN', () => {
             expect(interpolatePoint(55.0, 37.0, [{ lat: 55.0, lon: 37.0, european_aqi: [10, NaN, 30] }], { timeIndex: 1 })).toBeNull();
         });
 

@@ -10,7 +10,7 @@ const mockAirData = {
     }
 };
 
-describe('SidebarCoverage — граничные случаи и полное покрытие веток', () => {
+describe('SidebarCoverage – граничные случаи и полное покрытие веток', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-28T10:00:00'));

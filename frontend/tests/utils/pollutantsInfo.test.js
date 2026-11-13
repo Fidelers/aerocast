@@ -175,7 +175,7 @@ describe('getAqiRecommendation', () => {
     });
 });
 
-describe('pollutantsInfo — дополнительные граничные случаи', () => {
+describe('pollutantsInfo – дополнительные граничные случаи', () => {
     it('normalizePollutantKey возвращает null для невалидных типов', () => {
         expect(normalizePollutantKey(null)).toBeNull();
         expect(normalizePollutantKey(undefined)).toBeNull();

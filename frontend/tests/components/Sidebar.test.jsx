@@ -864,7 +864,7 @@ describe('Sidebar component (вызов информационного мода�
     });
 });
 
-describe('Sidebar — drag/touch/pointer события', () => {
+describe('Sidebar – drag/touch/pointer события', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-28T10:00:00'));
@@ -952,7 +952,7 @@ describe('Sidebar — drag/touch/pointer события', () => {
     });
 });
 
-describe('Sidebar — интерактивные элементы', () => {
+describe('Sidebar – интерактивные элементы', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-28T10:00:00'));

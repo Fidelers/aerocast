@@ -757,7 +757,7 @@ export default function AiChatModal({
             ...(controller ? { signal: controller.signal } : {})
           });
 
-          // Пока ждали ответ, пользователь начал новый диалог — ответ не нужен
+          // Пока ждали ответ, пользователь начал новый диалог – ответ не нужен
           if (job.generation !== dialogGenerationRef.current) continue;
 
           if (!response.ok) {

@@ -641,7 +641,7 @@ export default function DynamicsChart({
             {(() => {
               const startT = formatPointTooltip(data[selectionBox.fromIdx], isMultiDay);
               const endT = formatPointTooltip(data[selectionBox.toIdx], isMultiDay);
-              const rangeText = `${startT} — ${endT}`;
+              const rangeText = `${startT} – ${endT}`;
               const midX = (selectionBox.left + selectionBox.right) / 2;
               const badgeX = Math.max(75, Math.min(width - 75, midX));
               return (

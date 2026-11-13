@@ -94,7 +94,7 @@ describe('RightAirPanel component', () => {
         });
     });
 
-    it('6. Защитный рендер: выводит "-" или "—" и "нет данных", если european_aqi равен null или отсутствует', () => {
+    it('6. Защитный рендер: выводит "-" или "–" и "нет данных", если european_aqi равен null или отсутствует', () => {
         const nullAqiData = {
             latitude: 53.75,
             longitude: 87.14,
@@ -111,7 +111,7 @@ describe('RightAirPanel component', () => {
         // Значение AQI должно быть прочерком
         const aqiValue = container.querySelector('.aqi-indicator__number');
         expect(aqiValue).toBeTruthy();
-        expect(aqiValue.textContent.trim()).toMatch(/^[—\-]$/);
+        expect(aqiValue.textContent.trim()).toMatch(/^[–\-]$/);
 
         // Текстовая оценка должна быть 'нет данных'
         const aqiLabel = container.querySelector('.aqi-indicator__label');
@@ -211,7 +211,7 @@ describe('RightAirPanel component (Список 6 загрязнителей и 
         );
 
         // Проверяем наличие прочерков
-        const dashes = screen.getAllByText('—');
+        const dashes = screen.getAllByText('–');
         expect(dashes.length).toBeGreaterThanOrEqual(6);
 
         // Все бейджи загрязнителей должны иметь статус "нет данных"
@@ -321,7 +321,7 @@ describe('RightAirPanel component (Закрытие по кнопке Escape и 
     });
 });
 
-describe('RightAirPanel — режим для дальтоников (isColorBlind)', () => {
+describe('RightAirPanel – режим для дальтоников (isColorBlind)', () => {
     afterEach(() => {
         cleanup();
     });
@@ -376,7 +376,7 @@ describe('RightAirPanel — режим для дальтоников (isColorBli
     });
 });
 
-describe('RightAirPanel — touch/drag события', () => {
+describe('RightAirPanel – touch/drag события', () => {
     beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-01T12:00:00')); });
     afterEach(() => { vi.useRealTimers(); cleanup(); });
 
@@ -409,7 +409,7 @@ describe('RightAirPanel — touch/drag события', () => {
     });
 });
 
-describe('RightAirPanel — pointer события', () => {
+describe('RightAirPanel – pointer события', () => {
     beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-01T12:00:00')); });
     afterEach(() => { vi.useRealTimers(); cleanup(); });
 
@@ -500,26 +500,26 @@ describe('RightAirPanel — pointer события', () => {
     });
 });
 
-describe('RightAirPanel — граничные случаи данных', () => {
+describe('RightAirPanel – граничные случаи данных', () => {
     afterEach(() => { cleanup(); });
 
-    it('отображает «—» при отсутствии координат', () => {
+    it('отображает «–» при отсутствии координат', () => {
         const data = { used_source: 'test', hourly: { time: ['2026-10-01T12:00'], european_aqi: [35] } };
         const { container } = render(<RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />);
-        expect(container.textContent).toContain('—');
+        expect(container.textContent).toContain('–');
     });
 
-    it('отображает «—» при невалидном AQI', () => {
+    it('отображает «–» при невалидном AQI', () => {
         const data = { latitude: 53.7596, longitude: 87.1467, used_source: 'test', hourly: { time: ['2026-10-01T12:00'], european_aqi: [null] } };
         const { container } = render(<RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />);
         const indicator = container.querySelector('.aqi-indicator__number');
-        expect(indicator.textContent).toBe('—');
+        expect(indicator.textContent).toBe('–');
     });
 
-    it('отображает «—» при отсутствии времени', () => {
+    it('отображает «–» при отсутствии времени', () => {
         const data = { latitude: 53.7596, longitude: 87.1467, used_source: 'test', hourly: { european_aqi: [35] } };
         const { container } = render(<RightAirPanel airData={data} selectedTimeIndex={0} isOpen={true} />);
-        expect(container.textContent).toContain('—');
+        expect(container.textContent).toContain('–');
     });
 
     it('не рендерится при отсутствии airData', () => {
@@ -535,7 +535,7 @@ describe('RightAirPanel — граничные случаи данных', () =>
     });
 });
 
-describe('RightAirPanel — цветной контур нормы', () => {
+describe('RightAirPanel – цветной контур нормы', () => {
     beforeEach(() => {
         localStorage.clear();
     });
