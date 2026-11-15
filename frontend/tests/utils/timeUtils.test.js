@@ -1,4 +1,4 @@
-// tests/utils/timeUtils.test.js — тесты утилит группировки времени
+// tests/utils/timeUtils.test.js – тесты утилит группировки времени
 import { describe, it, expect } from 'vitest';
 import {
     parseIsoTimeString,
@@ -42,19 +42,19 @@ describe('timeUtils', () => {
 
     describe('getDayInfo', () => {
         it('корректно вычисляет дни недели и число месяца', () => {
-            // 2026-09-21 — понедельник
+            // 2026-09-21 – понедельник
             expect(getDayInfo('2026-09-21')).toEqual({ dayOfWeek: 'ПН', dayOfMonth: '21' });
-            // 2026-09-22 — вторник
+            // 2026-09-22 – вторник
             expect(getDayInfo('2026-09-22')).toEqual({ dayOfWeek: 'ВТ', dayOfMonth: '22' });
-            // 2026-09-23 — среда
+            // 2026-09-23 – среда
             expect(getDayInfo('2026-09-23')).toEqual({ dayOfWeek: 'СР', dayOfMonth: '23' });
-            // 2026-09-24 — четверг
+            // 2026-09-24 – четверг
             expect(getDayInfo('2026-09-24')).toEqual({ dayOfWeek: 'ЧТ', dayOfMonth: '24' });
-            // 2026-09-25 — пятница
+            // 2026-09-25 – пятница
             expect(getDayInfo('2026-09-25')).toEqual({ dayOfWeek: 'ПТ', dayOfMonth: '25' });
-            // 2026-09-26 — суббота
+            // 2026-09-26 – суббота
             expect(getDayInfo('2026-09-26')).toEqual({ dayOfWeek: 'СБ', dayOfMonth: '26' });
-            // 2026-09-27 — воскресенье
+            // 2026-09-27 – воскресенье
             expect(getDayInfo('2026-09-27')).toEqual({ dayOfWeek: 'ВС', dayOfMonth: '27' });
         });
 
@@ -213,11 +213,11 @@ describe('timeUtils', () => {
         });
 
         it('находит ближайший час, кратный 3, если текущий час не кратен 3', () => {
-            // В 10:00 ближайший час из кратных 3 (0, 9, 15) — это 09:00 (разница 1 час, index 3)
+            // В 10:00 ближайший час из кратных 3 (0, 9, 15) – это 09:00 (разница 1 час, index 3)
             const refDate = new Date('2026-09-28T10:00:00');
             expect(findDefaultTimeIndex(mockTimes, refDate)).toBe(3);
 
-            // В 14:00 ближайший час из кратных 3 — это 15:00 (разница 1 час, index 5)
+            // В 14:00 ближайший час из кратных 3 – это 15:00 (разница 1 час, index 5)
             const refDate2 = new Date('2026-09-28T14:00:00');
             expect(findDefaultTimeIndex(mockTimes, refDate2)).toBe(5);
         });

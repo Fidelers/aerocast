@@ -368,17 +368,14 @@ export function computeAirHistory(hourly, referenceDate = new Date()) {
 
     const getFullLabel = (dateStr, hour) => {
         const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const day = parseInt(parts[2], 10);
-            const d = new Date(year, month, day);
-            const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
-            const monthName = MONTHS_RU_FULL[month] || '';
-            const hourStr = String(hour).padStart(2, '0') + ':00';
-            return `${dayOfWeek}, ${day} ${monthName} в ${hourStr}`;
-        }
-        return `${dateStr} ${hour}:00`;
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
+        const monthName = MONTHS_RU_FULL[month] || '';
+        const hourStr = String(hour).padStart(2, '0') + ':00';
+        return `${dayOfWeek}, ${day} ${monthName} в ${hourStr}`;
     };
 
     hourly.time.forEach((timeStr, idx) => {
@@ -617,17 +614,14 @@ export function computeAllDaysSummary(hourly, referenceDate = new Date()) {
         else if (kind === 'today') kindNote = ' (сегодня)';
         else if (kind === 'forecast') kindNote = ' (прогноз)';
 
-        if (parts.length === 3) {
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const day = parseInt(parts[2], 10);
-            const d = new Date(year, month, day);
-            const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
-            const monthName = MONTHS_RU_FULL[month] || '';
-            const hourStr = String(hour).padStart(2, '0') + ':00';
-            return `${dayOfWeek}, ${day} ${monthName} в ${hourStr}${kindNote}`;
-        }
-        return `${dateStr} ${hour}:00${kindNote}`;
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
+        const monthName = MONTHS_RU_FULL[month] || '';
+        const hourStr = String(hour).padStart(2, '0') + ':00';
+        return `${dayOfWeek}, ${day} ${monthName} в ${hourStr}${kindNote}`;
     };
 
     hourly.time.forEach((timeStr, idx) => {

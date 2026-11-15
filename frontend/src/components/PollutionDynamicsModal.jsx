@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DynamicsChart from './DynamicsChart';
+import AnalyticsExportModal from './AnalyticsExportModal';
 import { parseIsoTimeString } from '../utils/timeUtils';
 import '../styles/PollutionDynamicsModal.css';
 
@@ -24,7 +25,7 @@ const METRICS_METADATA = {
 
 const STEP_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24];
 
-const formatDate = (dateStr) => {
+export const formatDate = (dateStr) => {
   if (!dateStr) return '';
   try {
     const date = new Date(`${dateStr}`);
@@ -38,7 +39,7 @@ const formatDate = (dateStr) => {
   }
 };
 
-const formatDateShort = (dateStr) => {
+export const formatDateShort = (dateStr) => {
   if (!dateStr) return '';
   try {
     const date = new Date(`${dateStr}`);
@@ -51,7 +52,7 @@ const formatDateShort = (dateStr) => {
   }
 };
 
-const buildHourRecord = (isoTime, idx, hourlyData, isCurrent, hourIndex = 0) => {
+export const buildHourRecord = (isoTime, idx, hourlyData, isCurrent, hourIndex = 0) => {
   const parsed = parseIsoTimeString(isoTime);
   return {
     time: isoTime,
@@ -76,6 +77,8 @@ export default function PollutionDynamicsModal({
   airData,
   selectedTimeIndex = 0,
   coords,
+  locationName = 'Новокузнецк, Россия',
+  theme = 'light',
   isColorBlind = false,
   colorBlindType = 'okabe',
   onSelectTime,
@@ -88,6 +91,9 @@ export default function PollutionDynamicsModal({
 
   const [rangePreset, setRangePreset] = useState('day');
   const [customRange, setCustomRange] = useState(null);
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const mainChartContainerRef = useRef(null);
 
   const isToggleDisabled = stepHours > 12;
 
@@ -103,12 +109,6 @@ export default function PollutionDynamicsModal({
   const handleStepHoursChange = (e) => {
     const nextStep = Math.max(1, Math.min(24, Number(e.target.value) || 1));
     setStepHours(nextStep);
-    if (nextStep > 12) {
-      setIsAllDays(true);
-      if (rangePreset === 'day') {
-        setRangePreset('all');
-      }
-    }
   };
 
   useEffect(() => {
@@ -120,13 +120,14 @@ export default function PollutionDynamicsModal({
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
+        if (isExportModalOpen) return;
         onClose?.();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isExportModalOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -175,12 +176,12 @@ export default function PollutionDynamicsModal({
       visibleSlice = allRecords.slice(0, Math.min(24, allRecords.length));
     }
   } else if (rangePreset === '3days') {
-    const centerIdx = safeIdx >= 0 ? safeIdx : 0;
+    const centerIdx = safeIdx;
     const startG = Math.max(0, centerIdx - 24);
     const endG = Math.min(allRecords.length - 1, startG + 71);
     visibleSlice = allRecords.slice(startG, endG + 1);
   } else if (rangePreset === 'week') {
-    const centerIdx = safeIdx >= 0 ? safeIdx : 0;
+    const centerIdx = safeIdx;
     const startG = Math.max(0, centerIdx - 72);
     const endG = Math.min(allRecords.length - 1, startG + 167);
     visibleSlice = allRecords.slice(startG, endG + 1);
@@ -289,7 +290,7 @@ export default function PollutionDynamicsModal({
               {isViewingMultiDays && firstDateStr !== lastDateStr ? (
                 <>
                   <span className="meta-item">
-                    Период: {formatDateShort(firstDateStr)} — {formatDateShort(lastDateStr)}
+                    Период: {formatDateShort(firstDateStr)} – {formatDateShort(lastDateStr)}
                   </span>
                   <span className="meta-item meta-item--active">
                     Выбранный день и время: {formatDateShort(activeDateStr)}, {activeHourStr}
@@ -384,6 +385,21 @@ export default function PollutionDynamicsModal({
               </button>
             )}
 
+            <button
+              type="button"
+              className="dynamics-export-btn"
+              data-testid="dynamics-export-btn"
+              onClick={() => setIsExportModalOpen(true)}
+              title="Экспортировать данные аналитики (CSV, JSON, PNG)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Экспорт</span>
+            </button>
+
             <label className="dynamics-control-item">
               <span className="dynamics-control-label">Шаг точек:</span>
               <select
@@ -438,7 +454,7 @@ export default function PollutionDynamicsModal({
             </span>
           </div>
 
-          <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart">
+          <div className="dynamics-modal-main-chart" data-testid="dynamics-modal-main-chart" ref={mainChartContainerRef}>
             <div className="dynamics-modal-main-chart__header">
               <h3>{activeMetric.title}</h3>
               <div className="dynamics-modal-main-chart__actions">
@@ -467,15 +483,15 @@ export default function PollutionDynamicsModal({
             <div className="pollutant-card-stats pollutant-card-stats--main">
               <span className="stat-item">
                 <span className="stat-label" data-full="Минимум" data-short="Мин">Минимум</span>:&nbsp;
-                <span className="stat-value">{aqiStats.min !== null ? aqiStats.min.toFixed(decimals) : '—'}</span>
+                <span className="stat-value">{aqiStats.min !== null ? aqiStats.min.toFixed(decimals) : '–'}</span>
               </span>
               <span className="stat-item">
                 <span className="stat-label" data-full="Среднее" data-short="Ср">Среднее</span>:&nbsp;
-                <span className="stat-value">{aqiStats.avg !== null ? aqiStats.avg.toFixed(decimals) : '—'}</span>
+                <span className="stat-value">{aqiStats.avg !== null ? aqiStats.avg.toFixed(decimals) : '–'}</span>
               </span>
               <span className="stat-item">
                 <span className="stat-label" data-full="Максимум" data-short="Макс">Максимум</span>:&nbsp;
-                <span className="stat-value">{aqiStats.max !== null ? aqiStats.max.toFixed(decimals) : '—'}</span>
+                <span className="stat-value">{aqiStats.max !== null ? aqiStats.max.toFixed(decimals) : '–'}</span>
               </span>
             </div>
 
@@ -509,7 +525,7 @@ export default function PollutionDynamicsModal({
               const displayCurrent =
                 currentVal !== null && currentVal !== undefined && !Number.isNaN(Number(currentVal))
                   ? Number(currentVal).toFixed(1)
-                  : '—';
+                  : '–';
 
               const isCardActive = activeMetricKey === p.key;
 
@@ -542,15 +558,15 @@ export default function PollutionDynamicsModal({
                   <div className="pollutant-card-stats">
                     <span className="stat-item">
                       <span className="stat-label" data-full="Минимум" data-short="Мин">Минимум</span>:&nbsp;
-                      <span className="stat-value">{stats.min !== null ? stats.min.toFixed(1) : '—'}</span>
+                      <span className="stat-value">{stats.min !== null ? stats.min.toFixed(1) : '–'}</span>
                     </span>
                     <span className="stat-item">
                       <span className="stat-label" data-full="Среднее" data-short="Ср">Среднее</span>:&nbsp;
-                      <span className="stat-value">{stats.avg !== null ? stats.avg.toFixed(1) : '—'}</span>
+                      <span className="stat-value">{stats.avg !== null ? stats.avg.toFixed(1) : '–'}</span>
                     </span>
                     <span className="stat-item">
                       <span className="stat-label" data-full="Максимум" data-short="Макс">Максимум</span>:&nbsp;
-                      <span className="stat-value">{stats.max !== null ? stats.max.toFixed(1) : '—'}</span>
+                      <span className="stat-value">{stats.max !== null ? stats.max.toFixed(1) : '–'}</span>
                     </span>
                   </div>
 
@@ -573,6 +589,24 @@ export default function PollutionDynamicsModal({
             })}
           </div>
         </div>
+
+        <AnalyticsExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          allRecords={allRecords}
+          finalDayData={finalDayData}
+          customRange={customRange}
+          activeMetricKey={activeMetricKey}
+          stepHours={stepHours}
+          rangePreset={rangePreset}
+          selectedDateStr={selectedDateStr}
+          locationName={locationName}
+          coords={coords}
+          chartSvgRef={mainChartContainerRef}
+          isColorBlind={isColorBlind}
+          colorBlindType={colorBlindType}
+          theme={theme}
+        />
       </div>
     </div>
   );

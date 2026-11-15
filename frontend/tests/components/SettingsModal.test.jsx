@@ -102,7 +102,7 @@ describe('SettingsModal component (окно настроек темы и цве�
 
         expect(screen.getByText(/стандартная/i)).toBeTruthy();
         const palette = screen.getByTestId('settings-preview-palette');
-        // Стандартный цвет для 0-20 — зеленый #4CAF50
+        // Стандартный цвет для 0-20 – зеленый #4CAF50
         const firstChipStandard = palette.children[0];
         expect(firstChipStandard.textContent).toContain('0–20');
         expect(firstChipStandard.style.backgroundColor).toBe('rgb(76, 175, 80)'); // #4CAF50
@@ -411,5 +411,46 @@ describe('SettingsModal component (окно настроек темы и цве�
         expect(card.querySelector('.settings-modal__body')).toBeTruthy();
         expect(screen.getByRole('switch', { name: /переключить тему оформления/i })).toBeTruthy();
         expect(screen.getByRole('switch', { name: /режим цветовой слепоты/i })).toBeTruthy();
+    });
+
+    it('27. Переключает вид AI-ассистента и вызывает onMascotModeChange', () => {
+        const handleMascotModeChange = vi.fn();
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                mascotMode="mascot"
+                onMascotModeChange={handleMascotModeChange}
+            />
+        );
+
+        const buttonMode = screen.getByTestId('settings-mascot-mode-button');
+        fireEvent.click(buttonMode);
+        expect(handleMascotModeChange).toHaveBeenCalledWith('button');
+    });
+
+    it('28. В автономном режиме сохраняет выбор mascotMode в localStorage', () => {
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+            />
+        );
+
+        const buttonMode = screen.getByTestId('settings-mascot-mode-button');
+        fireEvent.click(buttonMode);
+        expect(localStorage.getItem('aerocast_mascot_mode')).toBe('button');
+    });
+
+    it('29. Использует дефолтную палитру okabe при некорректном colorBlindType', () => {
+        render(
+            <SettingsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                isColorBlind={true}
+                colorBlindType="invalid_type"
+            />
+        );
+        expect(screen.getByText(/Режим доступности: Окабе/)).toBeTruthy();
     });
 });

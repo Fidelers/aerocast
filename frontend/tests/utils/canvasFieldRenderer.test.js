@@ -1,4 +1,4 @@
-// frontend/tests/utils/canvasFieldRenderer.test.js — TDD тесты попиксельного рендерера Canvas
+// frontend/tests/utils/canvasFieldRenderer.test.js – TDD тесты попиксельного рендерера Canvas
 import { describe, it, expect, vi } from 'vitest';
 import {
     interpolateAqiColor,
@@ -126,9 +126,9 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
 
             renderFieldToBuffer(grid, imgData, width, height, { onlyPollution: true, colorBlind: true });
 
-            // Чистый воздух (20) — полностью прозрачен
+            // Чистый воздух (20) – полностью прозрачен
             expect(imgData.data[3]).toBe(0);
-            // Загрязнение (90) — интерполяция между #CC79A7 (77) и #7B3294 (95)
+            // Загрязнение (90) – интерполяция между #CC79A7 (77) и #7B3294 (95)
             expect(imgData.data[4]).toBe(146);
             expect(imgData.data[5]).toBe(70);
             expect(imgData.data[6]).toBe(153);
@@ -306,7 +306,7 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             const height = 5;
             const grid = new Float32Array(width * height);
             grid.fill(15); // чистый воздух
-            // Центр 3x3 — загрязнение
+            // Центр 3x3 – загрязнение
             for (let y = 1; y <= 3; y++) {
                 for (let x = 1; x <= 3; x++) {
                     grid[y * width + x] = 50;
@@ -316,14 +316,14 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             const imgData = { data: new Uint8ClampedArray(width * height * 4) };
             renderFieldToBuffer(grid, imgData, width, height, { zoneMode: true });
 
-            // (0, 0) — чистый воздух -> непрерывный цвет, alpha = DEFAULT_ALPHA
+            // (0, 0) – чистый воздух -> непрерывный цвет, alpha = DEFAULT_ALPHA
             expect(imgData.data[0 * 4 + 3]).toBe(DEFAULT_ALPHA);
 
-            // (1, 1) — край зоны -> ровный базовый alpha без искусственной обводки/яиц
+            // (1, 1) – край зоны -> ровный базовый alpha без искусственной обводки/яиц
             const edgeIdx = (1 * width + 1) * 4;
             expect(imgData.data[edgeIdx + 3]).toBe(DEFAULT_ALPHA);
 
-            // (2, 2) — внутренняя часть зоны -> базовый alpha
+            // (2, 2) – внутренняя часть зоны -> базовый alpha
             const innerIdx = (2 * width + 2) * 4;
             expect(imgData.data[innerIdx + 3]).toBe(DEFAULT_ALPHA);
         });
@@ -379,7 +379,7 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('5. renderFieldToBuffer — доп. параметры', () => {
+    describe('5. renderFieldToBuffer – доп. параметры', () => {
         it('поддерживает явную передачу alpha', () => {
             const imgData = { data: new Uint8ClampedArray(4) };
             renderFieldToBuffer(new Float32Array([50]), imgData, 1, 1, { alpha: 200 });
@@ -399,7 +399,7 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('6. clipCanvasToPolygons — граничные случаи', () => {
+    describe('6. clipCanvasToPolygons – граничные случаи', () => {
         const makeCtx = () => ({
             save: vi.fn(), beginPath: vi.fn(), fill: vi.fn(), restore: vi.fn(),
             moveTo: vi.fn(), lineTo: vi.fn(), closePath: vi.fn(),
@@ -447,7 +447,7 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
         });
     });
 
-    describe('8. renderFieldToCanvas — типы входных данных', () => {
+    describe('8. renderFieldToCanvas – типы входных данных', () => {
         const makeCanvas = (ctx) => ({ width: 2, height: 2, getContext: vi.fn(() => ctx) });
         const makeCtx = () => ({
             createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(16) })),

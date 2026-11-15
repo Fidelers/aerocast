@@ -1,6 +1,6 @@
 // Пространственная интерполяция IDW с поддержкой Web Mercator для макро-сеток
 
-const EPSILON_SQ = 1e-12; // (1e-6)^2 — порог совпадения с точкой
+const EPSILON_SQ = 1e-12; // (1e-6)^2 – порог совпадения с точкой
 const DEFAULT_P = 2;
 const DEFAULT_MIN_VAL = 0;
 const DEFAULT_MAX_VAL = 150;
@@ -146,7 +146,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
     }
 
     if (sumWeight === 0) {
-        // Все точки оказались за пределами maxRadius — возвращаем значение ближайшей
+        // Все точки оказались за пределами maxRadius – возвращаем значение ближайшей
         return nearestVal !== null ? Math.max(minVal, Math.min(maxVal, nearestVal)) : bgVal;
     }
 
@@ -175,7 +175,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
         return grid;
     }
 
-    // Если точка всего одна и без затухания к фону — мгновенно заполняем весь массив её значением
+    // Если точка всего одна и без затухания к фону – мгновенно заполняем весь массив её значением
     if (validPoints.length === 1 && (!decayRadius || decayRadius <= 0)) {
         const clampedSingle = Math.max(minVal, Math.min(maxVal, validPoints[0].val));
         grid.fill(clampedSingle);

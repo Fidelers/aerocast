@@ -502,11 +502,11 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             // Сразу после moveend вызова быть не должно
             expect(onViewportMove).not.toHaveBeenCalled();
 
-            // Прошло 300 мс — всё еще не должен вызываться
+            // Прошло 300 мс – всё еще не должен вызываться
             vi.advanceTimersByTime(300);
             expect(onViewportMove).not.toHaveBeenCalled();
 
-            // Прошло 500 мс — вызывается
+            // Прошло 500 мс – вызывается
             vi.advanceTimersByTime(200);
             expect(onViewportMove).toHaveBeenCalledTimes(1);
         });
@@ -688,7 +688,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
             expect(microLayer.layout?.visibility).toBe('visible');
         });
 
-        it('5.3. При динамическом переключении с "combo" на "numeric" скрывает слои, а обратно на "color" — отображает', () => {
+        it('5.3. При динамическом переключении с "combo" на "numeric" скрывает слои, а обратно на "color" – отображает', () => {
             const { rerender } = render(
                 <MapComponent
                     macroGrid={mockMacroGrid}
@@ -783,7 +783,7 @@ describe('MapComponent - Растровый градиент и LOD MapLibre GL 
     });
 });
 
-describe('7. MapComponent — обработка событий перемещения карты', () => {
+describe('7. MapComponent – обработка событий перемещения карты', () => {
     const mockMacroGrid = {
         points: [{ lat: 55.75, lon: 37.61, eaqi: 30 }],
         time: ['2026-10-01T00:00']
@@ -872,7 +872,7 @@ describe('7. MapComponent — обработка событий перемеще
     });
 });
 
-describe('8. MapComponent — рендеринг с isColorBlind', () => {
+describe('8. MapComponent – рендеринг с isColorBlind', () => {
     const mockMacroGrid = {
         points: [{ lat: 55.75, lon: 37.61, eaqi: 30 }],
         time: ['2026-10-01T00:00']
@@ -920,7 +920,7 @@ describe('8. MapComponent — рендеринг с isColorBlind', () => {
     });
 });
 
-describe('9. MapComponent — обновление слоёв при rerender', () => {
+describe('9. MapComponent – обновление слоёв при rerender', () => {
     const mockMacroGrid = {
         points: [{ lat: 55.75, lon: 37.61, eaqi: 50 }],
         time: ['2026-10-01T00:00']

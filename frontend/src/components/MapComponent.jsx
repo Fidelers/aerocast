@@ -384,7 +384,7 @@ export default function MapComponent({
         const numLon = Number(lon);
         if (lat == null || lon == null || Number.isNaN(numLat) || Number.isNaN(numLon) || !map.current) return;
 
-        // Если это клик по карте — не дергаем камеру flyTo, оставляем стабильный фокус
+        // Если это клик по карте – не дергаем камеру flyTo, оставляем стабильный фокус
         if (isMapClick.current || (clickedCoordsRef.current && Math.abs(clickedCoordsRef.current.lat - numLat) < 0.0001 && Math.abs(clickedCoordsRef.current.lon - numLon) < 0.0001)) {
             isMapClick.current = false;
             clickedCoordsRef.current = null;
@@ -620,10 +620,10 @@ export default function MapComponent({
         const maxPollution = getMaxPollution(result.grid);
 
         // Модуляция пульсации:
-        // <= 40 — пульсации нет (timeIndex = 0)
-        // 41–60 — плавно замедляем (коэффициент 0..1)
-        // 61–100 — плавно ускоряем до нормальной
-        // > 100 — как есть (коэффициент 1)
+        // <= 40 – пульсации нет (timeIndex = 0)
+        // 41–60 – плавно замедляем (коэффициент 0..1)
+        // 61–100 – плавно ускоряем до нормальной
+        // > 100 – как есть (коэффициент 1)
         let pulseTimeIndex = timeIndex;
         let pulseFadeDuration = 200;
 
@@ -633,7 +633,7 @@ export default function MapComponent({
         } else if (maxPollution <= 60) {
             const factor = (maxPollution - 40) / 20; // 0..1
             pulseTimeIndex = timeIndex * factor;
-            pulseFadeDuration = 200 + (1 - factor) * 800; // 200..1000 мс — чем ближе к 40, тем плавнее
+            pulseFadeDuration = 200 + (1 - factor) * 800; // 200..1000 мс – чем ближе к 40, тем плавнее
         } else if (maxPollution <= 100) {
             const factor = (maxPollution - 60) / 40; // 0..1
             pulseTimeIndex = timeIndex * (0.3 + 0.7 * factor);

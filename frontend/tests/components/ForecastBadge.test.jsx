@@ -85,7 +85,7 @@ describe('Forecast Badge (Плашка «Прогноз» на карте)', () 
             expect(document.querySelector('.days')).toBeTruthy();
         });
 
-        // По умолчанию выбран текущий час (15:00 21-го числа) — не прогноз
+        // По умолчанию выбран текущий час (15:00 21-го числа) – не прогноз
         const badge = screen.queryByTestId('forecast-badge');
         expect(badge).toBeNull();
     });
@@ -197,7 +197,7 @@ describe('Forecast Badge (Плашка «Прогноз» на карте)', () 
     });
 
     it('7. Плашка прогноза на 18:00 автоматически исчезает при наступлении 18:01 без смены времени пользователем', async () => {
-        // Время 17:59 — на 18:00 плашка прогноза видна
+        // Время 17:59 – на 18:00 плашка прогноза видна
         const { container, rerender } = render(<App referenceDate={new Date('2026-10-21T17:59:00')} />);
 
         await waitFor(() => {

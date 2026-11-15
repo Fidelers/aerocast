@@ -170,7 +170,7 @@ vi.mock('../../src/utils/canvasFieldRenderer.js', () => ({
     })
 }));
 
-describe('MapComponentCoverage — граничные случаи и полное покрытие веток', () => {
+describe('MapComponentCoverage – граничные случаи и полное покрытие веток', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         cleanup();

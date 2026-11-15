@@ -326,8 +326,8 @@ export default function RightAirPanel({
 
   const latNum = Number(airData.latitude);
   const lonNum = Number(airData.longitude);
-  const lat = !isNaN(latNum) ? latNum.toFixed(4) : '—';
-  const lon = !isNaN(lonNum) ? lonNum.toFixed(4) : '—';
+  const lat = !isNaN(latNum) ? latNum.toFixed(4) : '–';
+  const lon = !isNaN(lonNum) ? lonNum.toFixed(4) : '–';
   const time = airData.hourly?.time?.[selectedTimeIndex];
   const source = airData.used_source || 'open-meteo';
   const aqiRaw = airData.hourly?.european_aqi?.[selectedTimeIndex];
@@ -380,7 +380,7 @@ export default function RightAirPanel({
         <div className="panel-meta__item"><strong>Время:</strong>{' '}
         {(() => {
           const parsed = parseIsoTimeString(time);
-          return parsed ? `${parsed.dateStr} ${parsed.timeLabel}` : '—';
+          return parsed ? `${parsed.dateStr} ${parsed.timeLabel}` : '–';
         })()}
         </div>
         <div className="panel-meta__item"><strong>Источник:</strong> {source}</div>
@@ -394,7 +394,7 @@ export default function RightAirPanel({
           role="button"
           tabIndex={0}
           title="Нажмите, чтобы открыть график динамики за выбранный день"
-          aria-label={`Индекс качества воздуха: ${aqi !== null ? aqi : '—'} (${aqiInfo.label}). Нажмите, чтобы открыть график динамики`}
+          aria-label={`Индекс качества воздуха: ${aqi !== null ? aqi : '–'} (${aqiInfo.label}). Нажмите, чтобы открыть график динамики`}
           aria-haspopup="dialog"
           onClick={() => {
             if (!didDragRef.current && typeof onOpenDynamicsModal === 'function') {
@@ -408,7 +408,7 @@ export default function RightAirPanel({
             }
           }}
         >
-          <span className="aqi-indicator__number">{aqi !== null ? aqi : '—'}</span>
+          <span className="aqi-indicator__number">{aqi !== null ? aqi : '–'}</span>
           <span className="aqi-indicator__label">{aqiInfo.label}</span>
         </div>
         {aqiRecommendationText && (
@@ -487,7 +487,7 @@ export default function RightAirPanel({
                 )}
                 <div className="tile-main">
                   <span className="tile-formula pollutant-formula">{item.label}</span>
-                  <span className="tile-value pollutant-value">{hasVal ? `${rawVal} \u03BCg/m\u00B3` : '—'}</span>
+                  <span className="tile-value pollutant-value">{hasVal ? `${rawVal} \u03BCg/m\u00B3` : '–'}</span>
                 </div>
                 <span
                   className="tile-badge pollutant-badge"

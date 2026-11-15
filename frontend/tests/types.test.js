@@ -1,4 +1,4 @@
-// tests/types.test.js — тесты классификации AQI (Vitest)
+// tests/types.test.js – тесты классификации AQI (Vitest)
 import { describe, it, expect } from 'vitest';
 import { getAqiInfo, getAqiRecommendation, COLORBLIND_PALETTES } from '../src/types.js';
 

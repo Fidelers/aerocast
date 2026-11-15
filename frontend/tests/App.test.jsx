@@ -4,7 +4,6 @@ import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-libra
 import App from '../src/App';
 import { findDefaultTimeIndex } from '../src/utils/timeUtils';
 
-// 1. Мокаем дочерние компоненты и хуки
 vi.mock('../src/hooks/useAirGrid', () => {
     return {
         default: vi.fn(() => ({
@@ -94,7 +93,42 @@ vi.mock('../src/components/Sidebar', () => {
                 React.createElement('button', {
                     'data-testid': 'sidebar-btn-loc-args-nan',
                     onClick: () => props.onLocationSelect && props.onLocationSelect('invalid', 37.6173)
-                }, 'Set Location Args NaN')
+                }, 'Set Location Args NaN'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-close',
+                    onClick: () => props.onClose && props.onClose()
+                }, 'Close Sidebar'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-theme',
+                    onClick: () => props.onThemeChange && props.onThemeChange('dark')
+                }, 'Set Theme'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-colorblind',
+                    onClick: () => {
+                        props.onColorBlindChange && props.onColorBlindChange(true);
+                        props.onColorBlindTypeChange && props.onColorBlindTypeChange('protanopia');
+                    }
+                }, 'Set ColorBlind'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-layer',
+                    onClick: () => props.onBaseLayerChange && props.onBaseLayerChange('satellite')
+                }, 'Set Layer'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-loc-name',
+                    onClick: () => props.onLocationSelect && props.onLocationSelect({ lat: 55.75, lon: 37.61, name: 'Moscow' })
+                }, 'Set Loc Name'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-loc-cityname',
+                    onClick: () => props.onLocationSelect && props.onLocationSelect({ lat: 55.75, lon: 37.61, cityName: 'City' })
+                }, 'Set Loc CityName'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-loc-displayname',
+                    onClick: () => props.onLocationSelect && props.onLocationSelect({ lat: 55.75, lon: 37.61, display_name: 'Display' })
+                }, 'Set Loc DisplayName'),
+                React.createElement('button', {
+                    'data-testid': 'sidebar-btn-loc-args-named',
+                    onClick: () => props.onLocationSelect && props.onLocationSelect(55.75, 37.61, 'Moscow')
+                }, 'Set Loc Args Named')
             );
         }
     };
@@ -141,7 +175,29 @@ vi.mock('../src/components/RightAirPanel', () => {
                 React.createElement('button', {
                     'data-testid': 'right-panel-close-btn',
                     onClick: () => props.onClose && props.onClose()
-                }, '✕')
+                }, '✕'),
+                React.createElement('button', {
+                    'data-testid': 'right-panel-dynamics-btn',
+                    onClick: () => props.onOpenDynamicsModal && props.onOpenDynamicsModal()
+                }, 'Dynamics')
+            );
+        }
+    };
+});
+
+vi.mock('../src/components/PollutionDynamicsModal', () => {
+    return {
+        default: function DummyDynamicsModal(props) {
+            if (!props.isOpen) return null;
+            return React.createElement('div', { 'data-testid': 'dynamics-modal' },
+                React.createElement('button', {
+                    'data-testid': 'dynamics-modal-close-btn',
+                    onClick: () => props.onClose && props.onClose()
+                }, 'Close'),
+                React.createElement('button', {
+                    'data-testid': 'dynamics-modal-select-time-btn',
+                    onClick: () => props.onSelectTime && props.onSelectTime(2)
+                }, 'Select Time 2')
             );
         }
     };
@@ -165,7 +221,6 @@ vi.mock('../src/components/LayerSwitcher', () => {
     };
 });
 
-// 2. Мокаем вспомогательную утилиту, сохраняя оригинальный parseIsoTimeString
 vi.mock('../src/utils/timeUtils', async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -174,7 +229,6 @@ vi.mock('../src/utils/timeUtils', async (importOriginal) => {
     };
 });
 
-// 3. Настройка мока для глобального fetch
 globalThis.fetch = vi.fn();
 
 describe('Epic 1: App.jsx (Глобальное состояние и загрузка данных)', () => {
@@ -416,7 +470,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
 
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-undefined'));
 
-            // Запрос не должен отправляться для некорректных аргументов
             expect(globalThis.fetch).not.toHaveBeenCalled();
         });
 
@@ -524,15 +577,12 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
 
             globalThis.fetch.mockClear();
 
-            // lat = null, lon = 37.6173
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-lat-null'));
             expect(globalThis.fetch).not.toHaveBeenCalled();
 
-            // lat = 55.7558, lon = null
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-lon-null'));
             expect(globalThis.fetch).not.toHaveBeenCalled();
 
-            // lat = 'invalid', lon = 37.6173 (NaN)
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-nan'));
             expect(globalThis.fetch).not.toHaveBeenCalled();
         });
@@ -551,15 +601,12 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
 
             globalThis.fetch.mockClear();
 
-            // lat = null, lon = 37.6173
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-args-lat-null'));
             expect(globalThis.fetch).not.toHaveBeenCalled();
 
-            // lat = 55.7558, lon = null
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-args-lon-null'));
             expect(globalThis.fetch).not.toHaveBeenCalled();
 
-            // lat = 'invalid', lon = 37.6173 (NaN)
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-args-nan'));
             expect(globalThis.fetch).not.toHaveBeenCalled();
         });
@@ -589,11 +636,9 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
             });
 
-            // Выбираем индекс 0 ('2026-09-22T10:00')
             fireEvent.click(screen.getByTestId('sidebar-btn-time-0'));
             expect(screen.getByTestId('sidebar-time').textContent).toBe('0');
 
-            // Загружаем обновленные данные (где '2026-09-22T10:00' находится по индексу 1)
             globalThis.fetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => updatedData
@@ -614,7 +659,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             };
             const updatedData = {
                 hourly: {
-                    // Та же дата и час, но другой формат (с секундами)
                     time: ['2026-09-21T09:00', '2026-09-22T10:00:00']
                 }
             };
@@ -630,7 +674,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
             });
 
-            // Выбираем индекс 0 ('2026-09-22T10:00')
             fireEvent.click(screen.getByTestId('sidebar-btn-time-0'));
 
             globalThis.fetch.mockResolvedValueOnce({
@@ -641,7 +684,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-obj'));
 
             await waitFor(() => {
-                // Должен найти индекс 1 по совпадению dateStr и hour
                 expect(screen.getByTestId('sidebar-time').textContent).toBe('1');
             });
         });
@@ -654,7 +696,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             };
             const updatedData = {
                 hourly: {
-                    // Совершенно другие даты
                     time: ['2026-09-25T05:00', '2026-09-25T06:00', '2026-09-25T07:00']
                 }
             };
@@ -670,7 +711,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
             });
 
-            // Выбираем индекс 1
             fireEvent.click(screen.getByTestId('sidebar-btn-time-1'));
 
             globalThis.fetch.mockResolvedValueOnce({
@@ -681,7 +721,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-obj'));
 
             await waitFor(() => {
-                // Сохраняется prevIndex (1), так как 1 < 3
                 expect(screen.getByTestId('sidebar-time').textContent).toBe('1');
             });
         });
@@ -694,7 +733,7 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             };
             const updatedData = {
                 hourly: {
-                    time: ['2026-09-25T05:00', '2026-09-25T06:00'] // длина 2
+                    time: ['2026-09-25T05:00', '2026-09-25T06:00']
                 }
             };
 
@@ -709,7 +748,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
             });
 
-            // Выбираем индекс 5
             fireEvent.click(screen.getByTestId('sidebar-btn-time-5'));
 
             vi.mocked(findDefaultTimeIndex).mockReturnValue(0);
@@ -722,7 +760,6 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             fireEvent.click(screen.getByTestId('sidebar-btn-loc-obj'));
 
             await waitFor(() => {
-                // prevIndex (5) >= 2, поэтому вызывается findDefaultTimeIndex (вернул 0)
                 expect(screen.getByTestId('sidebar-time').textContent).toBe('0');
             });
         });
@@ -791,11 +828,9 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('map-data').textContent).toBe('loaded');
             });
 
-            // Находим кнопку клика по маркеру в замоканной карте и кликаем
             const markerBtn = screen.getByTestId('map-btn-marker-click');
             fireEvent.click(markerBtn);
 
-            // Панель должна быть открыта
             expect(screen.getByTestId('right-panel-open')).toBeTruthy();
         });
 
@@ -806,16 +841,13 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('map-data').textContent).toBe('loaded');
             });
 
-            // Открываем панель кликом по маркеру
             const markerBtn = screen.getByTestId('map-btn-marker-click');
             fireEvent.click(markerBtn);
             expect(screen.getByTestId('right-panel-open')).toBeTruthy();
 
-            // Закрываем панель
             const closeBtn = screen.getByTestId('right-panel-close-btn');
             fireEvent.click(closeBtn);
 
-            // Теперь видна кнопка закрытого состояния
             expect(screen.getByTestId('right-panel-closed')).toBeTruthy();
         });
 
@@ -826,11 +858,9 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
                 expect(screen.getByTestId('layer-switcher')).toBeTruthy();
             });
 
-            // Переключаем на спутник
             const switchBtn = screen.getByTestId('btn-switch-satellite');
             fireEvent.click(switchBtn);
 
-            // Проверяем, что в MapComponent передался активный слой 'satellite'
             expect(screen.getByTestId('map-layer').textContent).toBe('satellite');
         });
 
@@ -1036,11 +1066,9 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
 
             render(React.createElement(App));
 
-            // Проверяем, что запасные IP-запросы НЕ выполнялись
             expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining('locate-me'));
             expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining('ipwho'));
 
-            // Запрос данных воздуха ушел только по координатам по умолчанию (Новокузнецк: 53.7596, 87.1467)
             expect(globalThis.fetch).toHaveBeenCalledWith(
                 expect.stringContaining('/api/air-quality?lat=53.7596&lon=87.1467')
             );
@@ -1061,6 +1089,174 @@ describe('Epic 1: App.jsx (Глобальное состояние и загру
             expect(globalThis.fetch).toHaveBeenCalledWith(
                 expect.stringContaining('/api/air-quality?lat=53.7596&lon=87.1467')
             );
+        });
+
+        it('обрабатывает выбор точки без названия и скрытие предупреждения покрытия с таймерами (lines 82, 293)', async () => {
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockAirData
+            });
+
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
+            });
+
+            fireEvent.click(screen.getByTestId('map-btn-warning'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('coverage-notification')).toBeDefined();
+            });
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-loc-args'));
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('coverage-notification')).toBeNull();
+            });
+        });
+
+        it('обрабатывает невалидные координаты GPS и размонтирование до завершения (lines 318-321)', () => {
+            let capturedSuccess;
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn((successCb) => {
+                    capturedSuccess = successCb;
+                })
+            };
+
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => mockAirData
+            });
+
+            const { unmount } = render(React.createElement(App));
+
+            capturedSuccess({ coords: { latitude: null, longitude: null } });
+            capturedSuccess({ coords: { latitude: NaN, longitude: 50 } });
+
+            unmount();
+            capturedSuccess({ coords: { latitude: 55, longitude: 37 } });
+        });
+
+        it('открывает и закрывает мобильное меню и обрабатывает клик по бэкдропу', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('mobile-menu-toggle')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('mobile-menu-toggle'));
+            expect(screen.getByTestId('sidebar-btn-close')).toBeTruthy();
+
+            const backdrop = document.querySelector('.sidebar-backdrop');
+            expect(backdrop).toBeTruthy();
+            fireEvent.click(backdrop);
+
+            fireEvent.click(screen.getByTestId('mobile-menu-toggle'));
+            fireEvent.click(screen.getByTestId('sidebar-btn-close'));
+        });
+
+        it('обрабатывает клик по предупреждению покрытия и кнопку закрытия', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('map-btn-warning')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('map-btn-warning'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('coverage-notification')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('coverage-notification'));
+
+            const closeBtn = screen.getByTestId('coverage-notification-close');
+            fireEvent.click(closeBtn);
+        });
+
+        it('поддерживает referenceDate и отображает бейдж прогноза при выборе будущего времени', async () => {
+            const customRefDate = new Date('2026-09-22T08:00:00Z');
+            const dataWithFutureTimes = {
+                hourly: {
+                    time: [
+                        '2026-09-20T07:00',
+                        '2026-09-20T08:00',
+                        '2026-09-20T09:00',
+                        '2026-09-20T10:00',
+                        '2026-09-20T11:00',
+                        '2026-09-25T12:00'
+                    ],
+                    pm2_5: [10, 10, 10, 10, 10, 10]
+                }
+            };
+            vi.mocked(findDefaultTimeIndex).mockReturnValue(0);
+            globalThis.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => dataWithFutureTimes
+            });
+
+            render(React.createElement(App, { referenceDate: customRefDate }));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('sidebar-loading').textContent).toBe('false');
+            });
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-time-5'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('forecast-badge')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-loc-name'));
+            fireEvent.click(screen.getByTestId('sidebar-btn-loc-cityname'));
+            fireEvent.click(screen.getByTestId('sidebar-btn-loc-displayname'));
+            fireEvent.click(screen.getByTestId('sidebar-btn-loc-args-named'));
+        });
+
+        it('открывает и закрывает PollutionDynamicsModal и выбирает время', async () => {
+            render(React.createElement(App));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('right-panel-dynamics-btn')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('right-panel-dynamics-btn'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dynamics-modal')).toBeTruthy();
+            });
+
+            fireEvent.click(screen.getByTestId('dynamics-modal-select-time-btn'));
+            expect(screen.getByTestId('sidebar-time').textContent).toBe('2');
+
+            fireEvent.click(screen.getByTestId('dynamics-modal-close-btn'));
+            expect(screen.queryByTestId('dynamics-modal')).toBeNull();
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-theme'));
+            expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-colorblind'));
+            expect(document.documentElement.getAttribute('data-colorblind')).toBe('true');
+
+            fireEvent.click(screen.getByTestId('sidebar-btn-layer'));
+            expect(screen.getByTestId('map-layer').textContent).toBe('satellite');
+        });
+
+        it('обрабатывает скрытие и показ документа для обновления часов', () => {
+            render(React.createElement(App));
+
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                get: () => 'hidden'
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
+
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                get: () => 'visible'
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
         });
     });
 });

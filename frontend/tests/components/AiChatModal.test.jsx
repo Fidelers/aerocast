@@ -1,4 +1,3 @@
-// frontend/tests/components/AiChatModal.test.jsx
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
@@ -63,14 +62,12 @@ describe('AiChatModal Component', () => {
     expect(helpBtn.getAttribute('aria-label')).toBe('Команды для маскота');
     expect(helpBtn.querySelector('svg')).toBeTruthy();
 
-    // Клик открывает меню команд
     await userEvent.click(helpBtn);
     expect(screen.getByText(/Команды для маскота/i)).toBeDefined();
     expect(screen.getByText(/Переключи на спутник/i)).toBeDefined();
     expect(screen.getByText(/Окабе/i)).toBeDefined();
     expect(screen.getByText(/Что ты умеешь/i)).toBeDefined();
 
-    // Клик по команде отправляет ее в чат и закрывает меню
     const satBtn = screen.getByText(/Переключи на спутник/i);
     await userEvent.click(satBtn);
 
@@ -98,21 +95,17 @@ describe('AiChatModal Component', () => {
     const helpBtn = screen.getByTestId('ai-chat-help-commands-btn');
     await userEvent.click(helpBtn);
 
-    // Проверка отсутствия скобок (Jev) и (Gemma)
     expect(screen.queryByText(/\(jev\)/i)).toBeNull();
     expect(screen.queryByText(/\(gemma\)/i)).toBeNull();
 
-    // Проверка отсутствия удаленной кнопки Аналитика по городу (Москва)
     expect(screen.queryByText(/Аналитика по городу \(Москва\)/i)).toBeNull();
 
-    // Проверка названий разделов
     expect(screen.getByText('Карта и спутник')).toBeDefined();
     expect(screen.getByText('Светлый / темный режим')).toBeDefined();
     expect(screen.getByText('Режим цветовой слепоты')).toBeDefined();
     expect(screen.getByText('Аналитика и рекомендации')).toBeDefined();
     expect(screen.getByText('Возможности маскота')).toBeDefined();
 
-    // Клик по команде возможностей
     const capBtn = screen.getByText(/Что ты умеешь\? Функционал Аи/i);
     await userEvent.click(capBtn);
 
@@ -144,10 +137,8 @@ describe('AiChatModal Component', () => {
 
     await userEvent.click(sendBtn);
 
-    // Инпут должен очиститься
     expect(input.value).toBe('');
 
-    // Ждем появления ответа
     await waitFor(() => {
       expect(screen.getByText('Ответ от AI: всё супер!')).toBeDefined();
     });
@@ -217,21 +208,17 @@ describe('AiChatModal Component', () => {
 
     const initialPhrase = bubble.textContent;
 
-    // Прошло 11 секунд (таймер 12 сек почти истек)
     vi.advanceTimersByTime(11000);
     expect(bubble.textContent).toBe(initialPhrase);
 
-    // Пользователь кликает на маскота
     fireEvent.click(mascot);
 
     const clickedPhrase = bubble.textContent;
     expect(clickedPhrase.length).toBeGreaterThan(0);
 
-    // Проходит еще 2 секунды (если бы таймер не сбросился, 11с + 2с = 13с > 12с и фраза сразу сменилась бы)
     vi.advanceTimersByTime(2000);
     expect(bubble.textContent).toBe(clickedPhrase);
 
-    // Проходит оставшееся время до 12 секунд после клика (еще 10100 мс)
     vi.advanceTimersByTime(10100);
     expect(bubble.textContent.length).toBeGreaterThan(0);
 
@@ -260,7 +247,6 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText(mockReply)).toBeDefined();
     });
 
-    // scrollIntoView не должен вызываться на элементах, чтобы верстка не прыгала наверх
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
@@ -284,7 +270,6 @@ describe('AiChatModal Component', () => {
     await userEvent.type(input, 'Первое сообщение');
     await userEvent.keyboard('{Enter}');
 
-    // Пока Ая отвечает, поле ввода остается доступным
     expect(input.disabled).toBe(false);
 
     await userEvent.type(input, 'Второе сообщение');
@@ -292,7 +277,6 @@ describe('AiChatModal Component', () => {
 
     expect(screen.getByText('Первое сообщение')).toBeDefined();
     expect(screen.getByText('Второе сообщение')).toBeDefined();
-    // Второй запрос еще не ушел, пока не получен первый ответ
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     resolveFirst({
@@ -752,7 +736,7 @@ describe('AiChatModal Component', () => {
       json: async () => ({
         reply: 'Секундочку! Перемещаюсь в Екатеринбург, смотрю показатели качества воздуха, ня! ✨',
         emotion: 'happy',
-        action: null // модель не приложила тег
+        action: null
       })
     });
 
@@ -809,14 +793,12 @@ describe('AiChatModal Component', () => {
       />
     );
 
-    // Кнопка быстрой аналитики должна появиться в шапке слева от настроек без текста
     const quickBtn = screen.getByTestId('ai-chat-quick-analytics-btn');
     expect(quickBtn).toBeDefined();
     expect(quickBtn.getAttribute('title')).toContain('Москва, Россия');
     expect(quickBtn.getAttribute('title')).toContain('AQI 25');
     expect(quickBtn.textContent.trim()).toBe('');
 
-    // Кликаем по быстрой аналитике
     await userEvent.click(quickBtn);
 
     await waitFor(() => {
@@ -859,7 +841,6 @@ describe('AiChatModal Component', () => {
       }
 
       if (typeof url === 'string' && url.includes('/api/ai/chat')) {
-        // Проверяем вызовы к чату
         const callCount = global.fetch.mock.calls.filter(c => c[0].includes('/api/ai/chat')).length;
         if (callCount === 1) {
           return Promise.resolve({
@@ -901,7 +882,6 @@ describe('AiChatModal Component', () => {
     await userEvent.type(input, 'можешь пожалуйста сказать что сейчас по воздуху в Москве');
     await userEvent.keyboard('{Enter}');
 
-    // 1. Шаг 1: перемещение к Москве и первое сообщение
     await waitFor(() => {
       expect(handleLocationSelect).toHaveBeenCalledWith(expect.objectContaining({
         lat: 55.75204,
@@ -911,7 +891,6 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText('Секундочку! Перемещаемся в Москву, смотрю свежие замеры воздуха, ня! ✨')).toBeDefined();
     });
 
-    // 2. Шаг 2: автоматическая подгрузка аналитики и второе сообщение
     await waitFor(() => {
       expect(screen.getByText('Смотри, в Москве сейчас прекрасный воздух! Индекс EAQI равен 22 (Хорошо). PM2.5 в норме, ня! ✨')).toBeDefined();
     });
@@ -974,7 +953,6 @@ describe('AiChatModal Component', () => {
       expect(screen.getByText('По прогнозу на 3 дня средний индекс EAQI будет около 25, ня! ✨')).toBeDefined();
     });
 
-    // Убеждаемся, что не было ошибочного перемещения карты
     expect(handleLocationSelect).not.toHaveBeenCalled();
 
     const chatCalls = global.fetch.mock.calls.filter(c => c[0].includes('/api/ai/chat'));
