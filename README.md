@@ -222,7 +222,7 @@ launch.bat stop-all
 
 1. **Клонируйте репозиторий:**
    ```bash
-   git clone https://github.com/your-username/aerocast.git
+   git clone https://github.com/Fidelers/aerocast.git
    cd aerocast
    ```
 
