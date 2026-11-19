@@ -207,7 +207,7 @@ describe('AnalyticsExportModal component', () => {
   });
 
   it('triggers download when download button is clicked', async () => {
-    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => {});
+    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => { });
 
     render(
       <AnalyticsExportModal
@@ -248,7 +248,7 @@ describe('AnalyticsExportModal component', () => {
   });
 
   it('triggers download and copy for JSON format', async () => {
-    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => {});
+    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => { });
     const copySpy = vi.spyOn(exportUtils, 'copyTextToClipboard').mockResolvedValue(true);
 
     render(
@@ -279,7 +279,7 @@ describe('AnalyticsExportModal component', () => {
   it('handles PNG copy and download with mocked canvas', async () => {
     const fakeBlob = new Blob(['png'], { type: 'image/png' });
     vi.spyOn(exportUtils, 'renderMultiChartPngBlob').mockResolvedValue(fakeBlob);
-    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => {});
+    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => { });
 
     global.ClipboardItem = class {
       constructor(data) {
@@ -398,7 +398,7 @@ describe('AnalyticsExportModal component', () => {
   it('handles single metric PNG download and copy with stepHours badge', async () => {
     const fakeBlob = new Blob(['single-png'], { type: 'image/png' });
     vi.spyOn(exportUtils, 'renderMultiChartPngBlob').mockResolvedValue(fakeBlob);
-    const downloadSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => {});
+    const downloadSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => { });
 
     global.ClipboardItem = class {
       constructor(data) {
@@ -645,6 +645,52 @@ describe('AnalyticsExportModal component', () => {
     await waitFor(() => {
       expect(screen.getByTestId('export-error-message')).toBeTruthy();
       expect(screen.getByText(/Графики не найдены/)).toBeTruthy();
+    });
+  });
+
+  it('uses standard Russian format for CSV export (semicolon delimiter, comma decimal, ru date)', async () => {
+    const generateCsvSpy = vi.spyOn(exportUtils, 'generateCsv');
+    const downloadBlobSpy = vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => { });
+    const copySpy = vi.spyOn(exportUtils, 'copyTextToClipboard').mockResolvedValue(true);
+
+    render(
+      <AnalyticsExportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        allRecords={mockRecords}
+        finalDayData={mockRecords}
+      />
+    );
+
+    expect(screen.getByText('8,0')).toBeTruthy();
+    expect(screen.getByText('22.10.2026 00:00')).toBeTruthy();
+
+    const downloadBtn = screen.getByTestId('download-export-btn');
+    fireEvent.click(downloadBtn);
+
+    await waitFor(() => {
+      expect(generateCsvSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          decimalSeparator: ',',
+          delimiter: ';',
+          dateFormat: 'ru',
+        })
+      );
+      expect(downloadBlobSpy).toHaveBeenCalled();
+    });
+
+    const copyBtn = screen.getByTestId('copy-to-clipboard-btn');
+    fireEvent.click(copyBtn);
+
+    await waitFor(() => {
+      expect(generateCsvSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          decimalSeparator: ',',
+          delimiter: '\t',
+          dateFormat: 'ru',
+        })
+      );
+      expect(copySpy).toHaveBeenCalled();
     });
   });
 });

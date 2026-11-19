@@ -8,6 +8,32 @@ export const AVAILABLE_METRICS = [
   { key: 'carbon_monoxide', label: 'CO', unit: 'мкг/м³', decimals: 1, color: '#6366f1' },
 ];
 
+export const CSV_FORMAT_PRESETS = {
+  excel_ru: {
+    id: 'excel_ru',
+    label: 'Excel (Россия / СНГ)',
+    description: 'Разделитель «;», дробь «,», дата ДД.ММ.ГГГГ — защита от автозамены чисел в даты',
+    delimiter: ';',
+    decimalSeparator: ',',
+    dateFormat: 'ru',
+    numberFormat: 'standard',
+  },
+  international: {
+    id: 'international',
+    label: 'Международный (CSV / US)',
+    description: 'Разделитель «,», дробь «.», дата ГГГГ-ММ-ДД (RFC 4180 / Python / R)',
+    delimiter: ',',
+    decimalSeparator: '.',
+    dateFormat: 'iso',
+    numberFormat: 'standard',
+  },
+  custom: {
+    id: 'custom',
+    label: 'Настроить явно',
+    description: 'Индивидуальный выбор разделителей, формата чисел и даты',
+  },
+};
+
 export function calculateMetricStats(records = [], metricKey) {
   if (!Array.isArray(records) || records.length === 0 || !metricKey) {
     return { min: null, max: null, avg: null };
@@ -100,14 +126,41 @@ export function buildExportDataset({
   };
 }
 
-export function formatIsoToReadable(isoString) {
+export function formatIsoToReadable(isoString, dateFormat = 'iso') {
   if (!isoString) return '';
-  const parts = isoString.split('T');
-  if (parts.length === 2) {
+  const separator = isoString.includes('T') ? 'T' : (isoString.includes(' ') ? ' ' : null);
+  if (!separator) return isoString;
+
+  const parts = isoString.split(separator);
+  if (parts.length >= 2) {
+    const datePart = parts[0];
     const timePart = parts[1].slice(0, 5);
-    return `${parts[0]} ${timePart}`;
+    if (dateFormat === 'ru') {
+      const dateBits = datePart.split('-');
+      if (dateBits.length === 3) {
+        return `${dateBits[2]}.${dateBits[1]}.${dateBits[0]} ${timePart}`;
+      }
+    }
+    return `${datePart} ${timePart}`;
   }
   return isoString;
+}
+
+export function formatMetricValue(val, decimals = 1, {
+  decimalSeparator = ',',
+  numberFormat = 'standard',
+} = {}) {
+  if (val === null || val === undefined || Number.isNaN(Number(val))) {
+    return '';
+  }
+  let formatted = Number(val).toFixed(decimals);
+  if (decimalSeparator === ',') {
+    formatted = formatted.replace('.', ',');
+  }
+  if (numberFormat === 'excel_text') {
+    return `="${formatted}"`;
+  }
+  return formatted;
 }
 
 export function generateCsv({
@@ -117,6 +170,9 @@ export function generateCsv({
   includeStats = true,
   includeMeta = true,
   delimiter = ';',
+  decimalSeparator = ',',
+  dateFormat = 'ru',
+  numberFormat = 'standard',
 }) {
   const lines = [];
   const BOM = '\uFEFF';
@@ -142,13 +198,10 @@ export function generateCsv({
 
   records.forEach((row) => {
     const rowCells = [
-      `"${formatIsoToReadable(row.time)}"`,
+      `"${formatIsoToReadable(row.time, dateFormat)}"`,
       ...metrics.map((m) => {
         const val = row[m.key];
-        if (val === null || val === undefined || Number.isNaN(Number(val))) {
-          return '';
-        }
-        return Number(val).toFixed(m.decimals);
+        return formatMetricValue(val, m.decimals, { decimalSeparator, numberFormat });
       }),
     ];
     lines.push(rowCells.join(delimiter));
@@ -162,21 +215,21 @@ export function generateCsv({
       '"Минимум"',
       ...metrics.map((m) => {
         const s = calculateMetricStats(records, m.key);
-        return s.min !== null ? s.min.toFixed(m.decimals) : '';
+        return s.min !== null ? formatMetricValue(s.min, m.decimals, { decimalSeparator, numberFormat }) : '';
       }),
     ];
     const avgRow = [
       '"Среднее"',
       ...metrics.map((m) => {
         const s = calculateMetricStats(records, m.key);
-        return s.avg !== null ? s.avg.toFixed(m.decimals) : '';
+        return s.avg !== null ? formatMetricValue(s.avg, m.decimals, { decimalSeparator, numberFormat }) : '';
       }),
     ];
     const maxRow = [
       '"Максимум"',
       ...metrics.map((m) => {
         const s = calculateMetricStats(records, m.key);
-        return s.max !== null ? s.max.toFixed(m.decimals) : '';
+        return s.max !== null ? formatMetricValue(s.max, m.decimals, { decimalSeparator, numberFormat }) : '';
       }),
     ];
 

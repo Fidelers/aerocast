@@ -4,6 +4,7 @@ import {
   AVAILABLE_METRICS,
   buildExportDataset,
   formatIsoToReadable,
+  formatMetricValue,
   generateCsv,
   generateJson,
   formatExportFilename,
@@ -101,8 +102,8 @@ export default function AnalyticsExportModal({
     selectedMetricKeys,
   ]);
 
-  const periodStart = records[0]?.time ? formatIsoToReadable(records[0].time) : '';
-  const periodEnd = records[records.length - 1]?.time ? formatIsoToReadable(records[records.length - 1].time) : '';
+  const periodStart = records[0]?.time ? formatIsoToReadable(records[0]?.time, 'ru') : '';
+  const periodEnd = records[records.length - 1]?.time ? formatIsoToReadable(records[records.length - 1]?.time, 'ru') : '';
 
   const metadata = useMemo(() => ({
     locationName,
@@ -165,6 +166,8 @@ export default function AnalyticsExportModal({
           includeStats,
           includeMeta,
           delimiter: ';',
+          decimalSeparator: ',',
+          dateFormat: 'ru',
         });
         const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const filename = formatExportFilename({
@@ -239,6 +242,8 @@ export default function AnalyticsExportModal({
           includeStats,
           includeMeta,
           delimiter: '\t',
+          decimalSeparator: ',',
+          dateFormat: 'ru',
         }).replace(/^\uFEFF/, '');
 
         const success = await copyTextToClipboard(csvString);
@@ -621,12 +626,16 @@ export default function AnalyticsExportModal({
                   <tbody>
                     {previewRecords.map((row, idx) => (
                       <tr key={idx}>
-                        <td className="cell-time">{formatIsoToReadable(row.time)}</td>
+                        <td className="cell-time">{formatIsoToReadable(row.time, 'ru')}</td>
                         {metrics.map((m) => {
                           const val = row[m.key];
                           return (
                             <td key={m.key}>
-                              {val !== null && val !== undefined ? Number(val).toFixed(m.decimals) : '–'}
+                              {val !== null && val !== undefined
+                                ? (exportFormat === 'csv'
+                                    ? formatMetricValue(val, m.decimals, { decimalSeparator: ',' })
+                                    : Number(val).toFixed(m.decimals))
+                                : '–'}
                             </td>
                           );
                         })}

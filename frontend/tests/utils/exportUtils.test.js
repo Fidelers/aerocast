@@ -3,6 +3,8 @@ import {
   calculateMetricStats,
   buildExportDataset,
   formatIsoToReadable,
+  formatMetricValue,
+  CSV_FORMAT_PRESETS,
   generateCsv,
   generateJson,
   formatExportFilename,
@@ -62,15 +64,39 @@ describe('exportUtils', () => {
   });
 
   describe('formatIsoToReadable', () => {
-    it('converts ISO string to YYYY-MM-DD HH:mm', () => {
+    it('converts ISO string to YYYY-MM-DD HH:mm by default', () => {
       expect(formatIsoToReadable('2026-10-22T14:30:00Z')).toBe('2026-10-22 14:30');
       expect(formatIsoToReadable('2026-10-22T08:00')).toBe('2026-10-22 08:00');
+    });
+
+    it('converts ISO string to DD.MM.YYYY HH:mm when dateFormat is ru', () => {
+      expect(formatIsoToReadable('2026-10-22T14:30:00Z', 'ru')).toBe('22.10.2026 14:30');
+      expect(formatIsoToReadable('2026-10-22 08:00', 'ru')).toBe('22.10.2026 08:00');
     });
 
     it('returns empty string on empty input and returns raw on non-iso input', () => {
       expect(formatIsoToReadable('')).toBe('');
       expect(formatIsoToReadable(null)).toBe('');
       expect(formatIsoToReadable('simple-date')).toBe('simple-date');
+    });
+  });
+
+  describe('formatMetricValue', () => {
+    it('formats values with comma or dot decimal separator', () => {
+      expect(formatMetricValue(8.0, 1, { decimalSeparator: ',' })).toBe('8,0');
+      expect(formatMetricValue(7.94, 1, { decimalSeparator: '.' })).toBe('7.9');
+      expect(formatMetricValue(26, 0, { decimalSeparator: ',' })).toBe('26');
+    });
+
+    it('wraps into Excel text formula when numberFormat is excel_text', () => {
+      expect(formatMetricValue(8.0, 1, { decimalSeparator: ',', numberFormat: 'excel_text' })).toBe('="8,0"');
+      expect(formatMetricValue(7.9, 1, { decimalSeparator: '.', numberFormat: 'excel_text' })).toBe('="7.9"');
+    });
+
+    it('handles null, undefined, and NaN safely', () => {
+      expect(formatMetricValue(null)).toBe('');
+      expect(formatMetricValue(undefined)).toBe('');
+      expect(formatMetricValue(NaN)).toBe('');
     });
   });
 
@@ -128,7 +154,7 @@ describe('exportUtils', () => {
   });
 
   describe('generateCsv', () => {
-    it('generates CSV with UTF-8 BOM, metadata, headers, rows and statistics', () => {
+    it('generates CSV with UTF-8 BOM, metadata, headers, rows and statistics (default Russian Excel compatible format)', () => {
       const csv = generateCsv({
         records: mockRecords,
         metrics: AVAILABLE_METRICS.slice(0, 2),
@@ -148,10 +174,41 @@ describe('exportUtils', () => {
       expect(csv).toContain('# Локация: Новокузнецк');
       expect(csv).toContain('# Координаты: 53.7500, 87.1400');
       expect(csv).toContain('Дата и время;"AQI (EAQI)";"PM2.5 (мкг/м³)"');
-      expect(csv).toContain('"2026-10-22 00:00";20;8.0');
-      expect(csv).toContain('"Минимум";20;8.0');
-      expect(csv).toContain('"Среднее";30;12.0');
-      expect(csv).toContain('"Максимум";40;16.0');
+      expect(csv).toContain('"22.10.2026 00:00";20;8,0');
+      expect(csv).toContain('"Минимум";20;8,0');
+      expect(csv).toContain('"Среднее";30;12,0');
+      expect(csv).toContain('"Максимум";40;16,0');
+    });
+
+    it('generates CSV with international format (dot decimal, ISO date)', () => {
+      const csv = generateCsv({
+        records: mockRecords,
+        metrics: AVAILABLE_METRICS.slice(0, 2),
+        delimiter: ',',
+        decimalSeparator: '.',
+        dateFormat: 'iso',
+      });
+      expect(csv).toContain('Дата и время,"AQI (EAQI)","PM2.5 (мкг/м³)"');
+      expect(csv).toContain('"2026-10-22 00:00",20,8.0');
+      expect(csv).toContain('"Минимум",20,8.0');
+    });
+
+    it('generates CSV with explicit excel text formatting', () => {
+      const csv = generateCsv({
+        records: mockRecords,
+        metrics: AVAILABLE_METRICS.slice(0, 2),
+        numberFormat: 'excel_text',
+        decimalSeparator: ',',
+      });
+      expect(csv).toContain('="20";="8,0"');
+      expect(csv).toContain('"Минимум";="20";="8,0"');
+    });
+
+    it('has valid CSV_FORMAT_PRESETS', () => {
+      expect(CSV_FORMAT_PRESETS.excel_ru.decimalSeparator).toBe(',');
+      expect(CSV_FORMAT_PRESETS.excel_ru.delimiter).toBe(';');
+      expect(CSV_FORMAT_PRESETS.international.decimalSeparator).toBe('.');
+      expect(CSV_FORMAT_PRESETS.international.delimiter).toBe(',');
     });
 
     it('respects includeMeta=false and includeStats=false', () => {
@@ -475,7 +532,7 @@ describe('exportUtils', () => {
         metrics: AVAILABLE_METRICS.slice(0, 3),
         metadata: {},
       });
-      expect(csv).toContain('"2026-10-22 00:00";;;');
+      expect(csv).toContain('"22.10.2026 00:00";;;');
 
       const json = generateJson({
         records: sparseRecords,
