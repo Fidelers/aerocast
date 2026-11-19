@@ -226,11 +226,18 @@ set_osm -> [slot 3: logit(' yes') - logit(' no')]
 
 ### 2. Разностный скоринг контрастных токенов:
 На позиции $k$-го токена слота из финального слоя нормализованных скрытых состояний трансформера извлекается вектор $h_{\text{slot}, k} \in \mathbb{R}^d$. Скоринг варианта $k$ вычисляется как скалярное произведение вектора скрытого состояния на разность векторов связанных матриц эмбеддингов для бинарных контрастных токенов `" yes"` (ID `9542`) и `" no"` (ID `874`):
-$$\text{Score}(k) = \text{logit}_k(\text{" yes"}) - \text{logit}_k(\text{" no"}) = h_{\text{slot}, k} \cdot (w_{\text{" yes"}} - w_{\text{" no"}})$$
+
+$$
+\text{Score}(k) = \text{logit}_k(\text{" yes"}) - \text{logit}_k(\text{" no"}) = h_{\text{slot}, k} \cdot (w_{\text{" yes"}} - w_{\text{" no"}})
+$$
 
 ### 3. Температурно-калиброванный Softmax:
 Полученные скалярные скоры $\text{Score}(k)$ для всех $K$ альтернатив нормализуются в строго детерминированное вероятностное распределение:
-$$P(\text{option}_k) = \frac{\exp\left(\frac{\text{Score}(k)}{T}\right)}{\sum_{j=1}^{K} \exp\left(\frac{\text{Score}(j)}{T}\right)}$$
+
+$$
+P(\text{option}_k) = \frac{\exp\left(\frac{\text{Score}(k)}{T}\right)}{\sum_{j=1}^{K} \exp\left(\frac{\text{Score}(j)}{T}\right)}
+$$
+
 где $T$ — температура калибровки из конфигурационного файла `readout_config.json` ($T_{\text{global}} = 0.88005$).
 
 ### 4. Режим `many_mode="exact"`:

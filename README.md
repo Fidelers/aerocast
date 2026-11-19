@@ -536,8 +536,12 @@ AeroCast объединяет данные трех временных эпох 
    - Использует **OpenWeatherMap Air Pollution API**. Требует действующий ключ `BACKUP_API_KEY` в `server/.env`.
    - *Важно:* OpenWeatherMap возвращает концентрации в других размерностях и не рассчитывает индекс EAQI. Функция `extractComponents` нормализует концентрации, а `aqiCalculator.calculateEAQI()` на лету рассчитывает субиндексы и интегральный индекс.
 3. **Пространственное квантование (Spatial Quantization) в [spatialCacheService.js](file:///c:/Users/Administrator/Documents/GitHub/aerocast/server/services/spatialCacheService.js):**
-   - Координаты запросов сетки квантуются с шагом `step = 0.2°` ($\approx 15\text{--}22$ км):
-     $$\text{qLat} = \text{round}\left(\frac{\text{lat}}{\text{step}}\right) \times \text{step}, \quad \text{qLon} = \text{round}\left(\frac{\text{lon}}{\text{step}}\right) \times \text{step}$$
+   - Координаты запросов сетки квантуются с шагом `step = 0.2°` (≈ 15–22 км):
+
+$$
+\text{qLat} = \text{round}\left(\frac{\text{lat}}{\text{step}}\right) \times \text{step}, \quad \text{qLon} = \text{round}\left(\frac{\text{lon}}{\text{step}}\right) \times \text{step}
+$$
+
    - Это предотвращает спам внешних провайдеров однотипными запросами при микро-сдвигах карты пользователем и обеспечивает мгновенную отдачу из SQLite за 1–5 мс.
 4. **Правило добавления нового источника данных:**
    - Новый источник оформляется отдельным модулем в `server/services/` и обязан экспортировать асинхронную функцию `fetchAirQuality(lat, lon)`.
@@ -551,11 +555,14 @@ AeroCast объединяет данные трех временных эпох 
 
 #### Принцип наихудшего показателя (Worst-Pollutant Principle):
 Интегральный индекс качества воздуха определяется по веществу, показавшему максимальную степень опасности:
-$$\text{EAQI}_{\text{total}} = \max\left(\text{EAQI}_{PM_{2.5}}, \text{EAQI}_{PM_{10}}, \text{EAQI}_{NO_2}, \text{EAQI}_{SO_2}, \text{EAQI}_{O_3}\right)$$
+
+$$
+\text{EAQI}_{\text{total}} = \max\left(\text{EAQI}_{PM_{2.5}}, \text{EAQI}_{PM_{10}}, \text{EAQI}_{NO_2}, \text{EAQI}_{SO_2}, \text{EAQI}_{O_3}\right)
+$$
 
 #### Пороговые концентрации веществ ($\mu g/m^3$) и шкала EAQI:
 
-| Уровень EAQI | Категория | Диапазон индекса | $PM_{2.5}$ | $PM_{10}$ | $NO_2$ | $SO_2$ | $O_3$ | $CO$ |
+| Уровень EAQI | Категория | Диапазон индекса | PM<sub>2.5</sub> | PM<sub>10</sub> | NO<sub>2</sub> | SO<sub>2</sub> | O<sub>3</sub> | CO |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **1** | **Отлично** | `0 – 20` | $0 - 10$ | $0 - 20$ | $0 - 40$ | $0 - 100$ | $0 - 50$ | $0 - 5000$ |
 | **2** | **Хорошо** | `21 – 40` | $10 - 20$ | $20 - 40$ | $40 - 90$ | $100 - 200$ | $50 - 100$ | $5000 - 7500$ |
@@ -566,8 +573,12 @@ $$\text{EAQI}_{\text{total}} = \max\left(\text{EAQI}_{PM_{2.5}}, \text{EAQI}_{PM
 
 #### Математика субиндексов ([aqiCalculator.js](file:///c:/Users/Administrator/Documents/GitHub/aerocast/server/services/aqiCalculator.js)):
 Внутри диапазона между пороговыми значениями применяется кусочно-линейная интерполяция:
-$$I = \frac{C - C_{\text{low}}}{C_{\text{high}} - C_{\text{low}}} \times (I_{\text{high}} - I_{\text{low}}) + I_{\text{low}}$$
-При превышении верхнего порога выполняется ограниченная экстраполяция с жестким ограничением в $150$ пунктов: $\min(150, \text{extrapolated})$.
+
+$$
+I = \frac{C - C_{\text{low}}}{C_{\text{high}} - C_{\text{low}}} \times (I_{\text{high}} - I_{\text{low}}) + I_{\text{low}}
+$$
+
+При превышении верхнего порога выполняется ограниченная экстраполяция с жестким ограничением в 150 пунктов: $\min(150, \text{extrapolated})$.
 
 #### Правила работы с калькулятором:
 - Функция `calculateEAQI` принимает как отдельные числовые аргументы `(pm25, pm10, no2, o3, so2)`, так и единый объект `{ pm2_5, pm10, no2, o3, so2, co }`.
@@ -583,12 +594,27 @@ $$I = \frac{C - C_{\text{low}}}{C_{\text{high}} - C_{\text{low}}} \times (I_{\te
 - Слой `map-marker` выступает якорным слоем z-index: растровый оверлей интерполяции всегда располагается под интерактивными маркерами станций.
 
 #### Математика IDW-интерполяции ([idwInterpolator.js](file:///c:/Users/Administrator/Documents/GitHub/aerocast/frontend/src/utils/idwInterpolator.js)):
-Для построения непрерывной тепловой карты качества воздуха по 550 опорным точкам РФ используется метод обратно взвешенных расстояний:
-$$Z(x) = \begin{cases} Z_i, & \text{если } d(x, x_i) < \epsilon \\ \frac{\sum_{i=1}^N w_i(x) Z_i}{\sum_{i=1}^N w_i(x)}, & \text{иначе} \end{cases}, \quad w_i(x) = \frac{1}{d(x, x_i)^p}, \quad p=2, \quad \epsilon=10^{-6}$$
+Для построения непрерывной тепловой карты качества воздуха по 550 опорным точкам РФ используется метод обратно взвешенных расстояний (Inverse Distance Weighting):
+
+$$
+Z(x) = \begin{cases} 
+Z_i, & d(x, x_i) < \epsilon \\ 
+\dfrac{\sum_{i=1}^N w_i(x) Z_i}{\sum_{i=1}^N w_i(x)}, & d(x, x_i) \ge \epsilon 
+\end{cases}
+$$
+
+где весовые коэффициенты $w_i(x)$ рассчитываются с квадратичным убыванием ($p = 2$):
+
+$$
+w_i(x) = \frac{1}{d(x, x_i)^p}, \quad p = 2, \quad \epsilon = 10^{-6}
+$$
 
 #### Компенсация проекции Меркатора (EPSG:3857):
 Территория России простирается от $41^\circ$ до $82^\circ$ северной широты. Без коррекции проекции эллипсы расстояний искажаются в несколько раз. В `idwInterpolator.js` координаты широты перед расчетом евклидовых расстояний трансформируются в меркаторовские координаты:
-$$y_{\text{mercator}} = \ln\left(\tan\left(\frac{\pi}{4} + \frac{\phi_{\text{rad}}}{2}\right)\right)$$
+
+$$
+y_{\text{mercator}} = \ln\left(\tan\left(\frac{\pi}{4} + \frac{\phi_{\text{rad}}}{2}\right)\right)
+$$
 
 #### Маска границ РФ 2026 года и сшивка Чукотки ([russiaBoundary2026.js](file:///c:/Users/Administrator/Documents/GitHub/aerocast/frontend/src/utils/russiaBoundary2026.js)):
 - Проверка принадлежности пикселя Canvas территории РФ выполняется алгоритмом **Ray-Casting** (`isPointInPolygon`). Точки в морях и за пределами границ остаются прозрачными.
@@ -677,7 +703,10 @@ $$y_{\text{mercator}} = \ln\left(\tan\left(\frac{\pi}{4} + \frac{\phi_{\text{rad
 ## 🧪 Тестирование и методология TDD
 
 Разработка AeroCast велась в строгом соответствии с инженерной методологией **Test-Driven Development (TDD)**:
-$$\text{RED (Написание падающего теста)} \longrightarrow \text{GREEN (Минимальный рабочий код)} \longrightarrow \text{REFACTOR (Оптимизация и архитектура)}$$
+
+```
+RED (Падающий тест) ───> GREEN (Минимальный рабочий код) ───> REFACTOR (Оптимизация и архитектура)
+```
 
 ### 📊 Фактические результаты тестового прогона (1 704 теста — 100% PASS):
 
