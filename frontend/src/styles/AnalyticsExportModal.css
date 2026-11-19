@@ -337,6 +337,138 @@
   overflow-y: auto;
 }
 
+.export-json-preview-container {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-secondary, #f8fafc);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-json-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--surface-card, #ffffff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  font-size: 11px;
+}
+
+.export-json-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--primary, #2563eb);
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.export-json-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #8b5cf6;
+}
+
+.export-json-hint {
+  color: var(--text-muted, #64748b);
+  font-size: 11px;
+}
+
+.export-json-preview-code {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 160px;
+  max-height: 250px;
+  overflow-y: auto;
+  overflow-x: auto;
+  color: var(--text-h, #0f172a);
+  background: var(--surface-card, #ffffff);
+  display: block;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border, #cbd5e1) transparent;
+  box-sizing: border-box;
+}
+
+.export-json-preview-code::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.export-json-preview-code::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.export-json-preview-code::-webkit-scrollbar-thumb {
+  background-color: var(--border, #cbd5e1);
+  border-radius: 4px;
+}
+
+.export-json-preview-code::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary, #3b82f6);
+}
+
+.json-code-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100%;
+}
+
+.json-code-line {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: baseline;
+  min-height: 20px;
+  line-height: 20px;
+  width: 100%;
+  white-space: pre;
+}
+
+.json-line-num {
+  width: 28px;
+  min-width: 28px;
+  text-align: right;
+  padding-right: 10px;
+  margin-right: 10px;
+  border-right: 1px solid var(--border, #e2e8f0);
+  color: #94a3b8;
+  user-select: none;
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+
+.json-line-content {
+  white-space: pre;
+  flex: 1;
+}
+
+.json-token-key {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.json-token-string {
+  color: #059669;
+}
+
+.json-token-placeholder {
+  color: #64748b;
+  font-style: italic;
+}
+
+.json-token-number {
+  color: #d97706;
+}
+
+.json-token-boolean {
+  color: #7c3aed;
+}
+
 .export-preview-table {
   width: 100%;
   border-collapse: collapse;
@@ -563,9 +695,65 @@
 
 [data-theme='dark'] .export-radio-card,
 [data-theme='dark'] .export-format-btn,
-[data-theme='dark'] .export-preview-table-container {
+[data-theme='dark'] .export-preview-table-container,
+[data-theme='dark'] .export-json-preview-container {
   background: #1e293b;
   border-color: #334155;
+}
+
+[data-theme='dark'] .export-json-preview-header {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .export-json-tag {
+  color: #60a5fa;
+}
+
+[data-theme='dark'] .export-json-dot {
+  background-color: #a78bfa;
+}
+
+[data-theme='dark'] .export-json-hint {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .export-json-preview-code {
+  color: #f1f5f9;
+  scrollbar-color: #475569 transparent;
+}
+
+[data-theme='dark'] .export-json-preview-code::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
+
+[data-theme='dark'] .export-json-preview-code::-webkit-scrollbar-thumb:hover {
+  background-color: #60a5fa;
+}
+
+[data-theme='dark'] .json-line-num {
+  border-color: #334155;
+  color: #475569;
+}
+
+[data-theme='dark'] .json-token-key {
+  color: #60a5fa;
+}
+
+[data-theme='dark'] .json-token-string {
+  color: #34d399;
+}
+
+[data-theme='dark'] .json-token-placeholder {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .json-token-number {
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .json-token-boolean {
+  color: #c084fc;
 }
 
 [data-theme='dark'] .export-radio-card:hover:not(.export-radio-card--disabled) {

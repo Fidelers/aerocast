@@ -168,11 +168,21 @@ describe('AnalyticsExportModal component', () => {
     const jsonBtn = screen.getByTestId('format-btn-json');
     fireEvent.click(jsonBtn);
     expect(screen.getByTestId('download-export-btn').textContent).toContain('.json');
+    expect(screen.getByTestId('json-preview-container')).toBeTruthy();
+    expect(screen.getByTestId('json-preview-code').textContent).toContain('"metadata"');
+    expect(screen.getByTestId('json-preview-code').textContent).toContain('"statistics"');
+    expect(screen.getByTestId('json-preview-code').textContent).toContain('"items"');
+    expect(screen.queryByTestId('preview-table')).toBeNull();
 
     const pngBtn = screen.getByTestId('format-btn-png');
     fireEvent.click(pngBtn);
     expect(screen.getByTestId('png-preview-card')).toBeTruthy();
     expect(screen.getByTestId('download-export-btn').textContent).toContain('.png');
+    expect(screen.queryByTestId('json-preview-container')).toBeNull();
+
+    const csvBtn = screen.getByTestId('format-btn-csv');
+    fireEvent.click(csvBtn);
+    expect(screen.getByTestId('preview-table')).toBeTruthy();
   });
 
   it('renders all selected metric charts in PNG preview for all metrics and custom selection', () => {
@@ -274,6 +284,32 @@ describe('AnalyticsExportModal component', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalled();
     });
+  });
+
+  it('updates JSON preview reactively when toggling stats and metadata', () => {
+    render(
+      <AnalyticsExportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        allRecords={mockRecords}
+        finalDayData={mockRecords}
+      />
+    );
+
+    const jsonBtn = screen.getByTestId('format-btn-json');
+    fireEvent.click(jsonBtn);
+
+    const code = screen.getByTestId('json-preview-code');
+    expect(code.textContent).toContain('"metadata"');
+    expect(code.textContent).toContain('"statistics"');
+
+    const statsCheckbox = screen.getByTestId('include-stats-checkbox');
+    fireEvent.click(statsCheckbox);
+    expect(code.textContent).not.toContain('"statistics"');
+
+    const metaCheckbox = screen.getByTestId('include-meta-checkbox');
+    fireEvent.click(metaCheckbox);
+    expect(code.textContent).not.toContain('"metadata"');
   });
 
   it('handles PNG copy and download with mocked canvas', async () => {

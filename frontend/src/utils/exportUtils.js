@@ -298,6 +298,83 @@ export function generateJson({
   return JSON.stringify(result, null, 2);
 }
 
+export function generateJsonPreview({
+  records = [],
+  metrics = AVAILABLE_METRICS,
+  metadata = {},
+  includeStats = true,
+  includeMeta = true,
+  maxSampleMetrics = 2,
+  maxSampleRecords = 6,
+}) {
+  const result = {};
+
+  if (includeMeta) {
+    result.metadata = {
+      app: 'Aerocast',
+      version: '1.0',
+      exportedAt: metadata.exportedAt || new Date().toISOString(),
+      location: metadata.locationName || null,
+      coordinates: (metadata.lat != null && metadata.lon != null)
+        ? { lat: Number(metadata.lat), lon: Number(metadata.lon) }
+        : null,
+      period: {
+        start: metadata.periodStart || (records[0]?.time ? formatIsoToReadable(records[0].time) : null),
+        end: metadata.periodEnd || (records[records.length - 1]?.time ? formatIsoToReadable(records[records.length - 1].time) : null),
+      },
+      totalPoints: records.length,
+    };
+  }
+
+  const sampleMetrics = metrics.slice(0, maxSampleMetrics);
+  const remainingMetricsCount = Math.max(0, metrics.length - sampleMetrics.length);
+
+  if (includeStats && records.length > 0) {
+    result.statistics = {};
+    sampleMetrics.forEach((m) => {
+      const s = calculateMetricStats(records, m.key);
+      result.statistics[m.key] = {
+        label: m.label,
+        unit: m.unit,
+        min: s.min !== null ? Number(s.min.toFixed(m.decimals)) : null,
+        avg: s.avg !== null ? Number(s.avg.toFixed(m.decimals)) : null,
+        max: s.max !== null ? Number(s.max.toFixed(m.decimals)) : null,
+      };
+    });
+    if (remainingMetricsCount > 0) {
+      result.statistics['...'] = `и еще ${remainingMetricsCount} веществ(а)`;
+    }
+  }
+
+  if (records.length > 0) {
+    const sampleRecords = records.slice(0, maxSampleRecords);
+    result.items = sampleRecords.map((row) => {
+      const item = {
+        time: row.time,
+        formattedTime: formatIsoToReadable(row.time),
+      };
+      sampleMetrics.forEach((m) => {
+        const val = row[m.key];
+        item[m.key] = (val !== null && val !== undefined && !Number.isNaN(Number(val)))
+          ? Number(Number(val).toFixed(m.decimals))
+          : null;
+      });
+      if (remainingMetricsCount > 0) {
+        item['...'] = `значения остальных ${remainingMetricsCount} веществ`;
+      }
+      return item;
+    });
+
+    if (records.length > maxSampleRecords) {
+      result.items.push(`... и еще ${records.length - maxSampleRecords} записей`);
+    }
+  } else {
+    result.items = [];
+  }
+
+  return JSON.stringify(result, null, 2);
+}
+
 export function formatExportFilename({
   locationName = 'aerocast',
   dateStr = '',

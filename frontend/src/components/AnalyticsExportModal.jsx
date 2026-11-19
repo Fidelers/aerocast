@@ -7,6 +7,7 @@ import {
   formatMetricValue,
   generateCsv,
   generateJson,
+  generateJsonPreview,
   formatExportFilename,
   downloadBlob,
   copyTextToClipboard,
@@ -14,6 +15,70 @@ import {
   calculateMetricStats,
 } from '../utils/exportUtils';
 import '../styles/AnalyticsExportModal.css';
+
+export function renderJsonWithColors(jsonStr) {
+  if (!jsonStr) return null;
+  const lines = jsonStr.split('\n');
+  return lines.map((line, lineIdx) => {
+    const regex = /(".*?"\s*:)|(".*?")|(-?\d+(?:\.\d+)?)|(true|false|null)|([{}[\],])/g;
+    let lastIndex = 0;
+    const elements = [];
+    let match;
+
+    while ((match = regex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        elements.push(line.slice(lastIndex, match.index));
+      }
+      const [, keyMatch, stringMatch, numMatch, boolMatch, punctMatch] = match;
+      if (keyMatch) {
+        const colonIdx = keyMatch.lastIndexOf(':');
+        const keyPart = keyMatch.slice(0, colonIdx);
+        elements.push(
+          <span key={`k-${lineIdx}-${match.index}`} className="json-token-key">
+            {keyPart}
+          </span>
+        );
+        elements.push(':');
+      } else if (stringMatch) {
+        const isPlaceholder = stringMatch.includes('...') || stringMatch.includes('еще');
+        elements.push(
+          <span
+            key={`s-${lineIdx}-${match.index}`}
+            className={isPlaceholder ? 'json-token-placeholder' : 'json-token-string'}
+          >
+            {stringMatch}
+          </span>
+        );
+      } else if (numMatch) {
+        elements.push(
+          <span key={`n-${lineIdx}-${match.index}`} className="json-token-number">
+            {numMatch}
+          </span>
+        );
+      } else if (boolMatch) {
+        elements.push(
+          <span key={`b-${lineIdx}-${match.index}`} className="json-token-boolean">
+            {boolMatch}
+          </span>
+        );
+      } else if (punctMatch) {
+        elements.push(punctMatch);
+      }
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < line.length) {
+      elements.push(line.slice(lastIndex));
+    }
+
+    return (
+      <div key={`line-${lineIdx}`} className="json-code-line">
+        <span className="json-line-num">{lineIdx + 1}</span>
+        <span className="json-line-content">{elements}</span>
+      </div>
+    );
+  });
+}
 
 export default function AnalyticsExportModal({
   isOpen = false,
@@ -113,6 +178,16 @@ export default function AnalyticsExportModal({
     periodEnd,
     exportedAt: new Date().toISOString(),
   }), [locationName, coords, periodStart, periodEnd]);
+
+  const jsonPreviewString = useMemo(() => {
+    return generateJsonPreview({
+      records,
+      metrics,
+      metadata,
+      includeStats,
+      includeMeta,
+    });
+  }, [records, metrics, metadata, includeStats, includeMeta]);
 
   if (!isOpen) {
     return null;
@@ -611,6 +686,25 @@ export default function AnalyticsExportModal({
                     );
                   })}
                 </div>
+              </div>
+            ) : exportFormat === 'json' ? (
+              <div className="export-json-preview-container" data-testid="json-preview-container">
+                <div className="export-json-preview-header">
+                  <span className="export-json-tag">
+                    <span className="export-json-dot" />
+                    Выходная структура JSON
+                  </span>
+                  <span className="export-json-hint">
+                    {metrics.length > 2
+                      ? `Показаны ${Math.min(2, metrics.length)} из ${metrics.length} веществ (первые ${Math.min(records.length, 6)} записей)`
+                      : `Выбрано веществ: ${metrics.length} (первые ${Math.min(records.length, 6)} записей)`}
+                  </span>
+                </div>
+                <pre className="export-json-preview-code" data-testid="json-preview-code">
+                  <div className="json-code-wrapper">
+                    {renderJsonWithColors(jsonPreviewString)}
+                  </div>
+                </pre>
               </div>
             ) : (
               <div className="export-preview-table-container">

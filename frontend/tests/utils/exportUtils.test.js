@@ -7,6 +7,7 @@ import {
   CSV_FORMAT_PRESETS,
   generateCsv,
   generateJson,
+  generateJsonPreview,
   formatExportFilename,
   copyTextToClipboard,
   downloadBlob,
@@ -253,6 +254,80 @@ describe('exportUtils', () => {
       expect(parsed.items).toHaveLength(3);
       expect(parsed.items[0].aqi).toBe(20);
       expect(parsed.items[0].pm2_5).toBe(8.0);
+    });
+  });
+
+  describe('generateJsonPreview', () => {
+    it('generates compact JSON structure preview with truncated metrics and item placeholders', () => {
+      const jsonStr = generateJsonPreview({
+        records: mockRecords,
+        metrics: AVAILABLE_METRICS, // 7 metrics
+        metadata: {
+          locationName: 'Новокузнецк',
+          lat: 53.75,
+          lon: 87.14,
+        },
+        includeStats: true,
+        includeMeta: true,
+      });
+
+      const parsed = JSON.parse(jsonStr);
+      expect(parsed.metadata.app).toBe('Aerocast');
+      expect(parsed.metadata.location).toBe('Новокузнецк');
+      expect(parsed.metadata.totalPoints).toBe(3);
+
+      // Проверяем, что показаны первые 2 вещества и плейсхолдер для остальных
+      expect(parsed.statistics.aqi).toBeDefined();
+      expect(parsed.statistics.pm2_5).toBeDefined();
+      expect(parsed.statistics['...']).toContain('и еще 5 веществ');
+
+      // Проверяем структуру items (множественные записи с возможностью листать вниз)
+      expect(parsed.items).toHaveLength(3);
+      expect(parsed.items[0].time).toBe('2026-10-22T00:00');
+      expect(parsed.items[0].aqi).toBe(20);
+      expect(parsed.items[0].pm2_5).toBe(8.0);
+      expect(parsed.items[0]['...']).toContain('значения остальных 5 веществ');
+      expect(parsed.items[1].time).toBe('2026-10-22T01:00');
+      expect(parsed.items[2].time).toBe('2026-10-23T00:00');
+
+      // Проверяем обрезку записей при превышении maxSampleRecords
+      const jsonWithLimit = generateJsonPreview({
+        records: mockRecords,
+        metrics: AVAILABLE_METRICS,
+        maxSampleRecords: 2,
+      });
+      const parsedLimit = JSON.parse(jsonWithLimit);
+      expect(parsedLimit.items).toHaveLength(3);
+      expect(parsedLimit.items[2]).toContain('... и еще 1 записей');
+    });
+
+    it('omits metadata and statistics when toggled off', () => {
+      const jsonStr = generateJsonPreview({
+        records: mockRecords,
+        metrics: AVAILABLE_METRICS.slice(0, 1),
+        includeStats: false,
+        includeMeta: false,
+      });
+
+      const parsed = JSON.parse(jsonStr);
+      expect(parsed.metadata).toBeUndefined();
+      expect(parsed.statistics).toBeUndefined();
+      expect(parsed.items[0].aqi).toBe(20);
+      expect(parsed.items[0]['...']).toBeUndefined();
+    });
+
+    it('handles empty records array', () => {
+      const jsonStr = generateJsonPreview({
+        records: [],
+        metrics: AVAILABLE_METRICS,
+        includeStats: true,
+        includeMeta: true,
+      });
+
+      const parsed = JSON.parse(jsonStr);
+      expect(parsed.metadata.totalPoints).toBe(0);
+      expect(parsed.statistics).toBeUndefined();
+      expect(parsed.items).toEqual([]);
     });
   });
 
