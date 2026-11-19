@@ -74,6 +74,7 @@ export default function DynamicsChart({
   const isMouseDownRef = useRef(false);
   const dragStartRef = useRef(null);
   const didDragRef = useRef(false);
+  const lastTouchTimeRef = useRef(0);
 
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState(null);
@@ -215,11 +216,30 @@ export default function DynamicsChart({
   );
 
   const handleMouseDown = (e) => {
+    if (Date.now() - lastTouchTimeRef.current < 500) return;
     if (e.button !== 0 || !enableRangeSelection || data.length < 2) return;
     const { svgX, idx } = getCoordinatesFromClientX(e.clientX);
     isMouseDownRef.current = true;
     didDragRef.current = false;
     dragStartRef.current = { startX: svgX, startIdx: idx, clientX: e.clientX };
+    setDragState({
+      startX: svgX,
+      currentX: svgX,
+      startIdx: idx,
+      currentIdx: idx,
+      isDragging: false,
+    });
+  };
+
+  const handleTouchStart = (e) => {
+    if (!enableRangeSelection || data.length < 2) return;
+    const touch = e.touches?.[0];
+    if (!touch) return;
+    lastTouchTimeRef.current = Date.now();
+    const { svgX, idx } = getCoordinatesFromClientX(touch.clientX);
+    isMouseDownRef.current = true;
+    didDragRef.current = false;
+    dragStartRef.current = { startX: svgX, startIdx: idx, clientX: touch.clientX };
     setDragState({
       startX: svgX,
       currentX: svgX,
@@ -271,11 +291,71 @@ export default function DynamicsChart({
       }
     };
 
+    const handleWindowTouchMove = (e) => {
+      if (!isMouseDownRef.current || !dragStartRef.current) return;
+      const touch = e.touches?.[0];
+      if (!touch) return;
+      const diffPixels = Math.abs(touch.clientX - dragStartRef.current.clientX);
+      const { svgX, idx } = getCoordinatesFromClientX(touch.clientX);
+
+      if (diffPixels > 4) {
+        didDragRef.current = true;
+        setDragState({
+          startX: dragStartRef.current.startX,
+          currentX: svgX,
+          startIdx: dragStartRef.current.startIdx,
+          currentIdx: idx,
+          isDragging: true,
+        });
+        if (e.cancelable && typeof e.preventDefault === 'function') {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleWindowTouchEnd = (e) => {
+      if (!isMouseDownRef.current || !dragStartRef.current) return;
+      const touch = e.changedTouches?.[0] || e.touches?.[0];
+      const { startIdx, clientX } = dragStartRef.current;
+      const endClientX = touch ? touch.clientX : clientX;
+      const { idx } = getCoordinatesFromClientX(endClientX);
+      const diffPixels = Math.abs(endClientX - clientX);
+
+      isMouseDownRef.current = false;
+      dragStartRef.current = null;
+      setDragState(null);
+
+      if (diffPixels > 4 && Math.abs(startIdx - idx) >= 1) {
+        const fromIdx = Math.min(startIdx, idx);
+        const toIdx = Math.max(startIdx, idx);
+        onRangeSelect?.(fromIdx, toIdx);
+        setTimeout(() => {
+          didDragRef.current = false;
+        }, 80);
+      } else {
+        didDragRef.current = false;
+      }
+    };
+
+    const handleWindowTouchCancel = () => {
+      isMouseDownRef.current = false;
+      dragStartRef.current = null;
+      setDragState(null);
+      didDragRef.current = false;
+    };
+
     window.addEventListener('mousemove', handleWindowMouseMove);
     window.addEventListener('mouseup', handleWindowMouseUp);
+    window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
+    window.addEventListener('touchend', handleWindowTouchEnd);
+    window.addEventListener('touchcancel', handleWindowTouchCancel);
+
     return () => {
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+      window.removeEventListener('touchend', handleWindowTouchEnd);
+      window.removeEventListener('touchcancel', handleWindowTouchCancel);
     };
   }, [enableRangeSelection, getCoordinatesFromClientX, onRangeSelect]);
 
@@ -455,7 +535,12 @@ export default function DynamicsChart({
       ref={containerRef}
       className={`dynamics-chart dynamics-chart--${mode}`}
       data-colorblind={isColorBlind ? 'true' : 'false'}
-      style={{ userSelect: 'none', position: 'relative', width: '100%' }}
+      style={{
+        userSelect: 'none',
+        position: 'relative',
+        width: '100%',
+        touchAction: enableRangeSelection ? 'none' : 'auto',
+      }}
     >
       <svg
         ref={svgRef}
@@ -465,8 +550,13 @@ export default function DynamicsChart({
         preserveAspectRatio="none"
         role="img"
         aria-label={`График ${valueKey}`}
-        style={{ cursor: enableRangeSelection ? 'crosshair' : 'default', display: 'block' }}
+        style={{
+          cursor: enableRangeSelection ? 'crosshair' : 'default',
+          display: 'block',
+          touchAction: enableRangeSelection ? 'none' : 'auto',
+        }}
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         onMouseEnter={handleSvgMouseEnter}
         onMouseLeave={handleSvgMouseLeave}
         onMouseMove={handleSvgMouseMove}

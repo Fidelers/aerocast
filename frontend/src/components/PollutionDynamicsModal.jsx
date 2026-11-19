@@ -93,7 +93,24 @@ export default function PollutionDynamicsModal({
   const [customRange, setCustomRange] = useState(null);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const scrollAreaRef = useRef(null);
   const mainChartContainerRef = useRef(null);
+
+  const handlePollutantClick = (pollutantKey) => {
+    setActiveMetricKey(pollutantKey);
+    const isMobile =
+      typeof window !== 'undefined' &&
+      ((window.matchMedia && window.matchMedia('(max-width: 768px)').matches) ||
+        window.innerWidth <= 768);
+
+    if (isMobile) {
+      if (typeof mainChartContainerRef.current?.scrollIntoView === 'function') {
+        mainChartContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (typeof scrollAreaRef.current?.scrollTo === 'function') {
+        scrollAreaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
 
   const isToggleDisabled = stepHours > 12;
 
@@ -320,7 +337,7 @@ export default function PollutionDynamicsModal({
           </button>
         </div>
 
-        <div className="dynamics-modal-scroll-area">
+        <div className="dynamics-modal-scroll-area" ref={scrollAreaRef}>
           <div className="dynamics-modal-controls" data-testid="dynamics-modal-controls">
             <div className="dynamics-range-presets" role="group" aria-label="Предустановленные диапазоны дат">
               <button
@@ -450,7 +467,7 @@ export default function PollutionDynamicsModal({
             )}
 
             <span className="dynamics-drag-hint">
-              💡 Зажмите и потяните мышь по графику для выбора диапазона
+              💡 Зажмите и потяните по графику для выбора диапазона
             </span>
           </div>
 
@@ -541,11 +558,11 @@ export default function PollutionDynamicsModal({
                   role="button"
                   tabIndex={0}
                   title="Показать на главном графике"
-                  onClick={() => setActiveMetricKey(p.key)}
+                  onClick={() => handlePollutantClick(p.key)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setActiveMetricKey(p.key);
+                      handlePollutantClick(p.key);
                     }
                   }}
                 >

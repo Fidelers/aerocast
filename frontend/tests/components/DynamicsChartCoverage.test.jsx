@@ -375,4 +375,62 @@ describe('DynamicsChartCoverage', () => {
 
     window.ResizeObserver = origRO;
   });
+
+  it('поддерживает выделение диапазона жестом касания на сенсорных устройствах (touch drag-to-select)', () => {
+    const onRangeSelect = vi.fn();
+    const data = [
+      { time: '2026-11-01T00:00', aqi: 10 },
+      { time: '2026-11-01T06:00', aqi: 20 },
+      { time: '2026-11-01T12:00', aqi: 30 },
+      { time: '2026-11-01T18:00', aqi: 40 },
+    ];
+
+    const { container } = render(
+      <DynamicsChart
+        mode="aqi"
+        data={data}
+        enableRangeSelection={true}
+        onRangeSelect={onRangeSelect}
+      />
+    );
+
+    const svg = container.querySelector('svg');
+    expect(svg.style.touchAction).toBe('none');
+
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 220,
+      right: 720,
+      bottom: 220,
+    });
+
+    // Прямой drag касанием
+    fireEvent.touchStart(svg, { touches: [{ clientX: 50 }] });
+    fireEvent.touchMove(window, { touches: [{ clientX: 300 }] });
+    expect(container.querySelector('.chart-selection-box')).toBeTruthy();
+    fireEvent.touchEnd(window, { changedTouches: [{ clientX: 300 }] });
+    expect(onRangeSelect).toHaveBeenCalled();
+
+    // Обратный drag касанием
+    fireEvent.touchStart(svg, { touches: [{ clientX: 350 }] });
+    fireEvent.touchMove(window, { touches: [{ clientX: 100 }] });
+    fireEvent.touchEnd(window, { changedTouches: [{ clientX: 100 }] });
+    expect(onRangeSelect).toHaveBeenCalledTimes(2);
+
+    // Малое смещение (< 4px) не вызывает onRangeSelect (клик)
+    onRangeSelect.mockClear();
+    fireEvent.touchStart(svg, { touches: [{ clientX: 100 }] });
+    fireEvent.touchMove(window, { touches: [{ clientX: 102 }] });
+    fireEvent.touchEnd(window, { changedTouches: [{ clientX: 102 }] });
+    expect(onRangeSelect).not.toHaveBeenCalled();
+
+    // touchCancel сбрасывает состояние перетаскивания
+    fireEvent.touchStart(svg, { touches: [{ clientX: 100 }] });
+    fireEvent.touchMove(window, { touches: [{ clientX: 250 }] });
+    expect(container.querySelector('.chart-selection-box')).toBeTruthy();
+    fireEvent.touchCancel(window);
+    expect(container.querySelector('.chart-selection-box')).toBeNull();
+  });
 });

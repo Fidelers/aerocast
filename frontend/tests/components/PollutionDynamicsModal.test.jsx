@@ -860,4 +860,107 @@ describe('PollutionDynamicsModal component (поверхностное окно 
         );
         expect(screen.getAllByText('–').length).toBeGreaterThan(0);
     });
+
+    it('39. На мобильных устройствах (width <= 768px) при клике или нажатии клавиши на побочный график перебрасывает вверх к основному графику', () => {
+        const originalInnerWidth = window.innerWidth;
+        window.innerWidth = 414;
+
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={12}
+            />
+        );
+
+        const mainChart = container.querySelector('.dynamics-modal-main-chart');
+        const scrollIntoViewMock = vi.fn();
+        mainChart.scrollIntoView = scrollIntoViewMock;
+
+        const pm25Card = screen.getByTestId('pollutant-card-pm2_5');
+        fireEvent.click(pm25Card);
+
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({
+            behavior: 'smooth',
+            block: 'start',
+        });
+
+        // Клавиатура Enter
+        scrollIntoViewMock.mockClear();
+        const no2Card = screen.getByTestId('pollutant-card-nitrogen_dioxide');
+        fireEvent.keyDown(no2Card, { key: 'Enter' });
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({
+            behavior: 'smooth',
+            block: 'start',
+        });
+
+        window.innerWidth = originalInnerWidth;
+    });
+
+    it('40. На десктопе (width > 768px) при клике на побочный график скролл вверх НЕ вызывается', () => {
+        const originalInnerWidth = window.innerWidth;
+        window.innerWidth = 1200;
+
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={12}
+            />
+        );
+
+        const mainChart = container.querySelector('.dynamics-modal-main-chart');
+        const scrollIntoViewMock = vi.fn();
+        mainChart.scrollIntoView = scrollIntoViewMock;
+
+        const pm10Card = screen.getByTestId('pollutant-card-pm10');
+        fireEvent.click(pm10Card);
+
+        expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+        window.innerWidth = originalInnerWidth;
+    });
+
+    it('41. Поддерживает выбор диапазона жестом касания на мобильных устройствах в модальном окне', () => {
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={mockAirData}
+                selectedTimeIndex={38}
+            />
+        );
+
+        const allDaysBtn = screen.getByRole('button', { name: /все дни/i });
+        fireEvent.click(allDaysBtn);
+
+        const svg = container.querySelector('.dynamics-modal-main-chart svg');
+        expect(svg).toBeTruthy();
+
+        vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+            left: 0,
+            top: 0,
+            width: 720,
+            height: 220,
+            right: 720,
+            bottom: 220,
+        });
+
+        fireEvent.touchStart(svg, { touches: [{ clientX: 100 }] });
+        fireEvent.touchMove(window, { touches: [{ clientX: 400 }] });
+
+        const selectionBox = container.querySelector('.chart-selection-box');
+        expect(selectionBox).toBeTruthy();
+
+        fireEvent.touchEnd(window, { changedTouches: [{ clientX: 400 }] });
+
+        const resetBtn = screen.getByTestId('reset-range-btn');
+        expect(resetBtn).toBeTruthy();
+        expect(resetBtn.textContent).toMatch(/сбросить до обычного/i);
+
+        fireEvent.click(resetBtn);
+        expect(screen.queryByTestId('reset-range-btn')).toBeNull();
+    });
 });
