@@ -113,7 +113,7 @@ aerocast/
 │   │   │   ├── russiaBoundary2026.js       # Ray-Casting маска границы РФ 2026 года (антимеридиан 180°)
 │   │   │   └── timeUtils.js                # Синхронизация времени ISO-8601 (Europe/Moscow)
 │   │   ├── App.jsx                         # Корневой координатор состояния и окон
-│   │   └── types.js                        # Шкала EAQI, градации уровней, палитры дальтонизма
+│   │   └── types.js                        # Шкала EAQI, градации уровней, палитры цветовой слепоты
 │   ├── tests/                              # 40 тестовых сьютов Vitest (932 теста, 100% PASS)
 │   ├── vite.config.js
 │   └── package.json
@@ -739,7 +739,7 @@ npm run test:coverage  # формирование HTML/v8 отчета о пок
 
 ### 3. Сквозная оценка качества и задержек ИИ (E2E Eval Suite — 255 сценариев):
 ```bash
-# Проверка только System 1 (Jev-Style: Guardrails, темы, карта, дальтонизм — 95 тестов):
+# Проверка только System 1 (Jev-Style: Guardrails, темы, карта, цветовой слепоты — 95 тестов):
 npm run test:eval:jev --prefix server
 
 # Проверка только System 2 (Gemma 4: Метеоаналитика, персонаж Аи, навигация — 160 тестов):
