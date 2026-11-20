@@ -652,38 +652,38 @@ h2 {
 
 
 .day-card--today {
-  border: 2px solid #84cc16;
-  background-color: #f7fee7;
+  border: 1.5px solid #10b981;
+  background-color: #f0fdf4;
   box-sizing: border-box;
 }
 
 .day-card--today .day-card__label {
-  color: #4d7c0f;
+  color: #047857;
   font-weight: 600;
 }
 
 .day-card--today .day-card__num {
-  color: #365314;
-  font-weight: 700;
+  color: var(--text-h);
+  font-weight: 600;
 }
 
 .day-card--today .day-card__extra {
-  color: #65a30d;
-  font-weight: 700;
+  color: #059669;
+  font-weight: 600;
 }
 
 .day-card--today:hover {
-  border-color: #65a30d;
-  background-color: #ecfccb;
+  border-color: #059669;
+  background-color: #ecfdf5;
   transform: translateY(-1px);
 }
 
 .day-card--today.day-card--active,
 .day-card--today.day-card--forecast.day-card--active {
-  background: #65a30d;
-  border-color: #4d7c0f;
-  border-width: 2.5px;
-  box-shadow: 0 0 0 1px #4d7c0f, 0 2px 6px rgba(101, 163, 13, 0.4);
+  background: #059669;
+  border-color: #047857;
+  border-width: 1.5px;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
 }
 
 .day-card--today.day-card--active .day-card__label,
@@ -697,37 +697,37 @@ h2 {
 
 .day-card--today.day-card--active:hover,
 .day-card--today.day-card--forecast.day-card--active:hover {
-  background: #4d7c0f;
-  border-color: #365314;
+  background: #047857;
+  border-color: #065f46;
 }
 
 [data-theme="dark"] .day-card--today {
-  border-color: #a3e635;
-  background-color: rgba(163, 230, 53, 0.16);
+  border-color: rgba(16, 185, 129, 0.55);
+  background-color: rgba(16, 185, 129, 0.1);
 }
 
 [data-theme="dark"] .day-card--today .day-card__label {
-  color: #d9f99d;
+  color: #6ee7b7;
 }
 
 [data-theme="dark"] .day-card--today .day-card__num {
-  color: #bef264;
+  color: var(--text-h);
 }
 
 [data-theme="dark"] .day-card--today .day-card__extra {
-  color: #a3e635;
+  color: #34d399;
 }
 
 [data-theme="dark"] .day-card--today:hover {
-  border-color: #bef264;
-  background-color: rgba(163, 230, 53, 0.25);
+  border-color: #34d399;
+  background-color: rgba(16, 185, 129, 0.18);
 }
 
 [data-theme="dark"] .day-card--today.day-card--active,
 [data-theme="dark"] .day-card--today.day-card--forecast.day-card--active {
-  background: #4d7c0f;
-  border-color: #a3e635;
-  box-shadow: 0 0 0 1px #a3e635, 0 2px 6px rgba(163, 230, 53, 0.35);
+  background: #059669;
+  border-color: #34d399;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
 }
 
 .date-nav__now-btn {
@@ -740,10 +740,10 @@ h2 {
   margin-top: 8px;
   padding: 0 10px;
   box-sizing: border-box;
-  background-color: rgba(132, 204, 22, 0.08);
-  border: 1px solid rgba(101, 163, 13, 0.45);
+  background-color: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.35);
   border-radius: 5px;
-  color: #365314;
+  color: #065f46;
   font-family: var(--inter, sans-serif);
   font-size: 12.5px;
   font-weight: 500;
@@ -753,51 +753,51 @@ h2 {
 }
 
 .date-nav__now-btn:hover {
-  background-color: rgba(132, 204, 22, 0.18);
-  border-color: #65a30d;
-  color: #1a2e05;
+  background-color: rgba(16, 185, 129, 0.12);
+  border-color: #059669;
+  color: #047857;
 }
 
 [data-theme="dark"] .date-nav__now-btn {
-  background-color: rgba(163, 230, 53, 0.12);
-  border-color: rgba(163, 230, 53, 0.4);
-  color: #ecfccb;
+  background-color: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
 }
 
 [data-theme="dark"] .date-nav__now-btn:hover {
-  background-color: rgba(163, 230, 53, 0.22);
-  border-color: #bef264;
+  background-color: rgba(16, 185, 129, 0.16);
+  border-color: #34d399;
   color: #ffffff;
 }
 
 .date-nav__now-btn--active {
-  border-color: #65a30d;
+  border-color: #059669;
   border-width: 1.5px;
-  background-color: rgba(132, 204, 22, 0.18);
+  background-color: rgba(16, 185, 129, 0.15);
   font-weight: 600;
-  color: #1a2e05;
+  color: #064e3b;
 }
 
 [data-theme="dark"] .date-nav__now-btn--active {
-  border-color: #a3e635;
-  background-color: rgba(163, 230, 53, 0.22);
-  color: #f7fee7;
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.18);
+  color: #f0fdf4;
 }
 
 .date-nav__now-icon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #65a30d;
+  color: #059669;
   transition: color 0.2s ease;
 }
 
 [data-theme="dark"] .date-nav__now-icon {
-  color: #a3e635;
+  color: #34d399;
 }
 
 .date-nav__now-btn:focus-visible {
-  box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.35);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
   outline: none;
 }
 
@@ -1150,11 +1150,11 @@ h2 {
   }
 
   .day-card--today {
-    border-width: 2.5px;
+    border-width: 1.5px;
   }
 
   .day-card--today.day-card--active {
-    border-width: 3px;
+    border-width: 1.5px;
   }
 
 
@@ -1681,44 +1681,44 @@ h2 {
 
 
 .time--now {
-  border: 2px solid #84cc16;
-  background-color: #f7fee7;
+  border: 1.5px solid #10b981;
+  background-color: #f0fdf4;
   box-sizing: border-box;
-  color: #365314;
-  font-weight: 700;
+  color: #065f46;
+  font-weight: 600;
 }
 
 .time--now:hover {
-  border-color: #65a30d;
-  background-color: #ecfccb;
+  border-color: #059669;
+  background-color: #ecfdf5;
   transform: translateY(-1px);
 }
 
 .time--now.time--active,
 .time--now.time--active:hover {
-  background: #65a30d;
-  border-color: #4d7c0f;
-  border-width: 2.5px;
+  background: #059669;
+  border-color: #047857;
+  border-width: 1.5px;
   color: #ffffff;
-  box-shadow: 0 0 0 1px #4d7c0f, 0 2px 6px rgba(101, 163, 13, 0.4);
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
 }
 
 
 [data-theme="dark"] .time--now {
-  border-color: #a3e635;
-  background-color: rgba(163, 230, 53, 0.16);
-  color: #bef264;
+  border-color: rgba(16, 185, 129, 0.55);
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #a7f3d0;
 }
 
 [data-theme="dark"] .time--now:hover {
-  border-color: #bef264;
-  background-color: rgba(163, 230, 53, 0.25);
+  border-color: #34d399;
+  background-color: rgba(16, 185, 129, 0.18);
 }
 
 [data-theme="dark"] .time--now.time--active,
 [data-theme="dark"] .time--now.time--active:hover {
-  background: #4d7c0f;
-  border-color: #a3e635;
+  background: #059669;
+  border-color: #34d399;
   color: #ffffff;
-  box-shadow: 0 0 0 1px #a3e635, 0 2px 6px rgba(163, 230, 53, 0.35);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
 }
