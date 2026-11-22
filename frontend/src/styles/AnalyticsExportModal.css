@@ -808,3 +808,71 @@
   color: #fca5a5;
   border-color: #7f1d1d;
 }
+
+@media (max-width: 768px) {
+  .export-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .export-modal-content {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+    max-height: 90dvh;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  }
+
+  .export-modal-header {
+    padding: 16px 18px 12px;
+  }
+
+  .export-modal-body {
+    padding: 16px 18px;
+    gap: 16px;
+  }
+
+  .export-modal-footer {
+    padding: 12px 18px;
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .export-footer-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .export-btn {
+    flex: 1;
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+
+  .export-footer-status {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1920px) {
+  .export-modal-content {
+    max-width: 960px;
+  }
+
+  .export-modal-header {
+    padding: 24px 30px 20px;
+  }
+
+  .export-modal-body {
+    padding: 24px 30px;
+    gap: 24px;
+  }
+
+  .export-modal-footer {
+    padding: 20px 30px;
+  }
+}
+

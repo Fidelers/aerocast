@@ -8,6 +8,9 @@
   user-select: none;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 0;
 }
 
 .aya-mascot:focus-visible {
@@ -20,18 +23,25 @@
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  padding: 8px 0 0 0;
+  padding: 4px 0 0 0;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 0;
 }
 
 .aya-mascot--sidebar .aya-bubble {
   margin-bottom: 4px;
   max-width: 92%;
+  line-height: 1.35;
 }
 
 .aya-mascot--sidebar .aya-character {
   width: 100%;
   height: 200px;
   overflow: visible;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 0;
 }
 
 .aya-mascot--header {
@@ -137,6 +147,9 @@
 .aya-character {
   position: relative;
   width: 100%;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 0;
 }
 
 .aya-character__glow {
@@ -159,7 +172,7 @@
 
 .aya-canvas {
   position: absolute;
-  bottom: 0;
+  bottom: 0 !important;
   left: 50%;
   transform: translateX(-50%);
   width: 100% !important;

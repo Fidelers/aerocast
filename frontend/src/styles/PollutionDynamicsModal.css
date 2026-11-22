@@ -577,6 +577,35 @@
   color: #60a5fa;
 }
 
+@media (max-width: 768px) {
+  .dynamics-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .dynamics-modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    max-height: 92dvh;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  }
+
+  .dynamics-modal-header {
+    padding: 14px 16px;
+  }
+
+  .dynamics-modal-header h2 {
+    font-size: 17px;
+  }
+
+  .dynamics-modal-main-chart,
+  .dynamics-modal-pollutants-grid {
+    padding: 14px 12px;
+  }
+}
+
 @media (max-width: 640px) {
   .dynamics-drag-hint {
     margin-left: 0;
@@ -589,3 +618,19 @@
     padding: 8px 12px;
   }
 }
+
+@media (min-width: 1920px) {
+  .dynamics-modal-content {
+    max-width: 1400px;
+  }
+
+  .dynamics-modal-header {
+    padding: 24px 32px;
+  }
+
+  .dynamics-modal-main-chart,
+  .dynamics-modal-pollutants-grid {
+    padding: 32px;
+  }
+}
+

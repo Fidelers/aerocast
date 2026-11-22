@@ -214,6 +214,7 @@ h2 {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.25) transparent;
+  padding-bottom: 0 !important;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -1170,7 +1171,7 @@ h2 {
 
   @media (min-height: 1000px) {
     .sidebar {
-      padding-bottom: 24px;
+      padding-bottom: 0 !important;
     }
 
     .city-search,
@@ -1183,7 +1184,8 @@ h2 {
 
     .sidebar-mascot-container {
       margin-top: auto;
-      padding-bottom: 12px;
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
     }
   }
 }
@@ -1302,7 +1304,8 @@ h2 {
   }
 
   .sidebar-mascot-container {
-    padding-bottom: 4px;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
   }
 }
 
@@ -1420,7 +1423,8 @@ h2 {
   }
 
   .sidebar-mascot-container {
-    padding-bottom: 8px;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
   }
 }
 
@@ -1457,7 +1461,7 @@ h2 {
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
     padding-top: max(0px, env(safe-area-inset-top, 0px));
-    padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    padding-bottom: 0 !important;
     will-change: transform;
     touch-action: pan-y;
   }

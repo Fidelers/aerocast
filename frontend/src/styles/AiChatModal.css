@@ -465,8 +465,11 @@
   justify-content: flex-end;
   width: 100%;
   margin-top: auto;
-  padding: 0;              /* убираем боковые отступы, чтобы маскот стоял по ширине панели */
+  margin-bottom: 0 !important;
+  padding: 0 !important;
   overflow: visible;
+  line-height: 0;
+  flex-shrink: 0;
 }
 
 .ai-chat-embedded-layout {
@@ -1039,8 +1042,9 @@
   }
 
   .sidebar-mascot-container {
-    margin-top: 8px;
-    padding: 0 8px max(14px, env(safe-area-inset-bottom, 14px)) 8px;
+    margin-top: auto;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
   }
 
   .ai-chat-embedded-layout {
@@ -1201,7 +1205,8 @@
   }
 
   .sidebar-mascot-container {
-    padding: 0 12px 14px 12px;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
   }
 
   .ai-chat-embedded-layout {

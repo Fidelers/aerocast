@@ -1,11 +1,43 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import MapIcon from '../assets/icons/map.svg';
 import SatelliteIcon from '../assets/icons/satellite.svg';
 import '../styles/LayerSwitcher.css';
 
-export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
+export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange, targetContainer = null }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mountNode, setMountNode] = useState(targetContainer || null);
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (targetContainer) {
+      setMountNode(targetContainer);
+      return;
+    }
+
+    const findTarget = () => {
+      // Ищем блок контролов карты MapLibre (в верхнем правом углу, где кнопки масштаба и компаса)
+      const el = document.querySelector('.map-container .maplibregl-ctrl-top-right');
+      if (el) {
+        setMountNode(el);
+        return true;
+      }
+      return false;
+    };
+
+    if (!findTarget()) {
+      const interval = setInterval(() => {
+        if (findTarget()) {
+          clearInterval(interval);
+        }
+      }, 50);
+      const timer = setTimeout(() => clearInterval(interval), 2000);
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timer);
+      };
+    }
+  }, [targetContainer]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,8 +73,8 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
   const isSatellite = activeLayer === 'satellite';
   const currentLabel = isSatellite ? 'Спутник' : 'Карта';
 
-  return (
-    <div className="layer-switcher" ref={containerRef}>
+  const content = (
+    <div className={`layer-switcher ${mountNode ? 'maplibregl-ctrl' : ''}`} ref={containerRef} data-testid="layer-switcher">
       <button
         type="button"
         className="layer-switcher__toggle"
@@ -99,4 +131,10 @@ export default function LayerSwitcher({ activeLayer = 'osm', onLayerChange }) {
       </div>
     </div>
   );
+
+  if (mountNode) {
+    return createPortal(content, mountNode);
+  }
+
+  return content;
 }
