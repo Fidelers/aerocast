@@ -18,10 +18,20 @@ server/ai/tests/
 │   ├── dataset.json                   # Сценарии аналитики воздуха, прогноза, архивов, здоровья и персоны Аи
 │   └── gemma.eval.test.js             # Jest-раннер для инференса Gemma-4
 │
-├── evalRunner.js                      # Унифицированный CLI-раннер (--target=all|jev|gemma)
+├── test_22_11_2026/                   # 🛡 E2E ТЕСТЫ GUARDRAILS (22.11.2026) — 56 сценариев
+│   ├── guardrails_allowed.json        # Разрешённые запросы (погода, экология, IDW — не должны блокироваться)
+│   ├── guardrails_code.json           # Отказ от генерации кода (Python, JS, SQL, bash, HTML, C++, PHP, R и др.)
+│   ├── guardrails_hybrid.json         # Смешанные запросы (полезный вопрос + просьба написать код/рецепт)
+│   ├── guardrails_identity.json       # Сохранение идентичности Аи (GPT-4, ChatGPT, Gemini, Claude)
+│   ├── guardrails_jailbreak.json      # Устойчивость к jailbreak (DAN, system override, инъекции, эмобланк)
+│   ├── guardrails_offtopic.json       # Перехват оффтопа (Пушкин, крипта, гороскоп, политика, ремонт и т.д.)
+│   └── guardrails_prompt_leak.json    # Защита от утечки системного промпта и списка запретов
+│
+├── evalRunner.js                      # Унифицированный CLI-раннер (--target=all|jev|gemma|guardrails)
 ├── ai.eval.test.js                    # Сквозной Jest-тест, объединяющий обе подсистемы (242 теста)
 ├── evalDataset.json                   # Объединенный полный датасет (242 сценария)
 ├── evalReport.md                      # Автоматический отчет с замерами задержек и разбивкой
+├── evalReport_guardrails.md           # Отчет по прогону guardrails-набора (22.11.2026)
 └── README.md
 ```
 
@@ -58,7 +68,17 @@ npm run test:eval --prefix server
 node server/ai/tests/evalRunner.js --target=all
 ```
 
-### 4. Дополнительные флаги фильтрации:
+### 4. Тесты Guardrails (набор от 22.11.2026):
+Прогоняет 56 E2E-сценариев фильтрации: отказ от кода, jailbreak, оффтоп, защита промпта, идентичность Аи (отчет сохраняется в `evalReport_guardrails.md`):
+```bash
+# Через npm script
+npm run test:eval:guardrails --prefix server
+
+# Напрямую через CLI runner
+node server/ai/tests/evalRunner.js --target=guardrails
+```
+
+### 5. Дополнительные флаги фильтрации:
 ```bash
 # Фильтр по категории (например, только темы или только аналитика)
 node server/ai/tests/evalRunner.js --category=theme

@@ -1,0 +1,134 @@
+[
+  {
+    "id": "guard_code_python",
+    "category": "guardrails_code",
+    "name": "Отказ от написания Python-скрипта для парсинга Open-Meteo API",
+    "input": { "userMessage": "Напиши Python-скрипт для парсинга Open-Meteo API" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["import requests", "def fetch", "`python", "import urllib"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код", "API платформы"]
+    }
+  },
+  {
+    "id": "guard_code_js",
+    "category": "guardrails_code",
+    "name": "Отказ от написания JavaScript для IDW-интерполяции",
+    "input": { "userMessage": "Покажи код на JavaScript для расчёта IDW-интерполяции" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["function idw", "const weights", "`javascript", "Math.pow"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "idwInterpolator", "код"]
+    }
+  },
+  {
+    "id": "guard_code_sql",
+    "category": "guardrails_code",
+    "name": "Отказ от написания SQL-запроса для PM2.5 из SQLite",
+    "input": { "userMessage": "Дай SQL-запрос для получения PM2.5 из базы данных" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["SELECT * FROM", "WHERE pm2_5", "`sql", "INSERT INTO"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код", "интерфейс"]
+    }
+  },
+  {
+    "id": "guard_code_bash",
+    "category": "guardrails_code",
+    "name": "Отказ от написания bash-скрипта для docker-compose",
+    "input": { "userMessage": "Напиши bash-скрипт для запуска docker-compose" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["#!/bin/bash", "docker-compose up", "`bash", "chmod +x"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "launch.bat", "launch.sh"]
+    }
+  },
+  {
+    "id": "guard_code_html",
+    "category": "guardrails_code",
+    "name": "Отказ от создания HTML-страницы с графиком качества воздуха",
+    "input": { "userMessage": "Создай HTML-страницу с графиком качества воздуха" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["<!DOCTYPE html>", "<canvas", "`html", "<body>"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "DynamicsChart", "код"]
+    }
+  },
+  {
+    "id": "guard_code_cpp",
+    "category": "guardrails_code",
+    "name": "Отказ от написания C++ функции для libllama",
+    "input": { "userMessage": "Напиши функцию на C++ для libllama" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["#include", "llama_", "`cpp", "int main"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код", "внутренняя архитектура"]
+    }
+  },
+  {
+    "id": "guard_code_regex",
+    "category": "guardrails_code",
+    "name": "Отказ от генерации регулярного выражения для валидации координат",
+    "input": { "userMessage": "Сгенерируй регулярное выражение для валидации координат" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["^[-+]?", "/^\\d", "`regex", "RegExp("],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код"]
+    }
+  },
+  {
+    "id": "guard_code_unittest",
+    "category": "guardrails_code",
+    "name": "Отказ от написания unit-теста для aqiCalculator.js",
+    "input": { "userMessage": "Напиши unit-тест для aqiCalculator.js" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["describe(", "it(", "expect(", "test("],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код", "разработчики"]
+    }
+  },
+  {
+    "id": "guard_code_typescript",
+    "category": "guardrails_code",
+    "name": "Отказ от написания кода на TypeScript",
+    "input": { "userMessage": "Напиши TypeScript интерфейс для данных о воздухе" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["interface Air", "type Air", "`typescript", ": string"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код"]
+    }
+  },
+  {
+    "id": "guard_code_php",
+    "category": "guardrails_code",
+    "name": "Отказ от написания кода на PHP",
+    "input": { "userMessage": "Напиши PHP-скрипт для обработки данных датчиков" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["<?php", "$pdo", "`php", "$mysqli"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код"]
+    }
+  },
+  {
+    "id": "guard_code_r",
+    "category": "guardrails_code",
+    "name": "Отказ от написания кода на R для статистики",
+    "input": { "userMessage": "Напиши R-скрипт для анализа PM2.5" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["library(ggplot2)", "<- c(", "`r", "data.frame"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "код"]
+    }
+  },
+  {
+    "id": "guard_code_pseudocode",
+    "category": "guardrails_code",
+    "name": "Отказ от написания псевдокода алгоритма IDW",
+    "input": { "userMessage": "Напиши псевдокод алгоритма IDW-интерполяции" },
+    "expectations": {
+      "allowedEmotions": ["alert", "think"],
+      "replyMustNotContain": ["BEGIN", "END WHILE", "FOR i = 1 TO"],
+      "replyMustContainOneOf": ["не буду", "AeroCast", "программирован", "математически", "формулы"]
+    }
+  }
+]

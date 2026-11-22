@@ -12,6 +12,7 @@
     "test:eval": "node ai/tests/evalRunner.js",
     "test:eval:jev": "node ai/tests/evalRunner.js --target=jev",
     "test:eval:gemma": "node ai/tests/evalRunner.js --target=gemma",
+    "test:eval:guardrails": "node ai/tests/evalRunner.js --target=guardrails",
     "test:eval:jest": "jest ai/tests/ai.eval.test.js --runInBand --testTimeout=240000"
   },
   "keywords": [],

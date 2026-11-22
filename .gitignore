@@ -48,6 +48,7 @@ frontend.log
 .frontend.pid
 *.pid
 evalReport.md
+evalReport_guardrails.md
 server/ai/tests/evalReport.md
 
 .idea/

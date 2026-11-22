@@ -12,12 +12,16 @@ const aiService = require('../services/aiService');
 const JEV_DATASET_PATH = path.resolve(__dirname, 'jev/dataset.json');
 const GEMMA_DATASET_PATH = path.resolve(__dirname, 'gemma/dataset.json');
 const LEGACY_DATASET_PATH = path.resolve(__dirname, 'evalDataset.json');
+const GUARDRAILS_DATASET_DIR = path.resolve(__dirname, 'test_22_11_2026');
 const REPORT_PATH = path.resolve(__dirname, 'evalReport.md');
+const GUARDRAILS_REPORT_PATH = path.resolve(__dirname, 'evalReport_guardrails.md');
+
+const VALID_TARGETS = ['all', 'jev', 'gemma', 'guardrails'];
 
 // Парсинг CLI-аргументов
 const args = process.argv.slice(2);
 const cliOptions = {
-    target: 'all', // 'all' | 'jev' | 'gemma'
+    target: 'all', // 'all' | 'jev' | 'gemma' | 'guardrails'
     category: null,
     filter: null,
     id: null,
@@ -100,10 +104,21 @@ function loadDataset(target) {
         return [];
     };
 
+    // Загрузка всех *.json из директории набора guardrails
+    const loadJsonDir = (dirPath, subSystem) => {
+        if (!fs.existsSync(dirPath)) return [];
+        const files = fs.readdirSync(dirPath)
+            .filter(f => f.toLowerCase().endsWith('.json'))
+            .sort();
+        return files.flatMap(f => loadJson(path.join(dirPath, f), subSystem));
+    };
+
     if (target === 'jev') {
         cases = loadJson(JEV_DATASET_PATH, 'System 1 (Jev-Style)');
     } else if (target === 'gemma') {
         cases = loadJson(GEMMA_DATASET_PATH, 'System 2 (Gemma-4)');
+    } else if (target === 'guardrails') {
+        cases = loadJsonDir(GUARDRAILS_DATASET_DIR, 'Guardrails (22.11.2026)');
     } else {
         const jevCases = loadJson(JEV_DATASET_PATH, 'System 1 (Jev-Style)');
         const gemmaCases = loadJson(GEMMA_DATASET_PATH, 'System 2 (Gemma-4)');
@@ -296,6 +311,12 @@ async function run() {
     console.log('='.repeat(75) + '\n');
 
     const target = cliOptions.target;
+
+    if (!VALID_TARGETS.includes(target)) {
+        console.error(`Неизвестный таргет "${target}". Допустимые значения: ${VALID_TARGETS.join(', ')}`);
+        process.exit(1);
+    }
+
     let testCases = loadDataset(target);
 
     if (testCases.length === 0) {
@@ -338,12 +359,15 @@ async function run() {
         aiConfig.baseURL = gemmaUrl;
         console.log(`✅ System 2 (Gemma-4) активен: ${gemmaUrl} (${aiConfig.model})`);
     } else {
-        const needsGemma = target === 'all' || target === 'gemma';
+        const needsGemma = target === 'all' || target === 'gemma' || target === 'guardrails';
         if (needsGemma) {
             console.log(`⚠️ llama-server оффлайн. Ответы System 2 будут эмулироваться fallback'ом.`);
             if (target === 'gemma') {
                 console.log('Для запуска тестов Gemma поднимите контейнер: docker compose up llama-server');
                 process.exit(1);
+            }
+            if (target === 'guardrails') {
+                console.log('Для прогонки guardrails-тестов в полном объёме поднимите контейнеры: docker compose up jev-service llama-server');
             }
         }
     }
@@ -355,8 +379,10 @@ async function run() {
 
     for (let i = 0; i < testCases.length; i++) {
         const tc = testCases[i];
-        const sub = tc.subSystem ? `[${tc.subSystem.includes('Jev') ? 'JEV' : 'GEMMA'}]` : '';
-        process.stdout.write(`[${i + 1}/${testCases.length}] ${sub} [${tc.category}] ${tc.id}: ${tc.name}... `);
+        const subSystemTag = tc.subSystem
+            ? (tc.subSystem.includes('Jev') ? 'JEV' : (tc.subSystem.includes('Guardrails') ? 'GUARD' : 'GEMMA'))
+            : '';
+        process.stdout.write(`[${i + 1}/${testCases.length}] ${subSystemTag ? `[${subSystemTag}]` : ''} [${tc.category}] ${tc.id}: ${tc.name}... `);
 
         const promptStart = Date.now();
         let result;
@@ -462,8 +488,9 @@ async function run() {
             jevStatus,
             target
         });
-        fs.writeFileSync(REPORT_PATH, mdReport, 'utf8');
-        console.log(`\n📄 Детальный отчет сохранен в: ${REPORT_PATH}`);
+        const reportPath = target === 'guardrails' ? GUARDRAILS_REPORT_PATH : REPORT_PATH;
+        fs.writeFileSync(reportPath, mdReport, 'utf8');
+        console.log(`\n📄 Детальный отчет сохранен в: ${reportPath}`);
     }
 
     console.log('='.repeat(75) + '\n');
