@@ -41,7 +41,7 @@ describe('System 2 (gemma-4-E2B-it-Q4_K_M) Analytics & Persona Live Evaluation',
                     const startTime = Date.now();
                     let result;
                     try {
-                        result = await aiService.sendChatMessage(tc.input);
+                        result = await aiService.sendChatMessage({ ...tc.input, history: [] });
                     } catch (err) {
                         result = {
                             reply: err.message,

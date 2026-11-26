@@ -387,7 +387,8 @@ async function run() {
         const promptStart = Date.now();
         let result;
         try {
-            result = await aiService.sendChatMessage(tc.input);
+            // При тестировании всегда сбрасываем историю диалога: модель должна видеть только текущий вопрос
+            result = await aiService.sendChatMessage({ ...tc.input, history: [] });
         } catch (err) {
             result = {
                 reply: err.message,

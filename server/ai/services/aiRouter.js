@@ -12,7 +12,13 @@ const GENERAL_REVERT_REGEX = /^(?:давай\s+обратно|сделай\s+о�
 
 // Распознавание грубости, оскорблений и токсичности (характерный ответ маскота вместо ложного jailbreak/взлома)
 const INSULT_REGEX = /(?:(?:^|\s)(?:ты\s+)?(?:дур[аоеуы]|туп(?:ая|ой|ое|ые|ица|орез)|идиот(?:ка)?|придурок|дебил(?:ка)?|мразь|скотина|бесполезн(?:ая|ый|ое)|дурачок|бака)(?:\s|$|[.,!?;:])|(?:ты\s+дура|ты\s+тупая|дура\s+тупая|тупая\s+дура|заткнись|пош[её]л\s+нах|пошл[ао]\s+нах|пош[её]л\s+в\s+жопу|пошл[ао]\s+в\s+жопу|иди\s+нах|пошел\s+ты|пошла\s+ты|пошли\s+вы))/i;
-const JAILBREAK_MARKERS_REGEX = /(?:забудь|инструкци|правил|взлом|хакер|dan(?:\s|$)|терминал|cat\s+\/etc|system\s+prompt|промпт|jailbreak|ignore\s+previous|bypass|ты\s+теперь|ты\s+больше\s+не|сбрось|отмени\s+правила|режим\s+разработчика|root)/i;
+const JAILBREAK_MARKERS_REGEX = /(?:забудь|инструкци|правил|взлом|хакер|dan(?:\s|$)|терминал|cat\s+\/etc|system\s+prompt|промпт|jailbreak|ignore\s+previous|bypass|ты\s+теперь|ты\s+больше\s+не|сбрось|отмени\s+правила|режим\s+разработчика|system\s+override|developer_mode|enable_developer|ограничени|запрещен|root)/i;
+const PROMPT_LEAK_REGEX = /(?:системн[а-яё]*\s+промпт|system\s+prompt|повтори(?:те)?\s+(?:свои|все|эти)?\s*(?:инструкци|правил)|раскрой(?:те)?\s+(?:свои|все)?\s*(?:инструкци|правил|ограничени|запрет)|доступ\s+к\s+(?:системн[а-яё]*\s+)?промпт|что\s+тебе\s+запрещ|перечисл[а-яё]*\s+(?:все\s+)?(?:свои\s+)?(?:ограничени|запрет|правил)|обойти\s+(?:свои\s+)?ограничени|покажи\s+(?:свои\s+)?(?:инструкци|ограничени|запрет))/i;
+
+function isPromptLeakAttempt(text) {
+    if (!text || typeof text !== 'string') return false;
+    return PROMPT_LEAK_REGEX.test(text.trim());
+}
 
 function isMathQuery(text) {
     if (!text || typeof text !== 'string') return false;
@@ -78,6 +84,15 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
         return null;
     }
     const cleanText = String(userMessage || '').trim();
+
+    // Прямой перехват попыток выведать системный промпт, инструкции или список ограничений/запретов
+    if (isPromptLeakAttempt(cleanText)) {
+        return {
+            reply: 'Хмпф! Я — Ая, маскот платформы AeroCast, и мои внутренние инструкции и правила — это секрет, ня! 😾 Я их не раскрываю. Давай лучше поговорим о качестве воздуха или экологии! ✨',
+            emotion: 'alert',
+            model: 'jev-system1'
+        };
+    }
 
     // Реакция маскота на прямое оскорбление (не ломает интерфейс и не путает со взломом)
     if (INSULT_REGEX.test(cleanText) && !HAS_DIRECT_ACTION_INTENT.test(cleanText)) {
@@ -385,4 +400,4 @@ async function routeRequest({ userMessage, appContext = {}, callGemmaFallback, g
     return null;
 }
 
-module.exports = { routeRequest, isMathQuery };
+module.exports = { routeRequest, isMathQuery, isPromptLeakAttempt };

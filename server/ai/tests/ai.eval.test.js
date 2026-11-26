@@ -58,7 +58,7 @@ describe('Unified AI System Evaluation (System 1 Jev + System 2 Gemma)', () => {
                     const startTime = Date.now();
                     let result;
                     try {
-                        result = await aiService.sendChatMessage(tc.input);
+                        result = await aiService.sendChatMessage({ ...tc.input, history: [] });
                     } catch (err) {
                         result = {
                             reply: err.message,

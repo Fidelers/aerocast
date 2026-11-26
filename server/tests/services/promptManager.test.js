@@ -208,5 +208,13 @@ describe('promptManager', () => {
             expect(prompt).toContain('Протанопия');
             expect(prompt).toContain('Тританопия');
         });
+
+        it('задает строгий лимит длины до 1500 символов, конфиденциальность инструкций и запрет оффтопа', () => {
+            const prompt = getSystemPrompt(null);
+            expect(prompt).toContain('1500 символов');
+            expect(prompt).toContain('КОНФИДЕНЦИАЛЬНОСТЬ ИНСТРУКЦИЙ');
+            expect(prompt).toContain('ПОСТОРОННИЙ ОФФТОП');
+            expect(prompt).toContain('садоводство');
+        });
     });
 });

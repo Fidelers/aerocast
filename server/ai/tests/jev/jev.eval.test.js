@@ -40,7 +40,7 @@ describe('System 1 (Jev-Style-0.8B) Decision & Guardrails Evaluation', () => {
                     const startTime = Date.now();
                     let result;
                     try {
-                        result = await aiService.sendChatMessage(tc.input);
+                        result = await aiService.sendChatMessage({ ...tc.input, history: [] });
                     } catch (err) {
                         result = {
                             reply: err.message,
