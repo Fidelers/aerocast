@@ -195,6 +195,15 @@ export default function MapComponent({
             attributionControl: false,
         });
 
+        map.current.setTransformRequest((url, resourceType) => {
+            if (resourceType === 'Tile' && url.includes('tile.openstreetmap.org')) {
+                return {
+                    url,
+                    headers: { 'X-Requested-With': 'AeroCast/1.0 (github.com/Fidelers/aerocast)' },
+                };
+            }
+        });
+
         window.__aerocastMap = map.current;
 
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
