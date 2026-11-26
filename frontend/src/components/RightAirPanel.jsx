@@ -111,11 +111,6 @@ export default function RightAirPanel({
     const isCloseBtn = target?.closest?.('.panel-header__close-btn');
     if (isCloseBtn) return;
 
-    // С мыши / тачпада на ноутбуках перетаскивание разрешено ТОЛЬКО при целенаправленном захвате хэндла
-    if (pointerType === 'mouse' && !target?.closest?.('.panel-drag-handle')) {
-      return;
-    }
-
     const isHandle = !!target?.closest?.('.panel-drag-handle');
     const isHeader = !!target?.closest?.('.panel-header');
     const isMeta = !!target?.closest?.('.panel-meta');
@@ -128,16 +123,12 @@ export default function RightAirPanel({
     dragPointerTypeRef.current = pointerType;
 
     // Снимаем блокировку CSS-анимацией, чтобы inline transform беспрепятственно управлял панелью
-    if (panelRef.current) {
-      panelRef.current.style.animation = 'none';
-    }
+    panelRef.current.style.animation = 'none';
 
     if (isHandle || isHeader || isMeta) {
       isDraggingRef.current = true;
-      if (panelRef.current) {
-        panelRef.current.classList.add('right-air-panel--dragging');
-        panelRef.current.style.transition = 'none';
-      }
+      panelRef.current.classList.add('right-air-panel--dragging');
+      panelRef.current.style.transition = 'none';
     } else {
       isDraggingRef.current = false;
     }
@@ -149,45 +140,36 @@ export default function RightAirPanel({
     const deltaX = clientX - dragStartXRef.current;
 
     if (!isDraggingRef.current) {
-      // Для указателя мыши/тачпада запрещаем автозахват из контента
-      if (dragPointerTypeRef.current === 'mouse') {
-        return;
-      }
       const panel = panelRef.current;
-      const isAtTop = panel ? panel.scrollTop <= 0 : true;
+      const isAtTop = panel.scrollTop <= 0;
       if (isAtTop && deltaY > 4 && Math.abs(deltaY) > Math.abs(deltaX)) {
         isDraggingRef.current = true;
         dragStartYRef.current = clientY;
-        if (panel) {
-          panel.style.animation = 'none';
-          panel.classList.add('right-air-panel--dragging');
-          panel.style.transition = 'none';
-        }
+        panel.style.animation = 'none';
+        panel.classList.add('right-air-panel--dragging');
+        panel.style.transition = 'none';
       } else {
         return;
       }
     }
 
-    if (isDraggingRef.current) {
-      if (e?.cancelable && deltaY > 0) {
-        e.preventDefault?.();
-      }
-      didDragRef.current = true;
-      const panel = panelRef.current;
-      if (!panel) return;
-
-      let translateY = 0;
-      if (deltaY > 0) {
-        translateY = deltaY;
-      } else {
-        // Резиновое сопротивление при попытке тянуть вверх
-        translateY = deltaY * 0.15;
-      }
-
-      currentTranslateYRef.current = translateY;
-      panel.style.animation = 'none';
-      panel.style.transform = `translateY(${translateY}px)`;
+    if (e?.cancelable && deltaY > 0) {
+      e.preventDefault?.();
     }
+    didDragRef.current = true;
+    const panel = panelRef.current;
+
+    let translateY = 0;
+    if (deltaY > 0) {
+      translateY = deltaY;
+    } else {
+      // Резиновое сопротивление при попытке тянуть вверх
+      translateY = deltaY * 0.15;
+    }
+
+    currentTranslateYRef.current = translateY;
+    panel.style.animation = 'none';
+    panel.style.transform = `translateY(${translateY}px)`;
   }, []);
 
   const endDrag = useCallback(() => {
@@ -198,8 +180,6 @@ export default function RightAirPanel({
     isDraggingRef.current = false;
 
     const panel = panelRef.current;
-    if (!panel) return;
-
     panel.classList.remove('right-air-panel--dragging');
 
     const deltaY = currentTranslateYRef.current;
@@ -220,32 +200,28 @@ export default function RightAirPanel({
       panel.style.transform = 'translateY(100%)';
       panel.style.opacity = '0';
 
-      const timerId = setTimeout(() => {
+      setTimeout(() => {
         if (typeof onClose === 'function') {
           onClose();
         }
-        if (panel) {
-          panel.classList.remove('right-air-panel--closing');
-          panel.style.transition = '';
-          panel.style.transform = '';
-          panel.style.opacity = '';
-          panel.style.animation = '';
-        }
+        panel.classList.remove('right-air-panel--closing');
+        panel.style.transition = '';
+        panel.style.transform = '';
+        panel.style.opacity = '';
+        panel.style.animation = '';
         isClosingRef.current = false;
       }, closeDelay);
-      return () => clearTimeout(timerId);
     } else {
       panel.style.animation = 'none';
       panel.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
       panel.style.transform = 'translateY(0)';
-      const resetTimer = setTimeout(() => {
-        if (panel && !isClosingRef.current) {
+      setTimeout(() => {
+        if (!isClosingRef.current) {
           panel.style.transition = '';
           panel.style.transform = 'translateY(0)';
           // Не сбрасываем animation в пустую строку, чтобы CSS не перезапускал анимацию появления
         }
       }, 200);
-      return () => clearTimeout(resetTimer);
     }
   }, [onClose]);
 
@@ -335,7 +311,7 @@ export default function RightAirPanel({
   const aqiInfo = getAqiInfo(aqi, { colorBlind: isColorBlind, colorBlindType });
   const aqiRecommendationText = getAqiRecommendation(aqi);
 
-  const currentMeta = POLLUTANTS_METADATA[selectedKey] || POLLUTANTS_METADATA.pm2_5;
+  const currentMeta = POLLUTANTS_METADATA[selectedKey];
 
   return (
     <aside
@@ -343,9 +319,7 @@ export default function RightAirPanel({
       className="right-air-panel"
       aria-label="Детальная информация о качестве воздуха"
       onAnimationEnd={() => {
-        if (panelRef.current) {
-          panelRef.current.style.animation = 'none';
-        }
+        panelRef.current.style.animation = 'none';
       }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}

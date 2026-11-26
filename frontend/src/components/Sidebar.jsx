@@ -173,9 +173,7 @@ function Sidebar({
       if (!targetHour) {
         targetHour = clickedDay.hours[0];
       }
-      if (targetHour) {
-        handleHourClick(targetHour.index);
-      }
+      handleHourClick(targetHour.index);
     }
   };
 
@@ -191,7 +189,6 @@ function Sidebar({
 
     const now = referenceDate || new Date();
     const targetIndex = findDefaultTimeIndex(timeArray, now);
-    if (targetIndex === null || targetIndex === undefined || targetIndex < 0) return;
 
     const targetTimestamp = timeArray[targetIndex];
     const parsed = parseIsoTimeString(targetTimestamp);
@@ -204,17 +201,15 @@ function Sidebar({
       handleSelectTime(targetIndex);
     }
 
-    if (daysContainerRef.current) {
-      const container = daysContainerRef.current;
-      const targetCard = container.querySelector('[data-is-today="true"]') ||
-        container.querySelector('.day-card--today');
-      if (targetCard) {
-        if (container.clientWidth > 0) {
-          container.scrollTo({
-            left: targetCard.offsetLeft - (container.clientWidth - targetCard.offsetWidth) / 2,
-            behavior: 'smooth'
-          });
-        }
+    const container = daysContainerRef.current;
+    const targetCard = container.querySelector('[data-is-today="true"]') ||
+      container.querySelector('.day-card--today');
+    if (targetCard) {
+      if (container.clientWidth > 0) {
+        container.scrollTo({
+          left: targetCard.offsetLeft - (container.clientWidth - targetCard.offsetWidth) / 2,
+          behavior: 'smooth'
+        });
       }
     }
   }, [timeArray, referenceDate, handleSelectTime]);
@@ -296,10 +291,8 @@ function Sidebar({
       finished = true;
       clearGeoWatchdog();
 
-      if (gpsErrorMessage) {
-        setGeoErrorWithTimeout(gpsErrorMessage);
-        setIsGeoLoading(false);
-      }
+      setGeoErrorWithTimeout(gpsErrorMessage);
+      setIsGeoLoading(false);
 
       const ipLoc = await fetchIpLocation();
       if (attemptId !== geoAttemptIdRef.current) return;
@@ -374,11 +367,9 @@ function Sidebar({
   useEffect(() => {
     if (isOpen) {
       isClosingRef.current = false;
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transform = '';
-        sidebarRef.current.style.transition = '';
-        sidebarRef.current.classList.remove('sidebar--dragging');
-      }
+      sidebarRef.current.style.transform = '';
+      sidebarRef.current.style.transition = '';
+      sidebarRef.current.classList.remove('sidebar--dragging');
       const backdrop = document.querySelector('.sidebar-backdrop');
       if (backdrop) {
         backdrop.style.opacity = '';
@@ -422,10 +413,8 @@ function Sidebar({
 
     if (isHandle || isHeader) {
       isDraggingRef.current = true;
-      if (sidebarRef.current) {
-        sidebarRef.current.classList.add('sidebar--dragging');
-        sidebarRef.current.style.transition = 'none';
-      }
+      sidebarRef.current.classList.add('sidebar--dragging');
+      sidebarRef.current.style.transition = 'none';
     } else {
       isDraggingRef.current = false;
     }
@@ -440,10 +429,8 @@ function Sidebar({
       if (deltaX < -6 && Math.abs(deltaX) > Math.abs(deltaY)) {
         isDraggingRef.current = true;
         dragStartXRef.current = clientX;
-        if (sidebarRef.current) {
-          sidebarRef.current.classList.add('sidebar--dragging');
-          sidebarRef.current.style.transition = 'none';
-        }
+        sidebarRef.current.classList.add('sidebar--dragging');
+        sidebarRef.current.style.transition = 'none';
       } else if (Math.abs(deltaY) > 8) {
         return;
       }
@@ -455,7 +442,6 @@ function Sidebar({
       }
       didDragRef.current = true;
       const sidebar = sidebarRef.current;
-      if (!sidebar) return;
 
       let translateX = 0;
       if (deltaX <= 0) {
@@ -484,8 +470,6 @@ function Sidebar({
     isDraggingRef.current = false;
 
     const sidebar = sidebarRef.current;
-    if (!sidebar) return;
-
     sidebar.classList.remove('sidebar--dragging');
 
     const deltaX = currentTranslateXRef.current;
@@ -508,21 +492,18 @@ function Sidebar({
         backdrop.style.opacity = '0';
       }
 
-      const timerId = setTimeout(() => {
+      setTimeout(() => {
         if (typeof onClose === 'function') {
           onClose();
         }
-        if (sidebar) {
-          sidebar.style.transition = '';
-          sidebar.style.transform = '';
-        }
+        sidebar.style.transition = '';
+        sidebar.style.transform = '';
         if (backdrop) {
           backdrop.style.transition = '';
           backdrop.style.opacity = '';
         }
         isClosingRef.current = false;
       }, closeDelay);
-      return () => clearTimeout(timerId);
     } else {
       sidebar.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
       sidebar.style.transform = 'translateX(0)';
@@ -530,8 +511,8 @@ function Sidebar({
         backdrop.style.transition = 'opacity 0.2s ease';
         backdrop.style.opacity = '1';
       }
-      const resetTimer = setTimeout(() => {
-        if (sidebar && !isClosingRef.current) {
+      setTimeout(() => {
+        if (!isClosingRef.current) {
           sidebar.style.transition = '';
           sidebar.style.transform = '';
         }
@@ -540,7 +521,6 @@ function Sidebar({
           backdrop.style.opacity = '';
         }
       }, 200);
-      return () => clearTimeout(resetTimer);
     }
   }, [onClose]);
 

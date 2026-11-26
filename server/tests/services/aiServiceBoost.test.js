@@ -720,4 +720,194 @@ describe('aiService coverage boost', () => {
         expect(forecastFallback.reply).toContain('выбранной локации');
         expect(forecastFallback.reply).toContain('—');
     });
+
+    it('покрывает оставшиеся ветки intent/city/reply/fallback в aiService', async () => {
+        const aiConfig = require('../../ai/config/aiConfig');
+
+        expect(aiService.detectColorBlindIntent('выключи его', { isColorBlind: false, history: [] })).toBeNull();
+        expect(aiService.extractCityIntent('тёмн тема')).toBeNull();
+        expect(aiService.extractCityIntent('покажи аналитику по воздух')).toBeNull();
+        expect(aiService.extractCityIntent('в Город')).toBeNull();
+        expect(aiService.cityMatchesLocation('мск', 'Москва')).toBe(true);
+
+        geocodingService.search.mockResolvedValueOnce([{ display_name: ', Россия', lat: '55', lon: '37' }]);
+        expect((await aiService.resolveCity('ТестГород')).cityName).toBe(', Россия');
+
+        geocodingService.search.mockResolvedValueOnce([{ display_name: 'Париж, Франция', lat: '48.8', lon: '2.3' }]);
+        expect((await aiService.resolveCity('ТестПариж')).cityName).toBe('Париж, Франция');
+
+        expect(aiService.generateHistoryReply({ pastAvgAqi: 20, pastMaxAqi: null, pastMinAqi: null }, 'Мск', 'средний').reply).toContain('—');
+        expect(aiService.generateHistoryReply({ pastAvgAqi: null, avgAqi: null, pastMaxAqi: { aqi: 40, label: 'пн' } }, 'Мск', 'пик').reply).toContain('нормы');
+        expect(aiService.generateHistoryReply({ pastAvgAqi: null, avgAqi: null, pastDays: [{ avgAqi: null, maxAqi: null, status: 'Ок' }] }, 'Мск', 'вчера').reply).toContain('—');
+        expect(aiService.generateHistoryReply({ pastAvgAqi: null, avgAqi: null }, 'Мск', 'история').reply).toContain('—');
+
+        expect(aiService.generateAllDaysReply({ totalDaysCount: 11, overallAvgAqi: null }, 'Мск').reply).not.toContain('В среднем');
+        expect(aiService.generateFullAnalyticsReply({ aqi: null, historyData: { pastMaxAqi: { aqi: 30, label: 'пн' }, pastAvgAqi: null } }).reply).toContain('нормы');
+        expect(aiService.generatePointAnalyticsReply(null, '').reply).toContain('подгружаются');
+
+        expect(aiService.buildPointAnalyticsReply({
+            locationName: 'Мск',
+            aqi: 15,
+            allDaysSummary: 'not-object',
+            historyData: 'not-object',
+            forecast3Days: { days: [] }
+        }, 'все дни вчера прогноз').reply).toContain('Отлично');
+
+        aiRouter.routeRequest.mockResolvedValue(null);
+        axios.post.mockResolvedValue({ data: { choices: [{ message: { content: 'Ок!' } }] } });
+
+        await aiService.sendChatMessage({
+            userMessage: 'прогноз',
+            history: 'not-array',
+            forecastData: {}
+        });
+
+        await aiService.sendChatMessage({
+            userMessage: 'прогноз',
+            history: [{}],
+            forecastData: [{ aqi: 20 }],
+            historyData: { pastMaxAqi: { aqi: 90, label: 'ср' } }
+        });
+
+        await aiService.sendChatMessage({
+            userMessage: 'воздух',
+            pointData: { aqi: 10 },
+            historyData: {}
+        });
+
+        await aiService.sendChatMessage({
+            userMessage: '',
+            pointAnalytics: { locationName: 'Казань', aqi: 15 }
+        });
+
+        const origRepeat = aiConfig.repeatPenalty;
+        const origLimit = aiConfig.maxCharLimit;
+        aiConfig.repeatPenalty = 0;
+        aiConfig.maxCharLimit = 0;
+        try {
+            await aiService.sendChatMessage({
+                userMessage: 'про воздух в Казань',
+                pointAnalytics: { locationName: 'Казань, Россия', aqi: 15 }
+            });
+        } finally {
+            aiConfig.repeatPenalty = origRepeat;
+            aiConfig.maxCharLimit = origLimit;
+        }
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'тест [action:theme]' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'привет' })).action).toBeNull();
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'тест [action:layer:invalid]' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'привет' })).action).toBeNull();
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'тест [action:unknown:val]' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'привет' })).action).toBeNull();
+
+        geocodingService.search.mockResolvedValueOnce([]);
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'летим [action:city:НетТакогоГорода]' } }] } });
+        const qNotFound = await aiService.sendChatMessage({ userMessage: 'что такое НетТакогоГорода' });
+        expect(qNotFound.reply).not.toContain('обыскала карту');
+
+        geocodingService.search.mockResolvedValueOnce([]);
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'перемещаюсь в НесуществующийГородXYZ, смотрю' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'привет' })).action).toBeNull();
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'ответ' } }] } });
+        const hybridCodeRes = await aiService.sendChatMessage({
+            userMessage: 'перейди в Казань, покажи воздух и напиши python код'
+        });
+        expect(hybridCodeRes.action).toEqual(expect.objectContaining({ type: 'set_location', followUpAnalytics: true }));
+        expect(hybridCodeRes.reply).toContain('А код я писать не буду');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'Доступны спутник и OpenStreetMap!' } }] } });
+        const layersRes = await aiService.sendChatMessage({ userMessage: 'какие слои карты есть?' });
+        expect(layersRes.emotion).toBe('think');
+
+        axios.post.mockResolvedValueOnce({
+            data: { choices: [{ message: { content: 'Привет. ' + 'А'.repeat(2600) } }] }
+        });
+        const earlyDotRes = await aiService.sendChatMessage({ userMessage: 'длинно' });
+        expect(earlyDotRes.reply.length).toBeGreaterThan(200);
+
+        axios.post.mockResolvedValueOnce({
+            data: { choices: [{ message: { content: 'Б'.repeat(2600) } }] }
+        });
+        const noSpaceRes = await aiService.sendChatMessage({ userMessage: 'одно слово' });
+        expect(noSpaceRes.reply.endsWith('...')).toBe(true);
+
+        axios.post.mockResolvedValueOnce({
+            data: { choices: [{ message: { content: 'Готово.: ' } }] }
+        });
+        const alreadyPunctRes = await aiService.sendChatMessage({ userMessage: 'привет' });
+        expect(alreadyPunctRes.reply).toBe('Готово.');
+
+        axios.post.mockResolvedValueOnce({
+            data: { choices: [{ message: { content: 'Воздух без индекса' } }] }
+        });
+        const noAqiEmotionRes = await aiService.sendChatMessage({
+            userMessage: 'привет',
+            pointAnalytics: { aqi: 'bad', locationName: 'Мск' }
+        });
+        expect(noAqiEmotionRes.emotion).toBe('idle');
+
+        axios.post.mockRejectedValueOnce(new Error('offline'));
+        const offCbRes = await aiService.sendChatMessage({
+            userMessage: 'включи дейтеранопию'
+        });
+        expect(offCbRes.action).toEqual({ type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' });
+
+        axios.post.mockRejectedValueOnce(new Error('offline'));
+        const offFollowCityRes = await aiService.sendChatMessage({
+            userMessage: 'перейди в Казань',
+            isFollowUpAnalytics: true
+        });
+        expect(offFollowCityRes.error).toBe(true);
+
+        axios.post.mockRejectedValueOnce({ response: { status: 500, data: { error: 'Server string error' } } });
+        const errStrRes = await aiService.sendChatMessage({ userMessage: 'привет' });
+        expect(errStrRes.reply).toContain('Server string error');
+
+        axios.post.mockRejectedValueOnce({});
+        const emptyErrRes = await aiService.sendChatMessage({ userMessage: 'привет' });
+        expect(emptyErrRes.reply).toContain('Сеть недоступна');
+
+        await aiService.sendChatMessage({
+            userMessage: 'прогноз',
+            forecastData: [{}]
+        });
+
+        geocodingService.search.mockResolvedValueOnce([{ display_name: '', lat: '10', lon: '20' }]);
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'ок' } }] } });
+        const emptyCityNameRes = await aiService.sendChatMessage({
+            userMessage: 'перейди в ТестПустой, покажи воздух и напиши python код'
+        });
+        expect(emptyCityNameRes.reply).toContain('А код я писать не буду');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'летим в точку на карте' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'покажи воздух' })).reply).toContain('летим в точку');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'летим в точку' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'покажи воздух', pointAnalytics: 'not-object' })).reply).toContain('летим в точку');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'Конечно, я сама всё проверила!' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'сам проверил?' })).reply).toContain('проверила');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: 'довольно объемная задача' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'аналитика', pointAnalytics: 'not-object' })).reply).toContain('объемная задача');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: '' } }] } });
+        expect((await aiService.sendChatMessage({ userMessage: 'полная аналитика', pointAnalytics: 'not-object' })).reply).toContain('подгружаются');
+
+        axios.post.mockResolvedValueOnce({ data: { choices: [{ message: { content: '' } }] } });
+        expect((await aiService.sendChatMessage({
+            userMessage: 'все дни вчера прогноз',
+            pointAnalytics: { locationName: 'Мск', aqi: 15, allDaysSummary: 'bad', historyData: 'bad', forecast3Days: { days: [] } }
+        })).reply).toContain('Отлично');
+
+        axios.post.mockRejectedValueOnce(new Error('offline'));
+        expect((await aiService.sendChatMessage({
+            userMessage: 'все дни вчера прогноз',
+            pointAnalytics: { locationName: 'Мск', aqi: 15, allDaysSummary: 'bad', historyData: 'bad', forecast3Days: { days: [] } }
+        })).reply).toContain('Отлично');
+    });
 });

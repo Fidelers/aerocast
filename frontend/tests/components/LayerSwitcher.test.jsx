@@ -1,6 +1,6 @@
 // frontend/tests/components/LayerSwitcher.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import LayerSwitcher from '../../src/components/LayerSwitcher';
 
 describe('LayerSwitcher component', () => {
@@ -182,5 +182,50 @@ describe('LayerSwitcher component', () => {
         expect(toggleBtn).toBeTruthy();
         expect(toggleBtn.classList.contains('layer-switcher__toggle')).toBe(true);
         document.documentElement.removeAttribute('data-theme');
+    });
+
+    it('14. Монтируется через createPortal при передаче targetContainer', () => {
+        const portalTarget = document.createElement('div');
+        document.body.appendChild(portalTarget);
+        const { unmount } = render(
+            <LayerSwitcher activeLayer="osm" onLayerChange={() => { }} targetContainer={portalTarget} />
+        );
+        expect(portalTarget.querySelector('[data-testid="layer-switcher"]')).toBeTruthy();
+        unmount();
+        document.body.removeChild(portalTarget);
+    });
+
+    it('15. Находит .map-container .maplibregl-ctrl-top-right сразу при монтировании и по поллингу', async () => {
+        vi.useFakeTimers();
+        const mapContainer = document.createElement('div');
+        mapContainer.className = 'map-container';
+        const ctrlTopRight = document.createElement('div');
+        ctrlTopRight.className = 'maplibregl-ctrl-top-right';
+        document.body.appendChild(mapContainer);
+
+        const { unmount: unmountDelayed } = render(
+            <LayerSwitcher activeLayer="osm" onLayerChange={() => { }} />
+        );
+        mapContainer.appendChild(ctrlTopRight);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+        });
+        expect(ctrlTopRight.querySelector('[data-testid="layer-switcher"]')).toBeTruthy();
+        unmountDelayed();
+
+        const { unmount: unmountImmediate } = render(
+            <LayerSwitcher activeLayer="osm" onLayerChange={() => { }} />
+        );
+        expect(ctrlTopRight.querySelector('[data-testid="layer-switcher"]')).toBeTruthy();
+        unmountImmediate();
+
+        document.body.removeChild(mapContainer);
+
+        const { unmount: unmountTimeout } = render(
+            <LayerSwitcher activeLayer="osm" onLayerChange={() => { }} />
+        );
+        await vi.advanceTimersByTimeAsync(2100);
+        unmountTimeout();
+        vi.useRealTimers();
     });
 });

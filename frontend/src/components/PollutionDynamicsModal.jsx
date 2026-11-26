@@ -218,33 +218,22 @@ export default function PollutionDynamicsModal({
 
   const handleChartPointClick = (localIdx) => {
     const targetRecord = finalDayData[localIdx];
-    if (!targetRecord) return;
-
-    const globalIndex = targetRecord.globalIndex !== undefined
-      ? targetRecord.globalIndex
-      : airData.hourly.time.indexOf(targetRecord.time);
-    
-    if (globalIndex !== -1) {
-      setLocalActiveIndex(globalIndex);
-      onSelectTime?.(globalIndex);
-    }
+    const globalIndex = targetRecord.globalIndex;
+    setLocalActiveIndex(globalIndex);
+    onSelectTime?.(globalIndex);
   };
 
   const handleRangeSelect = (fromLocalIdx, toLocalIdx) => {
     const startRecord = finalDayData[fromLocalIdx];
     const endRecord = finalDayData[toLocalIdx];
-    if (!startRecord || !endRecord) return;
-
     const startG = startRecord.globalIndex;
     const endG = endRecord.globalIndex;
-    if (startG !== undefined && endG !== undefined) {
-      setCustomRange({
-        startGlobal: Math.min(startG, endG),
-        endGlobal: Math.max(startG, endG),
-      });
-      setRangePreset('custom');
-      setIsAllDays(true);
-    }
+    setCustomRange({
+      startGlobal: Math.min(startG, endG),
+      endGlobal: Math.max(startG, endG),
+    });
+    setRangePreset('custom');
+    setIsAllDays(true);
   };
 
   const handleResetToNormal = () => {
@@ -271,7 +260,7 @@ export default function PollutionDynamicsModal({
     return { min, max, avg };
   };
 
-  const activeMetric = METRICS_METADATA[activeMetricKey] || METRICS_METADATA.aqi;
+  const activeMetric = METRICS_METADATA[activeMetricKey];
 
   const mainMetricValues = finalDayData.map((d) => d[activeMetric.key]);
   const aqiStats = getStats(mainMetricValues);
@@ -286,7 +275,7 @@ export default function PollutionDynamicsModal({
   const activeIso = airData.hourly.time[localActiveIndex] || airData.hourly.time[safeIdx] || '';
   const parsedActive = parseIsoTimeString(activeIso);
   const activeDateStr = parsedActive?.dateStr || activeIso.split('T')[0] || '';
-  const activeHourStr = parsedActive?.timeStr || (activeIso.split('T')[1]?.slice(0, 5)) || '00:00';
+  const activeHourStr = parsedActive?.timeLabel || (activeIso.split('T')[1]?.slice(0, 5)) || '00:00';
 
   return (
     <div
@@ -449,11 +438,9 @@ export default function PollutionDynamicsModal({
                 disabled={isToggleDisabled}
                 aria-disabled={isToggleDisabled ? 'true' : 'false'}
                 onChange={(e) => {
-                  if (!isToggleDisabled) {
-                    setIsAllDays(e.target.checked);
-                    setCustomRange(null);
-                    setRangePreset(e.target.checked ? 'all' : 'day');
-                  }
+                  setIsAllDays(e.target.checked);
+                  setCustomRange(null);
+                  setRangePreset(e.target.checked ? 'all' : 'day');
                 }}
               />
               <span className="dynamics-toggle-slider" />

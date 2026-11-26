@@ -42,8 +42,6 @@ export function projectPixelToGeo(px, py, width, height, bbox, useMercator = fal
 
 // Извлечение числового значения показателя из объекта точки
 function extractPointValue(pt, timeIndex) {
-    if (!pt || typeof pt !== 'object') return null;
-
     if (timeIndex !== null && timeIndex !== undefined && Array.isArray(pt.european_aqi)) {
         const val = pt.european_aqi[timeIndex];
         return typeof val === 'number' && !Number.isNaN(val) ? val : null;
@@ -147,7 +145,7 @@ export function interpolatePoint(lat, lon, points, options = {}) {
 
     if (sumWeight === 0) {
         // Все точки оказались за пределами maxRadius – возвращаем значение ближайшей
-        return nearestVal !== null ? Math.max(minVal, Math.min(maxVal, nearestVal)) : bgVal;
+        return Math.max(minVal, Math.min(maxVal, nearestVal));
     }
 
     const calculated = sumWeightVal / sumWeight;
@@ -236,7 +234,7 @@ export function interpolateGrid(points, width, height, bbox, options = {}) {
             activeCount = rowPts.length;
         }
 
-        const maxLonDiff = hasCutoff ? (cosLat > 0.05 ? maxRadius / cosLat : maxRadius * 20) : Infinity;
+        const maxLonDiff = hasCutoff ? maxRadius / cosLat : Infinity;
 
         for (let px = 0; px < width; px++) {
             const curLon = lons[px];

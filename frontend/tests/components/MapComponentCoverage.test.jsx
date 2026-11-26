@@ -1210,5 +1210,239 @@ describe('MapComponentCoverage – граничные случаи и полно
                 />
             );
         });
+
+        it('покрывает оставшиеся ветки MapComponent (клики/зум/слои/макро/микро/анимация)', async () => {
+            const canvasRenderer = await import('../../src/utils/canvasFieldRenderer.js');
+
+            // 1. animId === 0 при первом mount, onMarkerClick не передан, zoom 8.75 без microGrid, click + lon mismatch
+            const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockReturnValueOnce(0);
+            const { rerender: rerenderAnim, unmount: unmountAnim } = render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    airData={{ hourly: { time: ['2026-10-01T00:00'], european_aqi: [25] } }}
+                    selectedTimeIndex={0}
+                    viewMode="combo"
+                />
+            );
+            const mapInst = mockInstances[mockInstances.length - 1];
+            mapInst._zoom = 10;
+            const zoomHandlers = eventHandlers['zoom'] || [];
+            if (zoomHandlers.length) zoomHandlers[zoomHandlers.length - 1]();
+            mapInst._zoom = 8.75;
+            if (zoomHandlers.length) zoomHandlers[zoomHandlers.length - 1]();
+
+            // Клик по маркеру без onMarkerClick
+            const markerInst = MockMarker.mock.results[MockMarker.mock.results.length - 1].value;
+            (markerInst.element.element || markerInst.element).onclick?.({});
+
+            // Клик по карте -> isMapClick.current = true
+            const clickHandlers = eventHandlers['click'] || [];
+            if (clickHandlers.length) {
+                clickHandlers[clickHandlers.length - 1]({ lngLat: { lat: 55.75, lng: 37.61 }, originalEvent: {} });
+            }
+            rerenderAnim(
+                <MapComponent
+                    lat={55.75}
+                    lon={39.00}
+                    airData={{ hourly: { time: ['2026-10-01T00:00'], european_aqi: [25] } }}
+                    selectedTimeIndex={0}
+                    viewMode="numeric"
+                />
+            );
+
+            // isStyleLoaded() === false, once === undefined -> fallback on('load', onLoaded), unmount before firing
+            mapInst.isStyleLoaded.mockReturnValue(false);
+            mapInst.once = undefined;
+            rerenderAnim(
+                <MapComponent
+                    lat={55.75}
+                    lon={39.00}
+                    activeBaseLayer="satellite"
+                    viewMode="numeric"
+                />
+            );
+            mapInst.on = undefined;
+            rerenderAnim(
+                <MapComponent
+                    lat={55.75}
+                    lon={39.00}
+                    activeBaseLayer="osm"
+                    viewMode="numeric"
+                />
+            );
+            const loadCallbacks = eventHandlers['load'] || [];
+            const lastLoadCb = loadCallbacks[loadCallbacks.length - 1];
+            unmountAnim();
+            if (lastLoadCb) lastLoadCb();
+            rafSpy.mockRestore();
+
+            // 2. rAF callback при viewMode="numeric" и при map.current === null
+            let capturedRafCb = null;
+            const rafSpy2 = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+                capturedRafCb = cb;
+                return 123;
+            });
+            const { unmount: unmountRaf } = render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    viewMode="numeric"
+                />
+            );
+            capturedRafCb?.(500);
+            unmountRaf();
+            capturedRafCb?.(600);
+            rafSpy2.mockRestore();
+
+            // 3. microGrid invalid bbox + expandBbox: false -> !coords return
+            render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    microGrid={{ bbox: [0, 0], expandBbox: false, points: [{ lat: 55, lon: 37 }] }}
+                />
+            );
+
+            // 4. toDataUrl() === null для macroGrid и microGrid
+            canvasRenderer.renderFieldToCanvas.mockReturnValue({
+                toDataUrl: () => null,
+                hasPollution: false,
+                grid: []
+            });
+            render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }] }}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56] }}
+                />
+            );
+
+            // 5. getMaxPollution с нечисловыми элементами, maxPollution > 100, getSource === undefined
+            canvasRenderer.renderFieldToCanvas.mockImplementation((canvas, pts, bbox, opts) => {
+                if (opts?.onlyPollution) {
+                    return { toDataUrl: () => null, hasPollution: false, grid: [] };
+                }
+                return { toDataUrl: () => 'data:image/png;base64,x', hasPollution: true, grid: ['bad', 120, 50] };
+            });
+            const { rerender: rerenderMacro } = render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }] }}
+                />
+            );
+            const m3 = mockInstances[mockInstances.length - 1];
+            m3.getSource = undefined;
+            canvasRenderer.renderFieldToCanvas.mockImplementation((canvas, pts, bbox, opts) => ({
+                toDataUrl: () => 'data:image/png;base64,x',
+                hasPollution: true,
+                grid: { data: ['bad', 120, 50] }
+            }));
+            rerenderMacro(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }], time: ['2026-10-01T00:00'] }}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56] }}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            // 6. existingSource без updateImage и без removeLayer, а также getLayer() === null и getZoom === undefined / zoom <= 8.5
+            createdSources.clear();
+            createdLayers.clear();
+            canvasRenderer.renderFieldToCanvas.mockImplementation((canvas, pts, bbox, opts) => ({
+                toDataUrl: () => (opts?.onlyPollution ? null : 'data:image/png;base64,x'),
+                hasPollution: !opts?.onlyPollution,
+                grid: [50]
+            }));
+            const { rerender: rerenderNoRemove } = render(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }] }}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56] }}
+                />
+            );
+            const m4 = mockInstances[mockInstances.length - 1];
+            m4.getZoom = undefined;
+            createdSources.set('air-grid-macro-source', { type: 'image' });
+            createdSources.set('air-grid-macro-pollution-source', { type: 'image' });
+            createdSources.set('air-grid-micro-source', { type: 'image' });
+            createdSources.set('air-grid-micro-pollution-source', { type: 'image' });
+            createdLayers.clear();
+            rerenderNoRemove(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }], time: ['2026-10-01T00:00'] }}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56], time: ['2026-10-01T00:00'] }}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            // С removeLayer и valid pollutionDataUrl при пустом createdLayers -> покрывает 715:arm1 и 903:arm1
+            canvasRenderer.renderFieldToCanvas.mockImplementation(() => ({
+                toDataUrl: () => 'data:image/png;base64,x',
+                hasPollution: true,
+                grid: [50]
+            }));
+            createdLayers.clear();
+            rerenderNoRemove(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }], time: ['2026-10-03T00:00'] }}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56], time: ['2026-10-03T00:00'] }}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            // Без removeLayer и setLayoutProperty (при валидном pollutionDataUrl -> покрывает 714/902)
+            m4.removeLayer = undefined;
+            m4.setLayoutProperty = undefined;
+            rerenderNoRemove(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    macroGrid={{ points: [{ lat: 55, lon: 37 }], time: ['2026-10-02T00:00'] }}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56], time: ['2026-10-02T00:00'] }}
+                    selectedTimeIndex={0}
+                />
+            );
+
+            // fresh microGrid при zoom <= 8.5 и при getZoom === undefined
+            createdSources.clear();
+            createdLayers.clear();
+            const { rerender: rerenderLowZoom } = render(
+                <MapComponent lat={55.75} lon={37.61} />
+            );
+            const m5 = mockInstances[mockInstances.length - 1];
+            m5._zoom = 5;
+            rerenderLowZoom(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56] }}
+                />
+            );
+
+            createdSources.clear();
+            createdLayers.clear();
+            const { rerender: rerenderNoGetZoom } = render(
+                <MapComponent lat={55.75} lon={37.61} />
+            );
+            const m6 = mockInstances[mockInstances.length - 1];
+            m6.getZoom = undefined;
+            rerenderNoGetZoom(
+                <MapComponent
+                    lat={55.75}
+                    lon={37.61}
+                    microGrid={{ points: [{ lat: 55, lon: 37 }], bbox: [36, 54, 38, 56] }}
+                />
+            );
+        });
     });
 });

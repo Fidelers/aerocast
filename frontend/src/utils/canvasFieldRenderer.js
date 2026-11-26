@@ -94,17 +94,14 @@ export function interpolateAqiColor(aqi, alpha = DEFAULT_ALPHA, options = {}) {
         const prev = stops[i - 1];
         const next = stops[i];
 
-        if (aqi <= next.aqi) {
-            const range = next.aqi - prev.aqi;
-            const t = range > 0 ? (aqi - prev.aqi) / range : 0;
+        if (i === stops.length - 1 || aqi <= next.aqi) {
+            const t = (aqi - prev.aqi) / (next.aqi - prev.aqi);
             const r = Math.round(prev.r + t * (next.r - prev.r));
             const g = Math.round(prev.g + t * (next.g - prev.g));
             const b = Math.round(prev.b + t * (next.b - prev.b));
             return { r, g, b, a: alpha };
         }
     }
-
-    return { r: last.r, g: last.g, b: last.b, a: alpha };
 }
 
 

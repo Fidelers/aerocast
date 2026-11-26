@@ -433,4 +433,84 @@ describe('DynamicsChartCoverage', () => {
     fireEvent.touchCancel(window);
     expect(container.querySelector('.chart-selection-box')).toBeNull();
   });
+
+  it('покрывает оставшиеся ветки (clientWidth > 100, CTM null/NaN, touch guard, 10 точек без isAllDays, badformat, didDrag click)', () => {
+    vi.useFakeTimers();
+    const origClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 500 });
+
+    const onPointClick = vi.fn();
+    const onRangeSelect = vi.fn();
+    const tenPts = Array.from({ length: 10 }, (_, i) => ({
+      time: i === 5 ? 'badformat' : `2026-11-01T0${i}:00`,
+      aqi: 10 + i
+    }));
+
+    const { container, rerender } = render(
+      <DynamicsChart
+        mode="aqi"
+        data={tenPts}
+        enableRangeSelection={true}
+        onRangeSelect={onRangeSelect}
+        onPointClick={onPointClick}
+        isColorBlind={true}
+        colorBlindType="unknown_cb"
+      />
+    );
+
+    const svg = container.querySelector('svg');
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, width: 500, height: 220, right: 500, bottom: 220
+    });
+
+    svg.getScreenCTM = () => { throw new Error('CTM unsupported'); };
+    fireEvent.mouseMove(svg, { clientX: 100 });
+
+    svg.createSVGPoint = () => ({ x: 0, y: 0, matrixTransform: () => ({ x: NaN, y: 0 }) });
+    svg.getScreenCTM = () => null;
+    fireEvent.mouseMove(svg, { clientX: 100 });
+
+    svg.getScreenCTM = () => ({ inverse: () => ({}) });
+    fireEvent.mouseMove(svg, { clientX: 120 });
+
+    fireEvent.touchMove(window, { touches: [{ clientX: 200 }] });
+    fireEvent.touchEnd(window, { changedTouches: [] });
+
+    fireEvent.touchStart(svg, { touches: [] });
+    fireEvent.touchStart(svg, { touches: [{ clientX: 50 }] });
+    fireEvent.mouseDown(svg, { button: 0, clientX: 50 });
+    fireEvent.touchMove(window, { touches: [] });
+
+    const uncancelableTouchMove = new Event('touchmove', { bubbles: true, cancelable: false });
+    Object.defineProperty(uncancelableTouchMove, 'touches', { value: [{ clientX: 300 }] });
+    window.dispatchEvent(uncancelableTouchMove);
+
+    fireEvent.touchEnd(window, { changedTouches: [{ clientX: 300 }] });
+
+    const interactiveRect = container.querySelector('rect[role="button"]');
+    fireEvent.click(interactiveRect);
+    expect(onPointClick).not.toHaveBeenCalled();
+
+    act(() => { vi.advanceTimersByTime(100); });
+    fireEvent.click(interactiveRect);
+    expect(onPointClick).toHaveBeenCalled();
+
+    fireEvent.touchStart(svg, { touches: [{ clientX: 50 }] });
+    fireEvent.touchEnd(window, { changedTouches: [], touches: [] });
+
+    act(() => { vi.advanceTimersByTime(600); });
+    fireEvent.mouseDown(svg, { button: 0, clientX: 50 });
+    fireEvent.mouseMove(svg, { clientX: 100 });
+    fireEvent.mouseUp(window, { clientX: 50 });
+
+    rerender(<DynamicsChart mode="aqi" data={[{ aqi: 10 }]} enableRangeSelection={false} />);
+    fireEvent.touchStart(container.querySelector('svg'), { touches: [{ clientX: 10 }] });
+
+    if (origClientWidth) {
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', origClientWidth);
+    } else {
+      delete HTMLElement.prototype.clientWidth;
+    }
+    vi.useRealTimers();
+  });
 });

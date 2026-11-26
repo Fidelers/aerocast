@@ -618,5 +618,74 @@ describe('exportUtils', () => {
       expect(parsed.metadata.coordinates).toBeNull();
       expect(parsed.items[0].aqi).toBeNull();
     });
+
+    it('covers remaining branches in exportUtils (selected_day without time, ru date fallback, generateJson options, clipboard fallback, renderSvgToPngBlob defaults)', async () => {
+      const ds = buildExportDataset({
+        allRecords: [{ aqi: 10 }],
+        finalDayData: mockRecords,
+        selectedDateStr: '2026-10-22',
+        scope: 'selected_day',
+      });
+      expect(ds.records).toHaveLength(3);
+
+      expect(formatIsoToReadable('2026/10/22 12:00', 'ru')).toBe('2026/10/22 12:00');
+
+      const jsonNoMetaEmpty = JSON.parse(generateJson({
+        records: [],
+        includeMeta: false,
+        includeStats: true,
+      }));
+      expect(jsonNoMetaEmpty.metadata).toBeUndefined();
+      expect(jsonNoMetaEmpty.statistics).toBeUndefined();
+
+      const jsonNoTime = JSON.parse(generateJson({
+        records: [{ aqi: 15 }],
+        includeMeta: true,
+        includeStats: false,
+      }));
+      expect(jsonNoTime.metadata.period.start).toBeNull();
+      expect(jsonNoTime.metadata.period.end).toBeNull();
+
+      expect(formatExportFilename({ locationName: '' })).toContain('aerocast_analytics_aerocast_');
+
+      const origClipboard = navigator.clipboard;
+      const origExecCommand = document.execCommand;
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+      document.execCommand = vi.fn().mockReturnValue(true);
+      expect(await copyTextToClipboard('hello')).toBe(true);
+      Object.defineProperty(navigator, 'clipboard', { value: origClipboard, configurable: true });
+      document.execCommand = origExecCommand;
+
+      const mockCtx = {
+        save: vi.fn(),
+        restore: vi.fn(),
+        scale: vi.fn(),
+        fillText: vi.fn(),
+        fillRect: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        rect: vi.fn(),
+        drawImage: vi.fn(),
+      };
+      const origGetContext = HTMLCanvasElement.prototype.getContext;
+      const origToBlob = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx);
+      HTMLCanvasElement.prototype.toBlob = vi.fn((cb) => cb(new Blob(['png'], { type: 'image/png' })));
+      const origImage = global.Image;
+      global.Image = class {
+        set src(v) {
+          setTimeout(() => { if (this.onload) this.onload(); }, 0);
+        }
+      };
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const pngBlob = await renderSvgToPngBlob(svg);
+      expect(pngBlob).toBeInstanceOf(Blob);
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+      HTMLCanvasElement.prototype.toBlob = origToBlob;
+      global.Image = origImage;
+    });
   });
 });

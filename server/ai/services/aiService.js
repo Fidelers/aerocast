@@ -245,7 +245,6 @@ function extractCityIntent(text) {
     let stripped = clean.replace(/^(?:(?:можешь|можете)(?:\s+ли)?(?:\s+пожалуйста|\s+пж|\s+плиз)?\s+(?:сказать|подсказать|рассказать|узнать|проверить|глянуть|посмотреть|показать)|подскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|скажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|расскажи(?:те)?(?:\s+пожалуйста|\s+пж|\s+плиз)?|пожалуйста\s+|пж\s+|плиз\s+|хочу\s+узнать|интересно|дай\s+знать|проверь(?:те)?)\s+/i, '').trim();
 
     const cleanCityStr = (raw) => {
-        if (!raw || typeof raw !== 'string') return '';
         let c = raw.trim().replace(/[.,!?;:()]+$/, '').trim();
         c = c.replace(/\s+(?:пожалуйста|пж|плиз)$/i, '').trim();
         c = c.replace(/\s+на\s+(?:карте|схеме|спутнике|экране)\b.*$/i, '').trim();
@@ -963,12 +962,10 @@ async function sendChatMessage({
                     // В этом случае оставляем пользователя на карте и отвечаем аналитикой по текущей точке.
                     if (matchesCurrentPoint && effectivePointAnalytics) {
                         const pointReply = buildPointAnalyticsReply(effectivePointAnalytics, cleanUserMessage);
-                        if (pointReply) {
-                            reply = pointReply.reply;
-                            emotion = pointReply.emotion;
-                        }
+                        reply = pointReply.reply;
+                        emotion = pointReply.emotion;
                     }
-                } else if (actVal) {
+                } else {
                     const resolved = await resolveCity(actVal);
                     if (resolved) {
                         action = {
@@ -1001,8 +998,8 @@ async function sendChatMessage({
             if (!action && cbIntent) {
                 if (cbIntent.enabled === false) {
                     action = { type: 'set_colorblind', enabled: false };
-                } else if (cbIntent.enabled === true) {
-                    action = { type: 'set_colorblind', enabled: true, colorBlindType: cbIntent.colorBlindType || 'okabe' };
+                } else {
+                    action = { type: 'set_colorblind', enabled: true, colorBlindType: cbIntent.colorBlindType };
                 }
             }
 
@@ -1385,12 +1382,12 @@ async function sendChatMessage({
             };
         }
         if (fallbackCB?.enabled === true) {
-            const cbType = fallbackCB.colorBlindType || 'okabe';
+            const cbType = fallbackCB.colorBlindType;
             const typeLabels = { okabe: 'Окабе (по умолчанию)', deuteranopia: 'Дейтеранопию', protanopia: 'Протанопию', tritanopia: 'Тританопию' };
             return {
                 reply: cbType === 'okabe'
                     ? 'Секундочку! Включаю режим доступности для людей с нарушением цветовосприятия с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨'
-                    : `Без проблем! Переключаю режим цветовой слепоты на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
+                    : `Без проблем! Переключаю режим цветовой слепоты на ${typeLabels[cbType]}, ня! ✨`,
                 model: aiConfig.model,
                 emotion: 'happy',
                 action: { type: 'set_colorblind', enabled: true, colorBlindType: cbType }

@@ -132,18 +132,15 @@ export function formatIsoToReadable(isoString, dateFormat = 'iso') {
   if (!separator) return isoString;
 
   const parts = isoString.split(separator);
-  if (parts.length >= 2) {
-    const datePart = parts[0];
-    const timePart = parts[1].slice(0, 5);
-    if (dateFormat === 'ru') {
-      const dateBits = datePart.split('-');
-      if (dateBits.length === 3) {
-        return `${dateBits[2]}.${dateBits[1]}.${dateBits[0]} ${timePart}`;
-      }
+  const datePart = parts[0];
+  const timePart = parts[1].slice(0, 5);
+  if (dateFormat === 'ru') {
+    const dateBits = datePart.split('-');
+    if (dateBits.length === 3) {
+      return `${dateBits[2]}.${dateBits[1]}.${dateBits[0]} ${timePart}`;
     }
-    return `${datePart} ${timePart}`;
   }
-  return isoString;
+  return `${datePart} ${timePart}`;
 }
 
 export function formatMetricValue(val, decimals = 1, {

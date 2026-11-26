@@ -1015,5 +1015,135 @@ describe('SidebarCoverage – граничные случаи и полное п
                 fireEvent.click(hourBtn);
             }
         });
+
+        it('покрывает оставшиеся ветки навигации по времени, геолокации и drag closeDelay', async () => {
+            const { rerender } = render(
+                <Sidebar
+                    airData={null}
+                    isOpen={true}
+                />
+            );
+            fireEvent.click(screen.getByTestId('select-current-time-btn'));
+
+            rerender(
+                <Sidebar
+                    airData={{ hourly: { time: ['bad-time'] } }}
+                    isOpen={true}
+                />
+            );
+            fireEvent.click(screen.getByTestId('select-current-time-btn'));
+
+            rerender(
+                <Sidebar
+                    airData={{ hourly: { time: ['2026-09-20T01:00'] } }}
+                    isOpen={true}
+                    selectedTimeIndex={999}
+                />
+            );
+            const dayBtn = document.querySelector('.day-card');
+            fireEvent.click(dayBtn);
+
+            rerender(
+                <Sidebar
+                    airData={{ hourly: { time: ['bad-time', '2026-09-20T00:00'] } }}
+                    isOpen={true}
+                    selectedTimeIndex={0}
+                />
+            );
+            fireEvent.click(document.querySelector('.day-card'));
+
+            rerender(
+                <Sidebar
+                    airData={{ hourly: { time: ['2026-09-20T00:00'] } }}
+                    isOpen={true}
+                />
+            );
+            fireEvent.click(screen.getByTestId('select-current-time-btn'));
+
+            const origSecure = window.isSecureContext;
+            window.isSecureContext = false;
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn(() => { throw new Error('geo sync fail'); })
+            };
+            vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false });
+            await act(async () => {
+                fireEvent.click(screen.getByText('Моё местоположение'));
+            });
+            window.isSecureContext = origSecure;
+
+            let geoCb1 = null;
+            let geoErr1 = null;
+            let callCount = 0;
+            globalThis.navigator.geolocation = {
+                getCurrentPosition: vi.fn((ok, err) => {
+                    callCount++;
+                    if (callCount === 1) { geoCb1 = ok; geoErr1 = err; }
+                })
+            };
+            let resolveFetch1;
+            vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise((r) => { resolveFetch1 = r; }));
+            const onLoc = vi.fn();
+            rerender(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    onLocationSelect={onLoc}
+                />
+            );
+            const geoBtn = screen.getByText('Моё местоположение');
+            fireEvent.click(geoBtn);
+            // Триггерим GPS error 1 -> кнопка снова активна пока fetchIpLocation в полёте
+            await act(async () => { geoErr1?.({ code: 1 }); });
+            // Запускаем попытку 2 пока fetch1 в полёте
+            fireEvent.click(screen.getByText('Моё местоположение'));
+            // Устаревшие колбэки от попытки 1 должны игнорироваться
+            geoCb1?.({ coords: { latitude: 10, longitude: 20 } });
+            geoErr1?.({ code: 1 });
+            await act(async () => {
+                resolveFetch1({ ok: true, json: async () => ({ latitude: 55, longitude: 37 }) });
+            });
+            expect(onLoc).not.toHaveBeenCalled();
+
+            vi.stubEnv('NODE_ENV', 'production');
+            const onCloseProd = vi.fn();
+            rerender(
+                <Sidebar
+                    airData={mockAirData}
+                    isOpen={true}
+                    onClose={onCloseProd}
+                />
+            );
+            const sidebar = document.querySelector('.sidebar');
+            const handle = document.querySelector('.sidebar__drag-handle');
+            fireEvent.pointerDown(sidebar, { clientX: 200, clientY: 100, button: 0, pointerType: 'touch' });
+            fireEvent.pointerMove(sidebar, { clientX: 198, clientY: 102, pointerType: 'touch' });
+
+            // Незакрывающий свайп запускает 200ms resetTimer
+            fireEvent.pointerDown(handle, { clientX: 200, clientY: 100, button: 0, pointerType: 'mouse' });
+            fireEvent.pointerMove(sidebar, { clientX: 195, clientY: 100, pointerType: 'mouse' });
+            fireEvent.pointerUp(sidebar);
+
+            // Немедленный закрывающий свайп (closeDelay = 250ms, isClosingRef = true на момент 200ms)
+            fireEvent.pointerDown(handle, { clientX: 200, clientY: 100, button: 0, pointerType: 'mouse' });
+            fireEvent.pointerMove(sidebar, { clientX: 20, clientY: 100, pointerType: 'mouse' });
+            fireEvent.pointerUp(sidebar);
+            act(() => { vi.advanceTimersByTime(260); });
+            expect(onCloseProd).toHaveBeenCalled();
+            vi.unstubAllEnvs();
+        });
+
+        it('выбирает первый час дня при клике по карточке дня без активного часа', () => {
+            const onSelectTime = vi.fn();
+            render(
+                <Sidebar
+                    airData={{ hourly: { time: ['2026-09-20T00:00'] } }}
+                    isOpen={true}
+                    selectedTimeIndex={null}
+                    onSelectTime={onSelectTime}
+                />
+            );
+            fireEvent.click(document.querySelector('.day-card'));
+            expect(onSelectTime).toHaveBeenCalledWith(0);
+        });
     });
 });

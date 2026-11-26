@@ -590,6 +590,11 @@ describe('canvasFieldRenderer (Попиксельный рендерер цве�
             expect(result.grid.length).toBe(4);
             expect(ctx.fill).toHaveBeenCalled();
         });
+
+        it('для неизвестного colorBlindType использует COLORBLIND_COLOR_STOPS по умолчанию', () => {
+            const color = interpolateAqiColor(50, 200, { colorBlind: true, colorBlindType: 'unknown_type' });
+            expect(color.a).toBe(200);
+        });
     });
 });
 

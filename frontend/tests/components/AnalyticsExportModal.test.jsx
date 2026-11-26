@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import AnalyticsExportModal from '../../src/components/AnalyticsExportModal';
 import * as exportUtils from '../../src/utils/exportUtils';
 
@@ -727,6 +727,91 @@ describe('AnalyticsExportModal component', () => {
         })
       );
       expect(copySpy).toHaveBeenCalled();
+    });
+  });
+
+  it('covers renderJsonWithColors edge cases, timers, missing periodStart/End, unknown card metric, and empty error messages', async () => {
+    const { renderJsonWithColors } = await import('../../src/components/AnalyticsExportModal');
+    expect(renderJsonWithColors('')).toBeNull();
+    expect(renderJsonWithColors(null)).toBeNull();
+    expect(renderJsonWithColors('plain trailing text')).toBeTruthy();
+
+    vi.useFakeTimers();
+    vi.spyOn(exportUtils, 'renderMultiChartPngBlob').mockRejectedValueOnce({});
+    vi.spyOn(exportUtils, 'copyTextToClipboard').mockResolvedValueOnce(true).mockRejectedValueOnce({});
+
+    const { container } = render(
+      <AnalyticsExportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        allRecords={[{ time: '2026-10-22T00:00', aqi: null }]}
+        finalDayData={[{ time: '2026-10-22T00:00', aqi: null }]}
+        selectedDateStr="2026-10-22"
+      />
+    );
+
+    const copyBtn = screen.getByTestId('copy-to-clipboard-btn');
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+    expect(screen.getByTestId('copy-success-badge')).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(3100); });
+    expect(screen.queryByTestId('copy-success-badge')).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+    expect(screen.getByTestId('export-error-message').textContent).toContain('Не удалось скопировать в буфер');
+    act(() => { vi.advanceTimersByTime(4100); });
+    expect(screen.queryByTestId('export-error-message')).toBeNull();
+
+    const jsonBtn = screen.getByTestId('format-btn-json');
+    fireEvent.click(jsonBtn);
+    const activeMetricRadio = screen.getByTestId('metric-mode-active');
+    fireEvent.click(activeMetricRadio);
+    expect(screen.getByText(/Выбрано веществ: 1/)).toBeTruthy();
+
+    const pngBtn = screen.getByTestId('format-btn-png');
+    fireEvent.click(pngBtn);
+
+    const card = container.querySelector('.export-png-chart-card');
+    card.setAttribute('data-metric', 'nonexistent_metric');
+
+    const downloadBtn = screen.getByTestId('download-export-btn');
+    await act(async () => {
+      fireEvent.click(downloadBtn);
+    });
+    expect(screen.getByTestId('export-error-message').textContent).toContain('Не удалось выполнить экспорт');
+
+    act(() => { vi.advanceTimersByTime(5100); });
+    expect(screen.queryByTestId('export-error-message')).toBeNull();
+
+    vi.useRealTimers();
+  });
+
+  it('covers PNG subtitle fallback when periodStart and periodEnd are empty', async () => {
+    vi.spyOn(exportUtils, 'renderMultiChartPngBlob').mockResolvedValueOnce(new Blob(['png'], { type: 'image/png' }));
+    vi.spyOn(exportUtils, 'downloadBlob').mockImplementation(() => {});
+
+    render(
+      <AnalyticsExportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        allRecords={[{ aqi: 10 }]}
+        finalDayData={[{ aqi: 10 }]}
+        selectedDateStr="2026-10-22"
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('format-btn-png'));
+    fireEvent.click(screen.getByTestId('download-export-btn'));
+    await waitFor(() => {
+      expect(exportUtils.renderMultiChartPngBlob).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          subtitle: expect.stringContaining('2026-10-22 – 2026-10-22')
+        })
+      );
     });
   });
 });

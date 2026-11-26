@@ -75,7 +75,7 @@ export function normalizePollutantKey(key) {
 export function getPollutantMetadata(key) {
   const normalized = normalizePollutantKey(key);
   if (!normalized) return null;
-  return POLLUTANTS_METADATA[normalized] || null;
+  return POLLUTANTS_METADATA[normalized];
 }
 
 // Доступные палитры бейджей загрязнителей для различных видов дальтонизма

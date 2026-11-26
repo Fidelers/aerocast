@@ -542,5 +542,58 @@ describe('RightAirPanelCoverage – граничные случаи и полн�
             fireEvent.pointerUp(handle, { pointerId: 9 });
             act(() => { vi.advanceTimersByTime(250); });
         });
+
+        it('использует closeDelay = 250ms когда NODE_ENV не test', () => {
+            vi.stubEnv('NODE_ENV', 'production');
+            const onClose = vi.fn();
+            render(
+                <RightAirPanel
+                    airData={mockAirData}
+                    selectedTimeIndex={0}
+                    isOpen={true}
+                    onClose={onClose}
+                />
+            );
+            const panel = screen.getByLabelText('Детальная информация о качестве воздуха');
+            const handle = panel.querySelector('.panel-drag-handle');
+
+            fireEvent.pointerDown(handle, { clientX: 100, clientY: 100, button: 0, pointerType: 'mouse' });
+            fireEvent.pointerMove(panel, { clientX: 100, clientY: 300, pointerType: 'mouse' });
+            fireEvent.pointerUp(panel);
+
+            act(() => { vi.advanceTimersByTime(260); });
+            expect(onClose).toHaveBeenCalled();
+            vi.unstubAllEnvs();
+        });
+
+        it('обрабатывает клик по карточке AQI без onOpenDynamicsModal и прерывание таймера сброса при закрытии', () => {
+            const onClose = vi.fn();
+            render(
+                <RightAirPanel
+                    airData={mockAirData}
+                    selectedTimeIndex={0}
+                    isOpen={true}
+                    onClose={onClose}
+                />
+            );
+            const panel = screen.getByLabelText('Детальная информация о качестве воздуха');
+            const handle = panel.querySelector('.panel-drag-handle');
+            const aqiCard = screen.getByRole('button', { name: /индекс качества воздуха/i });
+            fireEvent.click(aqiCard);
+
+            vi.stubEnv('NODE_ENV', 'production');
+            fireEvent.pointerDown(handle, { clientX: 100, clientY: 100, button: 0, pointerType: 'mouse' });
+            fireEvent.pointerMove(panel, { clientX: 100, clientY: 105, pointerType: 'mouse' });
+            fireEvent.pointerUp(panel);
+
+            fireEvent.pointerDown(handle, { clientX: 100, clientY: 100, button: 0, pointerType: 'mouse' });
+            fireEvent.pointerMove(panel, { clientX: 100, clientY: 300, pointerType: 'mouse' });
+            fireEvent.pointerUp(panel);
+
+            act(() => { vi.advanceTimersByTime(220); });
+            act(() => { vi.advanceTimersByTime(60); });
+            expect(onClose).toHaveBeenCalled();
+            vi.unstubAllEnvs();
+        });
     });
 });

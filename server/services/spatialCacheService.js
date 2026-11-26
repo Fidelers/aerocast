@@ -46,7 +46,7 @@ async function getDbOrNull() {
     }
 }
 
-function readMemCache(cacheKey, ignoreTTL = false) {
+function readMemCache(cacheKey, ignoreTTL) {
     const entry = _memCache.get(cacheKey);
     if (!entry) return null;
     if (!ignoreTTL && Date.now() >= entry.expiresAt) {

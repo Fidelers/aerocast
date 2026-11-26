@@ -472,7 +472,7 @@ describe('idwInterpolator (Математическая модель IDW)', () =
                 ],
                 3, 3,
                 [9.0, 87.5, 11.0, 88.5],
-                { maxRadius: 0.5, useMercator: false }
+                { maxRadius: 0.5, useMercator: true }
             );
             expect(grid.length).toBe(9);
             expect(grid[4]).toBeGreaterThan(0);
@@ -494,7 +494,10 @@ describe('idwInterpolator (Математическая модель IDW)', () =
 
         it('обрабатывает точку в углу, где distSq > maxRadiusSq с возвратом nearestVal', () => {
             const grid = interpolateGrid(
-                [{ lat: 0.9, lon: 0.9, value: 80 }],
+                [
+                    { lat: 0.9, lon: 0.9, value: 80 },
+                    { lat: 0.91, lon: 0.91, value: 70 }
+                ],
                 1, 1,
                 [0.5, 0.5, 0.5, 0.5],
                 { maxRadius: 0.45, bgVal: 10 }
@@ -504,7 +507,10 @@ describe('idwInterpolator (Математическая модель IDW)', () =
 
         it('обрабатывает точное совпадение координаты пикселя с точкой (exactMatchVal)', () => {
             const grid = interpolateGrid(
-                [{ lat: 0.5, lon: 0.5, value: 42 }],
+                [
+                    { lat: 0.5, lon: 0.5, value: 42 },
+                    { lat: 0.6, lon: 0.6, value: 10 }
+                ],
                 1, 1,
                 [0.5, 0.5, 0.5, 0.5],
                 { useMercator: false }

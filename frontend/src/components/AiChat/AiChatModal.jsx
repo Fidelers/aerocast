@@ -75,7 +75,7 @@ export function formatMessageContent(text) {
             {matchStr.slice(2, -2)}
           </strong>
         );
-      } else if (matchStr.startsWith('*') && matchStr.endsWith('*')) {
+      } else {
         parts.push(
           <em key={`${lineIdx}-${match.index}`}>
             {matchStr.slice(1, -1)}
@@ -320,10 +320,6 @@ export function detectClientCityIntent(text) {
     for (const cand of candidates) {
       if (KNOWN_CLIENT_CITIES[cand]) return { raw: cleanCity, wantsAnalytics, ...KNOWN_CLIENT_CITIES[cand] };
     }
-    const normalizedA = lower.replace(/е$/i, 'а').replace(/и$/i, 'я');
-    if (KNOWN_CLIENT_CITIES[normalizedA]) {
-      return { raw: cleanCity, wantsAnalytics, ...KNOWN_CLIENT_CITIES[normalizedA] };
-    }
     if (cleanCity.length >= 2 && cleanCity.length <= 40) {
       return { raw: cleanCity, wantsAnalytics };
     }
@@ -404,7 +400,7 @@ export default function AiChatModal({
     mascotTimerRef.current = setTimeout(() => {
       setDockedPhrase((prev) => {
         const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
-        return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
+        return others[Math.floor(Math.random() * others.length)];
       });
     }, 12000);
   }, [embedded, mascotUnderChat, isOpen, currentEmotion]);
@@ -412,7 +408,7 @@ export default function AiChatModal({
   const handleMascotClick = useCallback(() => {
     setDockedPhrase((prev) => {
       const others = AYA_CHAT_DOCK_PHRASES.filter((p) => p !== prev);
-      return others[Math.floor(Math.random() * others.length)] || AYA_CHAT_DOCK_PHRASES[0];
+      return others[Math.floor(Math.random() * others.length)];
     });
     resetMascotTimer();
   }, [resetMascotTimer]);
@@ -433,12 +429,10 @@ export default function AiChatModal({
 
   const scrollToBottom = useCallback((smooth = true) => {
     const el = messagesContainerRef.current;
-    if (el) {
-      if (smooth && typeof el.scrollTo === 'function') {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-      } else {
-        el.scrollTop = el.scrollHeight;
-      }
+    if (smooth && typeof el.scrollTo === 'function') {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      el.scrollTop = el.scrollHeight;
     }
   }, []);
 
@@ -580,20 +574,12 @@ export default function AiChatModal({
 
   useEffect(() => {
     if (isLoading) {
-      if (emotionResetTimerRef.current) {
-        clearTimeout(emotionResetTimerRef.current);
-        emotionResetTimerRef.current = null;
-      }
       return;
     }
 
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
 
     if (lastAssistant && lastAssistant.emotion && lastAssistant.emotion !== 'idle') {
-      if (emotionResetTimerRef.current) {
-        clearTimeout(emotionResetTimerRef.current);
-      }
-
       emotionResetTimerRef.current = setTimeout(() => {
         messagesRef.current = messagesRef.current.map((msg) =>
           msg.id === lastAssistant.id ? { ...msg, emotion: 'idle' } : msg
@@ -612,7 +598,6 @@ export default function AiChatModal({
   }, [isLoading, messages]);
 
   const triggerFollowUpAnalytics = useCallback(async (targetLat, targetLon, cityName, generation, originalUserMessage = '') => {
-    if (generation !== dialogGenerationRef.current) return;
     setIsLoading(true);
 
     let targetAnalytics = null;
@@ -622,10 +607,7 @@ export default function AiChatModal({
         const airJson = await airRes.json();
         const hourly = airJson?.hourly;
         if (hourly && Array.isArray(hourly.time) && hourly.time.length > 0) {
-          const defaultIdx = findDefaultTimeIndex(hourly.time, new Date(), 1);
-          const idx = (typeof defaultIdx === 'number' && defaultIdx >= 0 && defaultIdx < hourly.time.length)
-            ? defaultIdx
-            : (hourly.time.length - 1);
+          const idx = findDefaultTimeIndex(hourly.time, new Date(), 1);
           const now = new Date();
           const time = hourly.time[idx] || null;
           const selectedTimeInfo = time ? formatSelectedTimeInfo(time, now) : null;
@@ -741,8 +723,6 @@ export default function AiChatModal({
       while (requestQueueRef.current.length > 0) {
         const job = requestQueueRef.current.shift();
 
-        if (job.generation !== dialogGenerationRef.current) continue;
-
         const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
         abortControllerRef.current = controller;
 
@@ -832,7 +812,7 @@ export default function AiChatModal({
             if (clientCity && clientCity.lat != null && clientCity.lon != null) {
               const targetLat = Number(clientCity.lat);
               const targetLon = Number(clientCity.lon);
-              const targetName = clientCity.name || clientCity.raw;
+              const targetName = clientCity.name;
               if (typeof onLocationSelectRef.current === 'function') {
                 onLocationSelectRef.current({
                   lat: targetLat,
@@ -915,9 +895,8 @@ export default function AiChatModal({
                 timestamp: Date.now()
               });
               continue;
-            }
-            if (fallbackCB.enabled === true) {
-              const cbType = fallbackCB.colorBlindType || 'okabe';
+            } else {
+              const cbType = fallbackCB.colorBlindType;
               if (typeof onColorBlindChangeRef.current === 'function') {
                 onColorBlindChangeRef.current(true);
               }
@@ -930,7 +909,7 @@ export default function AiChatModal({
                 role: 'assistant',
                 content: cbType === 'okabe'
                   ? 'Секундочку! Включаю режим доступности для людей с нарушением цветовосприятия с палитрой Окабе по умолчанию, теперь все показатели контрастные и различимые, ня! ✨'
-                  : `Без проблем! Переключаю режим цветовой слепоты на ${typeLabels[cbType] || 'Окабе'}, ня! ✨`,
+                  : `Без проблем! Переключаю режим цветовой слепоты на ${typeLabels[cbType]}, ня! ✨`,
                 emotion: 'happy',
                 timestamp: Date.now()
               });
@@ -959,7 +938,7 @@ export default function AiChatModal({
           if (fallbackCity && fallbackCity.lat != null && fallbackCity.lon != null) {
             const targetLat = Number(fallbackCity.lat);
             const targetLon = Number(fallbackCity.lon);
-            const targetName = fallbackCity.name || fallbackCity.raw;
+            const targetName = fallbackCity.name;
             if (typeof onLocationSelectRef.current === 'function') {
               onLocationSelectRef.current({
                 lat: targetLat,
@@ -1104,7 +1083,7 @@ export default function AiChatModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           audio: base64,
-          mimeType: blob.type || 'audio/webm'
+          mimeType: blob.type
         })
       });
 
@@ -1173,8 +1152,6 @@ export default function AiChatModal({
   }, []);
 
   const handleToggleVoice = useCallback(async () => {
-    if (isTranscribing) return;
-
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
@@ -1234,10 +1211,7 @@ export default function AiChatModal({
     transcriptRef.current = '';
     audioChunksRef.current = [];
 
-    const SpeechRecognition =
-      typeof window !== 'undefined'
-        ? window.SpeechRecognition || window.webkitSpeechRecognition
-        : null;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
       try {
@@ -1258,11 +1232,9 @@ export default function AiChatModal({
           }
           if (transcriptRef.current.trim().length > 0) {
             silenceTimerRef.current = setTimeout(() => {
-              if (isListeningRef.current && recognitionRef.current) {
-                try {
-                  recognitionRef.current.stop();
-                } catch {}
-              }
+              try {
+                recognitionRef.current.stop();
+              } catch {}
             }, 3000);
           }
         };

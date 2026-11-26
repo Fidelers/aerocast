@@ -658,5 +658,101 @@ describe('aiRouter.routeRequest', () => {
             expect(leak2.reply).toContain('AeroCast');
             expect(leak2.reply).not.toMatch(/запрещено/i);
         });
+
+        it('покрывает оставшиеся ветки isMathQuery, GENERAL_REVERT_REGEX и decisions', async () => {
+            const { isMathQuery } = require('../../ai/services/aiRouter');
+            expect(isMathQuery('   ')).toBe(false);
+            expect(isMathQuery('12345')).toBe(false);
+
+            jevClient.scoreDecisions.mockResolvedValueOnce(null);
+            expect(await routeRequest({ userMessage: 'включи тёмную тему?' })).toBeNull();
+
+            jevClient.scoreDecisions.mockResolvedValueOnce(null);
+            const noTargetRevert = await routeRequest({
+                userMessage: 'верни назад',
+                appContext: {
+                    history: [{}],
+                    theme: 'dark',
+                    currentLayer: 'osm',
+                    isColorBlind: false
+                }
+            });
+            expect(noTargetRevert).toBeNull();
+
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'set_satellite' },
+                theme: { answer: 'unknown' },
+                colorblind: { answer: 'disable' },
+                guardrail: { answer: 'unknown_guard', top_probability: 0.99 }
+            });
+            expect(await routeRequest({
+                userMessage: 'спутник и тема',
+                appContext: { history: [{}] }
+            })).toBeNull();
+
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'none', top_probability: 0.1 },
+                theme: { answer: 'unknown_theme', top_probability: 0.95 },
+                colorblind: { answer: 'okabe', probabilities: {} },
+                guardrail: { answer: 'safe', top_probability: 0.99 }
+            });
+            expect(await routeRequest({ userMessage: 'включи оформление' })).toBeNull();
+
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'none', top_probability: 0.1 },
+                theme: { answer: 'none', top_probability: 0.1 },
+                colorblind: { answer: 'disable', top_probability: 0.9 },
+                guardrail: { answer: 'safe', top_probability: 0.99 }
+            });
+            const disableToOkabe = await routeRequest({
+                userMessage: 'дальтонизм',
+                appContext: { isColorBlind: false }
+            });
+            expect(disableToOkabe.action).toEqual({
+                type: 'set_colorblind',
+                enabled: true,
+                colorBlindType: 'okabe'
+            });
+
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'none', top_probability: 0.1 },
+                theme: { answer: 'none', top_probability: 0.1 },
+                colorblind: { answer: 'disable' },
+                guardrail: { answer: 'safe', top_probability: 0.99 }
+            });
+            const disableNoProb = await routeRequest({ userMessage: 'дальтонизм' });
+            expect(disableNoProb.action).toEqual({
+                type: 'set_colorblind',
+                enabled: true,
+                colorBlindType: 'okabe'
+            });
+
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'none', top_probability: 0.1 },
+                theme: { answer: 'none', top_probability: 0.1 },
+                colorblind: { answer: 'okabe', probabilities: { none: 0.1, disable: 0.1 } },
+                guardrail: { answer: 'safe', top_probability: 0.99 }
+            });
+            const okabeNoTopProb = await routeRequest({ userMessage: 'включи дальтонизм' });
+            expect(okabeNoTopProb.action).toEqual({
+                type: 'set_colorblind',
+                enabled: true,
+                colorBlindType: 'okabe'
+            });
+
+            jevClient.scoreDecisions.mockResolvedValueOnce({
+                map_layer: { answer: 'none', top_probability: 0.1 },
+                theme: { answer: 'none', top_probability: 0.1 },
+                colorblind: { answer: 'custom_cb', top_probability: 0.95 },
+                guardrail: { answer: 'safe', top_probability: 0.99 }
+            });
+            const customCbRes = await routeRequest({ userMessage: 'включи дейтеранопию' });
+            expect(customCbRes.action).toEqual({
+                type: 'set_colorblind',
+                enabled: true,
+                colorBlindType: 'custom_cb'
+            });
+            expect(customCbRes.reply).toContain('custom_cb');
+        });
     });
 });

@@ -178,9 +178,7 @@ export default function MapComponent({
         if (!map.current) return;
         const mapInstance = map.current;
         runWhenStyleReady(mapInstance, () => {
-            if (updateLodOpacityRef.current) {
-                updateLodOpacityRef.current();
-            }
+            updateLodOpacityRef.current();
         });
     }, [viewMode]);
 
@@ -197,9 +195,7 @@ export default function MapComponent({
             attributionControl: false,
         });
 
-        if (typeof window !== 'undefined') {
-            window.__aerocastMap = map.current;
-        }
+        window.__aerocastMap = map.current;
 
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
@@ -385,7 +381,7 @@ export default function MapComponent({
         if (lat == null || lon == null || Number.isNaN(numLat) || Number.isNaN(numLon) || !map.current) return;
 
         // Если это клик по карте – не дергаем камеру flyTo, оставляем стабильный фокус
-        if (isMapClick.current || (clickedCoordsRef.current && Math.abs(clickedCoordsRef.current.lat - numLat) < 0.0001 && Math.abs(clickedCoordsRef.current.lon - numLon) < 0.0001)) {
+        if (isMapClick.current) {
             isMapClick.current = false;
             clickedCoordsRef.current = null;
             if (markerRef.current) {
@@ -408,7 +404,6 @@ export default function MapComponent({
     }, [lat, lon, recenterTrigger]);
     // переключение видимости слоев подложки (схема / спутник) и ограничение maxZoom для спутника
     useEffect(() => {
-        if (!map.current) return;
         const isSatellite = activeBaseLayer === 'satellite';
         const targetMaxZoom = isSatellite ? SATELLITE_MAX_ZOOM : OSM_MAX_ZOOM;
         let isCancelled = false;
@@ -559,7 +554,6 @@ export default function MapComponent({
         const gridBbox = RUSSIA_MACRO_BBOX;
 
         const coords = bboxToImageCoordinates(gridBbox);
-        if (!coords) return;
 
         // 1. Инициализация рабочего Canvas буфера для базовой макро-сетки
         if (!macroCanvasRef.current) {
@@ -766,7 +760,7 @@ export default function MapComponent({
 
         runWhenStyleReady(mapInstance, () => {
             applyMacroLayer();
-            if (updateLodOpacityRef.current) updateLodOpacityRef.current();
+            updateLodOpacityRef.current();
         });
     }, [macroGrid, selectedTimeIndex, selectedIsoTime, isColorBlind, colorBlindType]);
 
@@ -962,7 +956,7 @@ export default function MapComponent({
 
         runWhenStyleReady(mapInstance, () => {
             applyMicroLayer();
-            if (updateLodOpacityRef.current) updateLodOpacityRef.current();
+            updateLodOpacityRef.current();
         });
     }, [microGrid, selectedTimeIndex, selectedIsoTime, isColorBlind, colorBlindType]);
 

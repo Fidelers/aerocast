@@ -61,7 +61,7 @@ export function renderJsonWithColors(jsonStr) {
             {boolMatch}
           </span>
         );
-      } else if (punctMatch) {
+      } else {
         elements.push(punctMatch);
       }
       lastIndex = regex.lastIndex;
@@ -207,7 +207,6 @@ export default function AnalyticsExportModal({
 
   const collectChartItemsForExport = () => {
     const container = pngPreviewContainerRef.current;
-    if (!container) return [];
 
     return Array.from(container.querySelectorAll('.export-png-chart-card')).map((card) => {
       const key = card.getAttribute('data-metric');
@@ -268,7 +267,7 @@ export default function AnalyticsExportModal({
           ext: 'json',
         });
         downloadBlob(blob, filename);
-      } else if (exportFormat === 'png') {
+      } else {
         const chartCards = collectChartItemsForExport();
         if (chartCards.length === 0) {
           throw new Error('Графики не найдены для экспорта изображения');
@@ -341,7 +340,7 @@ export default function AnalyticsExportModal({
         } else {
           throw new Error('Буфер обмена недоступен');
         }
-      } else if (exportFormat === 'png') {
+      } else {
         const chartCards = collectChartItemsForExport();
         if (chartCards.length === 0) throw new Error('Графики не найдены');
 
@@ -726,9 +725,7 @@ export default function AnalyticsExportModal({
                           return (
                             <td key={m.key}>
                               {val !== null && val !== undefined
-                                ? (exportFormat === 'csv'
-                                    ? formatMetricValue(val, m.decimals, { decimalSeparator: ',' })
-                                    : Number(val).toFixed(m.decimals))
+                                ? formatMetricValue(val, m.decimals, { decimalSeparator: ',' })
                                 : '–'}
                             </td>
                           );

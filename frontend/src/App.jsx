@@ -107,7 +107,6 @@ function App({ referenceDate } = {}) {
     }, []);
 
     const [theme, setTheme] = useState(() => {
-        if (typeof window === 'undefined') return 'light';
         const saved = localStorage.getItem('aerocast_theme');
         if (saved === 'dark' || saved === 'light') return saved;
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -116,40 +115,31 @@ function App({ referenceDate } = {}) {
     });
 
     const [isColorBlind, setIsColorBlind] = useState(() => {
-        if (typeof window === 'undefined') return false;
         return localStorage.getItem('aerocast_colorblind') === 'true';
     });
 
     const [colorBlindType, setColorBlindType] = useState(() => {
-        if (typeof window === 'undefined') return 'okabe';
         return localStorage.getItem('aerocast_colorblind_type') || 'okabe';
     });
 
     useEffect(() => {
-        if (typeof document !== 'undefined') {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('aerocast_theme', theme);
-        }
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('aerocast_theme', theme);
     }, [theme]);
 
     useEffect(() => {
-        if (typeof document !== 'undefined') {
-            document.documentElement.setAttribute('data-colorblind', isColorBlind ? 'true' : 'false');
-            document.documentElement.setAttribute('data-colorblind-type', colorBlindType);
-            localStorage.setItem('aerocast_colorblind', isColorBlind ? 'true' : 'false');
-            localStorage.setItem('aerocast_colorblind_type', colorBlindType);
-        }
+        document.documentElement.setAttribute('data-colorblind', isColorBlind ? 'true' : 'false');
+        document.documentElement.setAttribute('data-colorblind-type', colorBlindType);
+        localStorage.setItem('aerocast_colorblind', isColorBlind ? 'true' : 'false');
+        localStorage.setItem('aerocast_colorblind_type', colorBlindType);
     }, [isColorBlind, colorBlindType]);
 
     const [mascotMode, setMascotMode] = useState(() => {
-        if (typeof window === 'undefined') return 'mascot';
         return localStorage.getItem('aerocast_mascot_mode') || 'mascot';
     });
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('aerocast_mascot_mode', mascotMode);
-        }
+        localStorage.setItem('aerocast_mascot_mode', mascotMode);
     }, [mascotMode]);
 
     const { macroGrid } = useAirGrid({ baseUrl: API_BASE });

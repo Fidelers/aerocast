@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import * as PIXI from 'pixi.js';
+import { Live2DModel } from 'pixi-live2d-display/cubism4';
 import AyaMascot from '../../src/components/AiChat/AyaMascot';
 
 describe('AyaMascotCoverage', () => {
@@ -92,5 +94,61 @@ describe('AyaMascotCoverage', () => {
 
     rerender(<AyaMascot emotion="idle" size="modal" showBubble={true} />);
     expect(container.querySelector('.aya-bubble')).toBeNull();
+  });
+
+  it('покрывает граничные ветки Live2D motion (null motion, отсутствие setIsLoop/setIsLoopFadeIn) и ошибку PIXI.Application', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fromSpy = vi.spyOn(Live2DModel, 'from');
+
+    fromSpy.mockResolvedValueOnce({
+      anchor: { set: vi.fn() },
+      scale: { set: vi.fn() },
+      x: 0,
+      y: 0,
+      height: 750,
+      destroy: vi.fn(),
+      motion: vi.fn(),
+      internalModel: {
+        motionManager: {
+          loadMotion: vi.fn().mockResolvedValue(null),
+          stopAllMotions: vi.fn(),
+        },
+        coreModel: {},
+      },
+    });
+    const { unmount: u1 } = render(<AyaMascot emotion="idle" size="sidebar" />);
+    await act(async () => { await Promise.resolve(); });
+    u1();
+
+    fromSpy.mockResolvedValueOnce({
+      anchor: { set: vi.fn() },
+      scale: { set: vi.fn() },
+      x: 0,
+      y: 0,
+      height: 750,
+      destroy: vi.fn(),
+      motion: vi.fn(),
+      internalModel: {
+        motionManager: {
+          loadMotion: vi.fn().mockResolvedValue({}),
+          stopAllMotions: vi.fn(),
+        },
+        coreModel: {},
+      },
+    });
+    const { unmount: u2 } = render(<AyaMascot emotion="happy" size="sidebar" />);
+    await act(async () => { await Promise.resolve(); });
+    u2();
+
+    const appSpy = vi.spyOn(PIXI, 'Application').mockImplementationOnce(() => {
+      throw new Error('WebGL unavailable');
+    });
+    const { unmount: u3 } = render(<AyaMascot emotion="idle" size="sidebar" />);
+    await act(async () => { await Promise.resolve(); });
+    u3();
+
+    appSpy.mockRestore();
+    fromSpy.mockRestore();
+    errSpy.mockRestore();
   });
 });

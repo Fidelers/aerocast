@@ -2746,4 +2746,405 @@ describe('AiChatModalCoverage', () => {
       />
     );
   });
+
+  it('покрывает оставшиеся ветки formatMessageContent, intent, scrollToBottom, таймеров эмоций, смены поколения и Voice', async () => {
+    const {
+      formatMessageContent,
+      detectClientColorBlindIntent,
+      detectClientCityIntent,
+      detectClientCityFromReply,
+    } = await import('../../src/components/AiChat/AiChatModal');
+
+    expect(formatMessageContent('**жирный** и *курсив*')).toHaveLength(1);
+    expect(detectClientColorBlindIntent('режим', { history: 'not-array' })).toBeNull();
+    expect(detectClientCityIntent('перейди в Москва по текущей точке')).toBeNull();
+    expect(detectClientCityIntent('про погоду в Казани')).toEqual(expect.objectContaining({ raw: 'Казани' }));
+    expect(detectClientCityIntent('в Точке')).toBeNull();
+    expect(detectClientCityIntent('перейди в x')).toBeNull();
+    expect(detectClientCityFromReply('открываю Самаре, смотрю')).toEqual(expect.objectContaining({ raw: 'Самаре' }));
+
+    // scrollToBottom с el.scrollTo и emotionResetTimerRef при isLoading & новом сообщении
+    const origScrollTo = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = vi.fn();
+    vi.useFakeTimers();
+
+    let resolveChat1;
+    let resolveChat2;
+    let chatCall = 0;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/ai/chat')) {
+        chatCall++;
+        if (chatCall === 1) return new Promise((r) => { resolveChat1 = r; });
+        if (chatCall === 2) return new Promise((r) => { resolveChat2 = r; });
+        return Promise.resolve({ ok: true, json: async () => ({ reply: 'Ок!', emotion: 'happy' }) });
+      }
+      if (String(url).includes('/api/air-quality')) {
+        return Promise.reject(new Error('air fail'));
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    const { rerender } = render(
+      <AiChatModal
+        isOpen={true}
+        onClose={vi.fn()}
+        airData={{ hourly: { time: undefined } }}
+        selectedTimeIndex={0}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/спроси что-нибудь/i);
+    fireEvent.change(input, { target: { value: 'привет 1' } });
+    fireEvent.submit(input.closest('form'));
+
+    // Завершаем chat1 с emotion='happy' -> запускает emotionResetTimerRef
+    await act(async () => {
+      resolveChat1({ ok: true, json: async () => ({ reply: 'Рада!', emotion: 'happy' }) });
+    });
+
+    // Отправляем chat2 пока таймер эмоций активен -> isLoading=true очищает таймер (lines 583-585)
+    fireEvent.change(input, { target: { value: 'привет 2' } });
+    fireEvent.submit(input.closest('form'));
+
+    // Нажимаем Новый диалог во время in-flight chat2 -> смена dialogGenerationRef (lines 781)
+    const clearBtn = screen.getByRole('button', { name: /новый диалог/i });
+    fireEvent.click(clearBtn);
+    await act(async () => {
+      resolveChat2({ ok: true, json: async () => ({ reply: 'Старый ответ', emotion: 'happy' }) });
+    });
+
+    // Кейс: followUpAnalytics без targetAnalytics, followUpRes.ok=false, followUpRes.json fail, смена поколения в followUp
+    chatCall = 0;
+    let resolveAir;
+    let resolveStep2;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return new Promise((r) => { resolveAir = r; });
+      }
+      chatCall++;
+      if (chatCall === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ reply: 'Смотрю воздух в Казань', emotion: 'happy' })
+        });
+      }
+      return new Promise((r) => { resolveStep2 = r; });
+    });
+
+    // Без колбэков set_location + followUp via detectClientCityIntent
+    fireEvent.change(input, { target: { value: 'воздух в Казань' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+    expect(typeof resolveAir).toBe('function');
+    await act(async () => {
+      resolveAir({ ok: true, json: async () => ({ hourly: { time: [] } }) });
+    });
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+    await act(async () => {
+      resolveStep2({ ok: false, json: async () => { throw new Error('bad json'); } });
+    });
+
+    // Кейс: followUp c hourly.time=['bad'] (findDefaultTimeIndex null -> fallback length-1) и followUpRes.ok=true с broken json
+    chatCall = 0;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return Promise.resolve({ ok: true, json: async () => ({ hourly: { time: ['bad-time'] } }) });
+      }
+      chatCall++;
+      if (chatCall === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ action: { type: 'set_location', lat: 55, lon: 49, cityName: 'Казань', followUpAnalytics: true } })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => { throw new Error('bad json'); } });
+    });
+    fireEvent.change(input, { target: { value: 'воздух в Казань' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    // Кейс: смена поколения во время /api/air-quality в triggerFollowUpAnalytics и во время step2
+    let resolveAirGen;
+    chatCall = 0;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return new Promise((r) => { resolveAirGen = r; });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ action: { type: 'set_location', lat: 55, lon: 49, cityName: 'Казань', followUpAnalytics: true } })
+      });
+    });
+    fireEvent.change(input, { target: { value: 'воздух в Казань' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    fireEvent.click(clearBtn);
+    await act(async () => {
+      resolveAirGen({ ok: true, json: async () => ({ hourly: { time: ['2026-10-01T12:00'], european_aqi: [20] } }) });
+    });
+
+    // Кейс: actions от сервера без переданных колбэков (set_base_layer, set_colorblind true/false, set_theme) и fallback без колбэков
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ action: { type: 'set_colorblind', enabled: true, colorBlindType: 'deuteranopia' } }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ action: { type: 'set_colorblind', enabled: false } }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ action: { type: 'set_theme', theme: 'dark' } }) })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'));
+
+    for (const msg of ['включи дейтеранопию', 'выключи дальтонизм', 'тёмная тема', 'спутник', 'выключи дальтонизм', 'включи окабе', 'тёмная тема']) {
+      fireEvent.change(input, { target: { value: msg } });
+      fireEvent.submit(input.closest('form'));
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    }
+
+    // Кейс: error при отмененном job (generation changed before catch)
+    let rejectChatGen;
+    global.fetch = vi.fn().mockImplementation(() => new Promise((_, rej) => { rejectChatGen = rej; }));
+    fireEvent.change(input, { target: { value: 'тест отмены catch' } });
+    fireEvent.submit(input.closest('form'));
+    fireEvent.click(clearBtn);
+    await act(async () => { rejectChatGen(new Error('late error')); });
+
+    // Кейс: SpeechRecognition throws on start(), stop() during isTranscribing, silenceTimer clear on sendMessage
+    class ThrowingRecognition {
+      start() { throw new Error('start fail'); }
+    }
+    window.SpeechRecognition = ThrowingRecognition;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
+      configurable: true
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ai-chat-mic-btn'));
+    });
+
+    // Working SpeechRecognition with silence timer + sending message while listening
+    let recInst = null;
+    class SilenceRec {
+      constructor() { recInst = this; }
+      start = vi.fn();
+      stop = vi.fn();
+      abort = vi.fn();
+    }
+    window.SpeechRecognition = SilenceRec;
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ai-chat-mic-btn'));
+    });
+    recInst.onstart();
+    recInst.onresult({ results: [[{ transcript: 'привет мир' }]] });
+    // Toggle voice while listening & silenceTimer active -> clears silenceTimer (lines 1178-1180)
+    fireEvent.click(screen.getByTestId('ai-chat-mic-btn'));
+    recInst.onresult({ results: [[{ transcript: 'тест' }]] });
+    // Send message directly via form submit while listening & silenceTimer active -> lines 1007-1009, 1020
+    fireEvent.submit(input.closest('form'));
+    delete window.SpeechRecognition;
+
+    vi.useRealTimers();
+    HTMLElement.prototype.scrollTo = origScrollTo;
+  });
+
+  it('покрывает 100% оставшиеся ветки followUp, json abort, пустого ответа, SpeechRecognition и MediaRecorder', async () => {
+    const { detectClientCityIntent } = await import('../../src/components/AiChat/AiChatModal');
+    expect(detectClientCityIntent('живу в России')).toBeNull();
+
+    const origMediaRecorder = window.MediaRecorder;
+    const origSR = window.SpeechRecognition;
+    const origWSR = window.webkitSpeechRecognition;
+
+    let chatCall = 0;
+    let resolveStep2A;
+    let rejectStep2B;
+    let resolveJsonLate;
+
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return Promise.reject(new Error('air network down'));
+      }
+      if (String(url).includes('/api/ai/transcribe')) {
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      chatCall++;
+      if (chatCall === 1) {
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ reply: 'Готово', emotion: 'happy' }) });
+    });
+
+    render(<AiChatModal isOpen={true} onClose={vi.fn()} />);
+    const input = screen.getByPlaceholderText(/спроси что-нибудь/i);
+    const clearBtn = screen.getByRole('button', { name: /новый диалог/i });
+
+    // 1) Пустой ответ от сервера ({}, без action и без reply) -> line 827 false branch
+    fireEvent.change(input, { target: { value: 'привет просто так' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    // 2) followUpAnalytics: /api/air-quality rejects (line 653), step 2 rejects (line 715 false)
+    chatCall = 0;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return Promise.reject(new Error('air err'));
+      }
+      chatCall++;
+      if (chatCall === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ action: { type: 'set_location', lat: 55, lon: 49, cityName: 'Казань', followUpAnalytics: true } })
+        });
+      }
+      return Promise.reject(new Error('step2 reject'));
+    });
+    fireEvent.change(input, { target: { value: 'воздух в Казань' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+
+    // 3) followUpAnalytics: step 2 pending, clearBtn clicked -> step 2 resolves (683 true, 726 false)
+    chatCall = 0;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return Promise.resolve({ ok: true, json: async () => ({ hourly: { time: [] } }) });
+      }
+      chatCall++;
+      if (chatCall === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ action: { type: 'set_location', lat: 55, lon: 49, cityName: 'Казань', followUpAnalytics: true } })
+        });
+      }
+      return new Promise((r) => { resolveStep2A = r; });
+    });
+    fireEvent.change(input, { target: { value: 'воздух в Казань' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+    fireEvent.click(clearBtn);
+    await act(async () => {
+      resolveStep2A({ ok: true, json: async () => ({ reply: 'late' }) });
+    });
+
+    // 4) followUpAnalytics: step 2 pending, clearBtn clicked -> step 2 rejects (713 false, 726 false)
+    chatCall = 0;
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('/api/air-quality')) {
+        return Promise.resolve({ ok: true, json: async () => ({ hourly: { time: [] } }) });
+      }
+      chatCall++;
+      if (chatCall === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ action: { type: 'set_location', lat: 55, lon: 49, cityName: 'Казань', followUpAnalytics: true } })
+        });
+      }
+      return new Promise((_, rej) => { rejectStep2B = rej; });
+    });
+    fireEvent.change(input, { target: { value: 'воздух в Казань' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+    fireEvent.click(clearBtn);
+    await act(async () => {
+      rejectStep2B(new Error('late step2 reject'));
+    });
+
+    // 5) json() pending while clearBtn clicked -> 777 true
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => new Promise((r) => { resolveJsonLate = r; })
+    });
+    fireEvent.change(input, { target: { value: 'ждём json' } });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 4; i++) await Promise.resolve();
+    });
+    fireEvent.click(clearBtn);
+    await act(async () => {
+      resolveJsonLate({ reply: 'опоздавший json' });
+    });
+
+    // 6) SpeechRecognition с пустым (whitespace) результатом -> line 1255 false
+    let recBlank = null;
+    class BlankSR {
+      constructor() { recBlank = this; }
+      start = vi.fn();
+      stop = vi.fn();
+      abort = vi.fn();
+    }
+    window.SpeechRecognition = BlankSR;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
+      configurable: true
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ai-chat-mic-btn'));
+    });
+    act(() => {
+      recBlank.onstart();
+      recBlank.onresult({ results: [[{ transcript: '   ' }]] });
+    });
+    fireEvent.click(screen.getByTestId('ai-chat-cancel-voice-btn'));
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+
+    // 7) MediaRecorder: ondataavailable с size 0, submit формы во время записи, и empty mimeType + {} transcribe response
+    let recInstance = null;
+    class CustomMediaRecorder {
+      static isTypeSupported = () => false;
+      constructor() {
+        this.state = 'inactive';
+        this.mimeType = '';
+        recInstance = this;
+      }
+      start = vi.fn(() => {
+        this.state = 'recording';
+        this.onstart?.();
+      });
+      stop = vi.fn(() => {
+        this.state = 'inactive';
+      });
+    }
+    window.MediaRecorder = CustomMediaRecorder;
+
+    fireEvent.change(input, { target: { value: 'текст перед записью' } });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ai-chat-mic-btn'));
+    });
+    act(() => {
+      recInstance.ondataavailable({ data: { size: 0 } });
+    });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reply: 'Ок' }) });
+    fireEvent.submit(input.closest('form'));
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    // Второй запуск MediaRecorder: большой чанк без mimeType + пустой { } от /api/ai/transcribe
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ai-chat-mic-btn'));
+    });
+    act(() => {
+      recInstance.ondataavailable({ data: new Blob([new Uint8Array(300)]) });
+    });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    await act(async () => {
+      await recInstance.onstop();
+    });
+
+    window.MediaRecorder = origMediaRecorder;
+    if (origSR) window.SpeechRecognition = origSR;
+    if (origWSR) window.webkitSpeechRecognition = origWSR;
+  });
 });

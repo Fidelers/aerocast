@@ -68,7 +68,7 @@ export default function DynamicsChart({
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(defaultWidth);
-  const width = containerWidth || defaultWidth;
+  const width = containerWidth;
 
   const [dragState, setDragState] = useState(null);
   const isMouseDownRef = useRef(false);
@@ -80,7 +80,6 @@ export default function DynamicsChart({
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
     const el = containerRef.current;
 
     const measure = () => {
@@ -139,7 +138,7 @@ export default function DynamicsChart({
 
   const usableWidth = width - padLeft - padRight;
   const usableHeight = chartHeight - padTop - padBottom;
-  const valRange = maxVal - minVal || 1;
+  const valRange = maxVal - minVal;
 
   const count = Math.max(data.length, 2);
   const stepX = usableWidth / (count - 1);
@@ -158,7 +157,7 @@ export default function DynamicsChart({
   }));
 
   const paletteKey = colorBlindType && COLORBLIND_PALETTES[colorBlindType] ? colorBlindType : 'okabe';
-  const palette = COLORBLIND_PALETTES[paletteKey] || COLORBLIND_PALETTES.okabe;
+  const palette = COLORBLIND_PALETTES[paletteKey];
 
   let strokeColor = color;
   if (isColorBlind) {
@@ -181,7 +180,6 @@ export default function DynamicsChart({
 
   const getCoordinatesFromClientX = useCallback(
     (clientX) => {
-      if (!svgRef.current) return { svgX: padLeft, idx: 0 };
       const svg = svgRef.current;
       let svgX = null;
 
@@ -208,7 +206,7 @@ export default function DynamicsChart({
       }
 
       const clampedSvgX = Math.max(padLeft, Math.min(width - padRight, svgX));
-      const rawIdx = Math.round((clampedSvgX - padLeft) / (stepX || 1));
+      const rawIdx = Math.round((clampedSvgX - padLeft) / stepX);
       const idx = Math.max(0, Math.min(data.length - 1, rawIdx));
       return { svgX: clampedSvgX, idx };
     },
@@ -361,9 +359,7 @@ export default function DynamicsChart({
 
   const handleInteraction = (idx) => {
     if (didDragRef.current) return;
-    if (onPointClick && idx >= 0 && idx < data.length) {
-      onPointClick(idx);
-    }
+    onPointClick(idx);
   };
 
   const handleSvgMouseEnter = () => {
@@ -467,7 +463,6 @@ export default function DynamicsChart({
       return (
         <g className="chart-axis-labels">
           {TIME_INDICES.map((hourIdx, idx) => {
-            if (hourIdx >= count) return null;
             const x = padLeft + hourIdx * stepX;
             return (
               <text
@@ -660,7 +655,7 @@ export default function DynamicsChart({
         {isHovered && onPointClick && hoveredPoint && hoveredPoint.val !== null && !dragState?.isDragging && (
           <g className="chart-hover-marker" pointerEvents="none" data-testid="chart-hover-marker">
             {(() => {
-              const item = data[hoveredPoint.idx ?? hoveredIdx];
+              const item = data[hoveredPoint.idx];
               const timeText = formatPointTooltip(item, isMultiDay);
               const valText = `${hoveredPoint.val} ${unit}`.trim();
               const tooltipText = `${timeText}: ${valText}`;
@@ -761,7 +756,7 @@ export default function DynamicsChart({
           points.map((point, idx) => {
             const rectWidth = stepX;
             const rectX = point.x - rectWidth / 2;
-            const timeLabel = point.idx !== undefined ? data[point.idx]?.hourLabel || `Точка ${idx}` : `Точка ${idx}`;
+            const timeLabel = data[point.idx]?.hourLabel || `Точка ${idx}`;
 
             return (
               <rect
@@ -775,12 +770,12 @@ export default function DynamicsChart({
                 role="button"
                 tabIndex={0}
                 aria-label={`Выбрать время: ${timeLabel}, значение: ${point.val ?? 'нет данных'} ${unit}`}
-                onClick={() => handleInteraction(point.idx ?? idx)}
-                onMouseEnter={() => setHoveredIdx(point.idx ?? idx)}
+                onClick={() => handleInteraction(point.idx)}
+                onMouseEnter={() => setHoveredIdx(point.idx)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    handleInteraction(point.idx ?? idx);
+                    handleInteraction(point.idx);
                   }
                 }}
               />

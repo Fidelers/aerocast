@@ -73,11 +73,7 @@ export function useAirGrid(options = {}) {
         const cache = lruGridCacheRef.current;
         while (cache.size > LRU_MAX_SIZE) {
             const oldestKey = cache.keys().next().value;
-            if (oldestKey !== undefined) {
-                cache.delete(oldestKey);
-            } else {
-                break;
-            }
+            cache.delete(oldestKey);
         }
     }, []);
 

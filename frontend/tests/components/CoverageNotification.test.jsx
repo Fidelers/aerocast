@@ -177,4 +177,33 @@ describe('CoverageNotification (Уведомление о нахождении �
         // Уведомление не исчезает
         expect(screen.getByTestId('coverage-notification')).toBeTruthy();
     });
+
+    it('8. Покрывает очистку warningFadeTimerRef при скрытии/повторном показе и VITE_API_URL из env', async () => {
+        vi.useFakeTimers();
+        render(<App />);
+
+        const londonBtn = screen.getByTestId('mock-click-foreign-london');
+        fireEvent.click(londonBtn);
+        expect(screen.getByTestId('coverage-notification')).toBeTruthy();
+
+        vi.advanceTimersByTime(5050);
+
+        const oceanBtn = screen.getByTestId('mock-click-foreign-ocean');
+        fireEvent.click(oceanBtn);
+        expect(screen.getByTestId('coverage-notification')).toBeTruthy();
+
+        vi.advanceTimersByTime(5050);
+
+        const moscowBtn = screen.getByTestId('mock-click-russia-moscow');
+        fireEvent.click(moscowBtn);
+        expect(screen.queryByTestId('coverage-notification')).toBeNull();
+
+        vi.useRealTimers();
+
+        vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+        vi.resetModules();
+        const mod = await import('../../src/App');
+        expect(mod.default).toBeDefined();
+        vi.unstubAllEnvs();
+    });
 });

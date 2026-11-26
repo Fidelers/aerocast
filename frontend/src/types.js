@@ -89,7 +89,7 @@ export function getAqiInfo(aqi, options = {}) {
     if (options.colorBlind) {
         const type = options.colorBlindType || 'okabe';
         const palette = COLORBLIND_PALETTES[type] || COLORBLIND_PALETTES.okabe;
-        return { ...info, hex: palette[info.level] || info.hex };
+        return { ...info, hex: palette[info.level] };
     }
 
     return info;

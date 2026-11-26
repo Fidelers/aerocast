@@ -744,5 +744,20 @@ describe('Controller: gridAirController', () => {
             }));
         });
 
+        it('логирует строковую ошибку fetchBatchAirQuality без поля message (fallback fetchError)', async () => {
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
+            batchAirService.fetchBatchAirQuality.mockRejectedValueOnce('raw string failure');
+            spatialCacheService.getSpatialCache.mockResolvedValueOnce(null);
+
+            req.query = { type: 'micro', lat: '53.75', lon: '87.15' };
+            await gridAirController.getGridAirQuality(req, res);
+
+            expect(console.warn).toHaveBeenCalledWith(
+                'Сбой запроса к Open-Meteo, пробуем устаревший кэш:',
+                'raw string failure'
+            );
+            expect(res.status).toHaveBeenCalledWith(500);
+        });
+
     });
 });

@@ -133,6 +133,7 @@ describe('pollutantsInfo utility', () => {
 
     it('в режиме дальтоника «нет данных» остается нейтрально-серым', () => {
         expect(getPollutantAssessment('pm2_5', null, { colorBlind: true }).color).toBe('#9E9E9E');
+        expect(getPollutantAssessment('pm2_5', 8, { colorBlind: true, colorBlindType: 'unknown_type' }).color).toBe('#0072B2');
     });
 });
 

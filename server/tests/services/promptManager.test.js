@@ -157,6 +157,9 @@ describe('promptManager', () => {
         });
 
         it('покрывает граничные случаи и пропущенные поля в pointAnalytics', () => {
+            const resWithUv = formatPointAnalyticsContext({ aqi: 20, uv: 4.5 });
+            expect(resWithUv).toContain('УФ-индекс: 4.5');
+
             const res = formatPointAnalyticsContext({
                 aqi: null,
                 uv: null,

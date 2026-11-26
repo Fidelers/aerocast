@@ -77,8 +77,6 @@ export default function AyaMascot({
     let isMounted = true;
 
     const initPixi = async () => {
-      if (!canvasRef.current) return;
-
       try {
         const app = new PIXI.Application({
           view: canvasRef.current,

@@ -963,4 +963,55 @@ describe('PollutionDynamicsModal component (поверхностное окно 
         fireEvent.click(resetBtn);
         expect(screen.queryByTestId('reset-range-btn')).toBeNull();
     });
+
+    it('42. Покрывает scrollTo fallback на мобильном, disabled all-days toggle и пустые/невалидные ISO-даты', () => {
+        const originalInnerWidth = window.innerWidth;
+        const origMatchMedia = window.matchMedia;
+        window.innerWidth = 500;
+        window.matchMedia = vi.fn(() => ({ matches: false }));
+
+        const weirdAirData = {
+            latitude: 53.75,
+            longitude: 87.14,
+            hourly: {
+                time: ['', 'bad-time', '2026-10-21T00:00'],
+                european_aqi: [20, 30, 40],
+                pm2_5: [5, 6, 7],
+                pm10: [10, 11, 12],
+                nitrogen_dioxide: [10, 11, 12],
+                sulphur_dioxide: [2, 3, 4],
+                ozone: [20, 21, 22],
+                carbon_monoxide: [100, 110, 120]
+            }
+        };
+
+        const { container } = render(
+            <PollutionDynamicsModal
+                isOpen={true}
+                onClose={vi.fn()}
+                airData={weirdAirData}
+                selectedTimeIndex={999}
+            />
+        );
+
+        const mainChart = container.querySelector('.dynamics-modal-main-chart');
+        const scrollArea = container.querySelector('.dynamics-modal-scroll-area');
+        mainChart.scrollIntoView = undefined;
+        scrollArea.scrollTo = undefined;
+        fireEvent.click(screen.getByTestId('pollutant-card-pm10'));
+
+        const scrollToSpy = vi.fn();
+        scrollArea.scrollTo = scrollToSpy;
+
+        fireEvent.click(screen.getByTestId('pollutant-card-pm2_5'));
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+
+        const stepSelect = screen.getByTestId('step-hours-select');
+        fireEvent.change(stepSelect, { target: { value: '24' } });
+
+        expect(screen.getByTestId('all-days-hint')).toBeTruthy();
+
+        window.innerWidth = originalInnerWidth;
+        window.matchMedia = origMatchMedia;
+    });
 });

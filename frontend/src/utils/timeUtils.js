@@ -372,7 +372,7 @@ export function computeAirHistory(hourly, referenceDate = new Date()) {
         const month = parseInt(parts[1], 10) - 1;
         const day = parseInt(parts[2], 10);
         const d = new Date(year, month, day);
-        const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
+        const dayOfWeek = WEEKDAYS_RU[d.getDay()];
         const monthName = MONTHS_RU_FULL[month] || '';
         const hourStr = String(hour).padStart(2, '0') + ':00';
         return `${dayOfWeek}, ${day} ${monthName} в ${hourStr}`;
@@ -479,16 +479,13 @@ export function computeAirHistory(hourly, referenceDate = new Date()) {
         const avgPm10 = pm10List.length > 0 ? Number((pm10List.reduce((a, b) => a + b, 0) / pm10List.length).toFixed(1)) : null;
 
         const parts = dateStr.split('-');
-        let dayLabel = dateStr;
-        if (parts.length === 3) {
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const day = parseInt(parts[2], 10);
-            const d = new Date(year, month, day);
-            const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
-            const monthName = MONTHS_RU[month] || '';
-            dayLabel = `${dayOfWeek}, ${day} ${monthName}`;
-        }
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        const dayOfWeek = WEEKDAYS_RU[d.getDay()];
+        const monthName = MONTHS_RU[month] || '';
+        const dayLabel = `${dayOfWeek}, ${day} ${monthName}`;
 
         return {
             date: dateStr,
@@ -559,16 +556,13 @@ export function formatSelectedTimeInfo(timeStr, referenceDate = new Date()) {
     }
 
     const parts = parsed.dateStr.split('-');
-    let dateFormatted = parsed.dateStr;
-    if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        const d = new Date(year, month, day);
-        const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
-        const monthName = MONTHS_RU_FULL[month] || '';
-        dateFormatted = `${dayOfWeek}, ${day} ${monthName}`;
-    }
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const d = new Date(year, month, day);
+    const dayOfWeek = WEEKDAYS_RU[d.getDay()];
+    const monthName = MONTHS_RU_FULL[month] || '';
+    const dateFormatted = `${dayOfWeek}, ${day} ${monthName}`;
 
     const label = `${dateFormatted} в ${parsed.timeLabel} (${kindLabel})`;
 
@@ -612,13 +606,13 @@ export function computeAllDaysSummary(hourly, referenceDate = new Date()) {
         let kindNote = '';
         if (kind === 'past') kindNote = ' (архив)';
         else if (kind === 'today') kindNote = ' (сегодня)';
-        else if (kind === 'forecast') kindNote = ' (прогноз)';
+        else kindNote = ' (прогноз)';
 
         const year = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
         const day = parseInt(parts[2], 10);
         const d = new Date(year, month, day);
-        const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
+        const dayOfWeek = WEEKDAYS_RU[d.getDay()];
         const monthName = MONTHS_RU_FULL[month] || '';
         const hourStr = String(hour).padStart(2, '0') + ':00';
         return `${dayOfWeek}, ${day} ${monthName} в ${hourStr}${kindNote}`;
@@ -730,17 +724,14 @@ export function computeAllDaysSummary(hourly, referenceDate = new Date()) {
         const avgPm10 = pm10List.length > 0 ? Number((pm10List.reduce((a, b) => a + b, 0) / pm10List.length).toFixed(1)) : null;
 
         const parts = dateStr.split('-');
-        let dayLabel = dateStr;
-        if (parts.length === 3) {
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const day = parseInt(parts[2], 10);
-            const d = new Date(year, month, day);
-            const dayOfWeek = WEEKDAYS_RU[d.getDay()] || '';
-            const monthName = MONTHS_RU[month] || '';
-            dayLabel = `${dayOfWeek}, ${day} ${monthName}`;
-            if (kind === 'today') dayLabel += ' (Сегодня)';
-        }
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        const dayOfWeek = WEEKDAYS_RU[d.getDay()];
+        const monthName = MONTHS_RU[month] || '';
+        let dayLabel = `${dayOfWeek}, ${day} ${monthName}`;
+        if (kind === 'today') dayLabel += ' (Сегодня)';
 
         return {
             date: dateStr,

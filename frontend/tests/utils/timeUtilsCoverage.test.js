@@ -97,5 +97,23 @@ describe('timeUtilsCoverage', () => {
 
     expect(isForecastTime('2026-10-23T18:00', '2026-10-23')).toBe(true);
     expect(isForecastTime('2026-10-23T18:00', 'invalid-ref')).toBe(false);
+    expect(isForecastTime('2026-10-23T18:00', 12345)).toBe(false);
+    expect(isForecastTime('2026-10-23T18:00', '2026-15-99')).toBe(false);
+
+    expect(formatSelectedTimeInfo('2026-10-23T12:00', 12345).kind).toBe('current');
+    expect(formatSelectedTimeInfo('2026-10-23T12:00', 'bad-ref').kind).toBe('current');
+    expect(formatSelectedTimeInfo('2026-15-01T12:00', '2026-15-01T12:00').label).toContain('в 12:00');
+
+    const badMonthHourly = {
+      time: ['2026-15-01T12:00'],
+      european_aqi: [25]
+    };
+    expect(computeAirHistory(badMonthHourly, '2026-16-01T12:00').pastDays[0].dayLabel).toContain('1');
+    const summaryBadMonth = computeAllDaysSummary({
+      time: ['2026-15-01T12:00', '2026-10-22T12:00', '2026-10-22T13:00'],
+      european_aqi: [25, 50, 20]
+    }, null);
+    expect(summaryBadMonth.days).toHaveLength(2);
+    expect(summaryBadMonth.days[1].dayLabel).toContain('1');
   });
 });

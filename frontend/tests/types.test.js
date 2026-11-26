@@ -158,6 +158,10 @@ describe('types.getAqiInfo', () => {
             expect(getAqiInfo(null, { colorBlind: true, colorBlindType: 'tritanopia' }).hex).toBe('#9E9E9E');
         });
 
+        it('для неизвестного colorBlindType использует палитру Okabe-Ito по умолчанию', () => {
+            expect(getAqiInfo(10, { colorBlind: true, colorBlindType: 'unknown_palette' }).hex).toBe('#0072B2');
+        });
+
         it('экспортирует COLORBLIND_PALETTES со всеми 4 видами дальтонизма', () => {
             expect(COLORBLIND_PALETTES.okabe).toBeDefined();
             expect(COLORBLIND_PALETTES.deuteranopia).toBeDefined();

@@ -531,10 +531,10 @@ describe('Service: spatialCacheService (Пространственное кэш�
         });
     });
         it('возвращает memDeleted при ошибке db.run в clearSpatialCache', async () => {
-            spatialCacheService.setSpatialCache('grid_micro_test_1', { data: 1 }, 100);
+            await spatialCacheService.setSpatialCache('grid_micro_test_1', { data: 1 }, 100);
             mockDb.run.mockRejectedValueOnce(new Error('DB run error'));
-            const deleted = await spatialCacheService.clearSpatialCache('micro');
-            expect(deleted).toBe(0);
+            const deleted = await spatialCacheService.clearSpatialCache('grid_micro_%');
+            expect(deleted).toBe(1);
         });
 
         it('покрывает граничные ветки quantizeCoordinates, getSpatialCacheEntry, isRecordSavedToday и дефолтные аргументы', async () => {
@@ -574,5 +574,13 @@ describe('Service: spatialCacheService (Пространственное кэш�
             mockDb.get.mockResolvedValueOnce(null);
             const defSavedRes = await spatialCacheService.isMacroGridSavedToday();
             expect(defSavedRes).toBe(false);
+
+            dbConfig.getDB.mockReturnValue(null);
+            expect(await spatialCacheService.getSpatialCacheEntry('missing_mem_entry_xyz')).toBeNull();
+
+            jest.setSystemTime(0);
+            await spatialCacheService.setSpatialCache('zero_epoch_mem_key', { ok: true }, 3600);
+            const zeroEpochEntry = await spatialCacheService.getSpatialCacheEntry('zero_epoch_mem_key');
+            expect(zeroEpochEntry.updatedAt).toBe(3600 * 1000);
         });
     });
